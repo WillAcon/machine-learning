@@ -1,0 +1,405 @@
+<article class="lesson" id="l-m0-l1" data-title="¿Qué es la inteligencia artificial?">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 0.1</div>
+              <h2>¿Qué es la inteligencia artificial?</h2>
+              <div class="lesson-meta"><span>12 min de lectura</span><span class="sep"></span><span>Conceptual</span><span class="sep"></span><span>Nivel básico</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m0-l1"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">La <strong>Inteligencia Artificial (IA)</strong> es la disciplina que estudia cómo construir sistemas capaces de realizar tareas que, cuando las realiza un humano, requieren inteligencia: percibir, razonar, aprender, decidir, comunicar o actuar.</p>
+
+            <h3>¿Por qué existe?</h3>
+            <p>Existe porque hay problemas que no queremos —o no podemos— resolver escribiendo reglas explícitas. Programar a mano un detector de spam es frágil: el correo malicioso cambia cada semana. En cambio, podemos mostrarle miles de ejemplos etiquetados y dejar que el sistema descubra patrones. La IA busca automatizar la <em>toma de decisiones</em> en entornos complejos, ambiguos o cambiantes.</p>
+
+            <div class="callout info">
+              <span class="callout-title">Definición operativa</span>
+              Un sistema es <strong>inteligente</strong> —en el sentido de la IA— si puede alcanzar objetivos en una variedad de entornos, incluyendo entornos nuevos, con autonomía razonable y sin que cada situación haya sido programada explícitamente.
+            </div>
+
+            <h3>Cuatro formas clásicas de definir IA</h3>
+            <p>Russell y Norvig organizan las definiciones en dos ejes: <em>pensar vs. actuar</em> y <em>como humanos vs. racionalmente</em>. Esto produce cuatro familias:</p>
+            <div class="grid-2">
+              <div class="algo-card"><span class="tag">Pensar como humano</span><h4>Modelado cognitivo</h4><p>Reproducir los mecanismos de la mente humana (psicología cognitiva, neurociencia).</p></div>
+              <div class="algo-card"><span class="tag">Actuar como humano</span><h4>Test de Turing</h4><p>Evaluar si una máquina se comporta de forma indistinguible de una persona en una conversación.</p></div>
+              <div class="algo-card"><span class="tag">Pensar racionalmente</span><h4>Leyes del pensamiento</h4><p>Formalizar el razonamiento correcto con lógica y probabilidad.</p></div>
+              <div class="algo-card"><span class="tag">Actuar racionalmente</span><h4>Agentes racionales</h4><p>Maximizar el rendimiento esperado dado lo que el agente sabe y puede hacer. Es el enfoque dominante en IA moderna.</p></div>
+            </div>
+
+            <h3>El agente inteligente</h3>
+            <p>Un <strong>agente</strong> es cualquier entidad que percibe su entorno mediante <em>sensores</em> y actúa sobre él mediante <em>actuadores</em>. Formalmente, buscamos una <strong>política</strong> $\pi$ que asigne a cada situación $s$ una acción $a=\pi(s)$ que maximice una medida de utilidad.</p>
+            <div class="formula">
+              <span class="formula-label">Objetivo del agente racional</span>
+              $$a^{*} = \arg\max_{a \in \mathcal{A}} \; \mathbb{E}\left[\,U(s_{t+1}) \mid s_t=s,\; a_t=a \,\right]$$
+              <span class="formula-caption">$\mathcal{A}$: conjunto de acciones; $U$: utilidad; la esperanza se toma sobre los resultados inciertos de la acción.</span>
+            </div>
+            <p>Esta ecuación ya contiene las tres ideas que veremos durante todo el curso: un <em>objetivo</em> ($U$), un <em>modelo del entorno</em> (la distribución de resultados) y un <em>procedimiento de optimización</em> ($\arg\max$).</p>
+
+            <h3>IA débil, IA general y superinteligencia</h3>
+            <ul>
+              <li><strong>IA estrecha (narrow AI):</strong> especializada en una tarea. Es la que existe hoy: traductores, recomendadores, asistentes de código, sistemas de diagnóstico.</li>
+              <li><strong>IA general (AGI):</strong> hipotética capacidad de aprender y desempeñarse en cualquier tarea cognitiva humana. No existe todavía.</li>
+              <li><strong>Superinteligencia:</strong> escenario especulativo de un sistema que supera ampliamente a los humanos en todos los dominios. Es objeto de debate filosófico y de seguridad, no de ingeniería establecida.</li>
+            </ul>
+            <div class="callout warn">
+              <span class="callout-title">Precisión conceptual</span>
+              «La IA piensa» o «la IA quiere» son atajos antropomórficos. Un modelo de lenguaje predice tokens; no tiene intenciones ni comprensión humana del mundo. Usaremos lenguaje técnico: el modelo <em>estima</em>, <em>optimiza</em>, <em>generaliza</em> o <em>falla</em>.
+            </div>
+
+            <h3>Ramas de la IA</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Rama</th><th>Pregunta central</th><th>Ejemplo</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Búsqueda y planificación</strong></td><td>¿Qué secuencia de acciones me lleva a la meta?</td><td>A*, minimax, planificación logística</td></tr>
+                  <tr><td><strong>Representación del conocimiento</strong></td><td>¿Cómo almaceno y razono con hechos?</td><td>Lógica, ontologías, sistemas expertos</td></tr>
+                  <tr><td><strong>Machine Learning</strong></td><td>¿Cómo aprendo de datos sin reglas explícitas?</td><td>Regresión, árboles, redes neuronales</td></tr>
+                  <tr><td><strong>Procesamiento de lenguaje</strong></td><td>¿Cómo entiendo y genero lenguaje?</td><td>Traducción, chatbots, LLMs</td></tr>
+                  <tr><td><strong>Visión por computador</strong></td><td>¿Cómo interpreto imágenes?</td><td>Detección de objetos, segmentación</td></tr>
+                  <tr><td><strong>Robótica</strong></td><td>¿Cómo actúo físicamente en el mundo?</td><td>Navegación, manipulación</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout tip">
+              <span class="callout-title">Idea clave</span>
+              La IA no es una sola técnica: es un conjunto de métodos unidos por un objetivo —construir sistemas que actúen racionalmente— y por un criterio de evaluación —qué tan bien cumplen su tarea, no cuán «humanos» parecen.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 0.1 · Identificar el tipo de problema</summary>
+            <div class="answer">
+              <p>Clasifica cada caso como búsqueda, representación del conocimiento, aprendizaje supervisado, aprendizaje no supervisado o aprendizaje por refuerzo:</p>
+              <ol>
+                <li>Un GPS calcula la ruta más rápida entre dos ciudades.</li>
+                <li>Un banco agrupa clientes con hábitos de consumo similares.</li>
+                <li>Un sistema aprende a jugar ajedrez recibiendo recompensas por ganar.</li>
+                <li>Un hospital predice si un paciente tendrá diabetes a partir de análisis clínicos etiquetados.</li>
+                <li>Un motor de reglas deduce si una transacción cumple una normativa fiscal.</li>
+              </ol>
+              <p><strong>Respuestas:</strong> 1) búsqueda; 2) no supervisado (clustering); 3) refuerzo; 4) supervisado (clasificación); 5) representación del conocimiento / sistemas expertos.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- 0.2 -->
+        <article class="lesson" id="l-m0-l2" data-title="¿Qué es Machine Learning?">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 0.2</div>
+              <h2>¿Qué es Machine Learning?</h2>
+              <div class="lesson-meta"><span>14 min de lectura</span><span class="sep"></span><span>Conceptual + formalización</span><span class="sep"></span><span>Nivel básico</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m0-l2"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead"><strong>Machine Learning (ML)</strong> es el subcampo de la IA que construye programas cuyo rendimiento mejora con la experiencia. En lugar de programar la regla «si el correo contiene X, entonces es spam», el sistema <em>infiere</em> la regla a partir de ejemplos.</p>
+
+            <h3>La definición de Tom Mitchell (1997)</h3>
+            <div class="callout info">
+              <span class="callout-title">Definición canónica</span>
+              Un programa aprende de una <strong>experiencia</strong> $E$ con respecto a una <strong>tarea</strong> $T$ y una <strong>medida de rendimiento</strong> $P$, si su rendimiento en $T$, medido por $P$, mejora con $E$.
+            </div>
+            <p>Esta definición es exigente: obliga a especificar <em>qué</em> se aprende, <em>con qué datos</em> y <em>cómo se mide el éxito</em>. Un sistema que «aprende» pero no mejora en una métrica relevante no cumple la definición.</p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">T</span> Ejemplo: filtro de spam</div>
+              <div class="example-body">
+                <div class="step"><span class="step-n">T</span><div><strong>Tarea $T$:</strong> decidir si un correo es spam o no. Es una <em>clasificación binaria</em>.</div></div>
+                <div class="step"><span class="step-n">E</span><div><strong>Experiencia $E$:</strong> 50 000 correos históricos etiquetados por usuarios como «spam» o «no spam».</div></div>
+                <div class="step"><span class="step-n">P</span><div><strong>Rendimiento $P$:</strong> porcentaje de correos clasificados correctamente, o mejor, <em>F1-score</em> de la clase spam (ver Módulo 6).</div></div>
+                <div class="step"><span class="step-n">✓</span><div>El sistema cumple la definición si, tras procesar $E$, su F1 sobre correos nuevos mejora respecto a la versión anterior. No basta con memorizar los 50 000 correos: eso no es aprender, es copiar.</div></div>
+              </div>
+            </div>
+
+            <h3>Paradigma fundamental: aproximar una función desconocida</h3>
+            <p>En la mayoría de los problemas de ML suponemos que existe una relación desconocida $f$ entre las variables de entrada $X$ y la salida $Y$:</p>
+            <div class="formula">
+              <span class="formula-label">Modelo generador</span>
+              $$Y = f(X) + \varepsilon, \qquad \mathbb{E}[\varepsilon \mid X] = 0$$
+              <span class="formula-caption">$X$ puede ser un vector de muchas características; $\varepsilon$ es ruido irreducible (medición, variables omitidas, azar).</span>
+            </div>
+            <p>Nuestro objetivo es encontrar una función $\hat{f}$ —el <strong>modelo</strong>— entrenada con datos, tal que $\hat{f}(x) \approx f(x)$ para observaciones nuevas. La distancia entre $\hat{f}$ y $f$ se mide con una <strong>función de pérdida</strong> y se estima sobre datos no vistos.</p>
+
+            <div class="callout warn">
+              <span class="callout-title">Distinción crucial</span>
+              <strong>Modelo</strong> es la función $\hat{f}$ (por ejemplo, una recta con parámetros). <strong>Algoritmo</strong> es el procedimiento que ajusta esos parámetros (por ejemplo, mínimos cuadrados o descenso del gradiente). Un mismo algoritmo puede entrenar modelos distintos.
+            </div>
+
+            <h3>Los tres grandes paradigmas</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Paradigma</th><th>Datos</th><th>Objetivo</th><th>Ejemplos</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Supervisado</strong></td><td>Pares $(x_i, y_i)$ con etiqueta</td><td>Aprender el mapeo $x \mapsto y$</td><td>Regresión, clasificación</td></tr>
+                  <tr><td><strong>No supervisado</strong></td><td>Solo $x_i$, sin etiquetas</td><td>Descubrir estructura</td><td>Clustering, PCA, anomalías</td></tr>
+                  <tr><td><strong>Por refuerzo</strong></td><td>Interacción con recompensas</td><td>Maximizar recompensa acumulada</td><td>Juegos, robótica, control</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Existen además paradigmas intermedios: <em>semi-supervisado</em> (pocas etiquetas, muchos datos sin etiquetar), <em>auto-supervisado</em> (las etiquetas se generan a partir de los propios datos, base de los LLM) y <em>aprendizaje por transferencia</em> (reutilizar un modelo entrenado en otra tarea).</p>
+
+            <h3>¿Por qué funciona? El supuesto de generalización</h3>
+            <p>El ML no es magia: se apoya en que los datos de entrenamiento y los datos futuros provienen de una distribución similar. Si entrenamos un modelo con radiografías de un hospital y lo desplegamos en otro país con equipos distintos, la distribución cambió y el rendimiento puede desplomarse. A esto se le llama <strong>cambio de distribución</strong> (<em>distribution shift</em>) y lo estudiaremos en MLOps.</p>
+            <div class="formula">
+              <span class="formula-label">Supuesto i.i.d. (simplificado)</span>
+              $$(x_i, y_i) \sim \mathcal{D} \quad \text{para todo } i, \qquad \text{objetivo: minimizar } \mathbb{E}_{(x,y)\sim\mathcal{D}}\left[\ell(\hat{f}(x), y)\right]$$
+              <span class="formula-caption">$\mathcal{D}$ es la distribución de datos; $\ell$ es la pérdida. En la práctica solo vemos una muestra finita de $\mathcal{D}$.</span>
+            </div>
+
+            <h3>ML frente a la programación tradicional</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th></th><th>Programación clásica</th><th>Machine Learning</th></tr></thead>
+                <tbody>
+                  <tr><td>Entrada</td><td>Datos + reglas</td><td>Datos + respuestas</td></tr>
+                  <tr><td>Salida</td><td>Respuestas</td><td>Reglas (modelo)</td></tr>
+                  <tr><td>Mantenimiento</td><td>Un humano edita las reglas</td><td>El sistema se reentrena con nuevos datos</td></tr>
+                  <tr><td>Fortaleza</td><td>Transparencia, determinismo</td><td>Escalabilidad, patrones complejos</td></tr>
+                  <tr><td>Debilidad</td><td>Frágil ante casos no previstos</td><td>Requiere datos, puede fallar de forma opaca</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout tip">
+              <span class="callout-title">Regla práctica</span>
+              Si puedes escribir la regla con claridad y mantenimiento razonable, hazlo. Usa ML cuando la regla sea desconocida, demasiado compleja o cambie con el tiempo, y cuando dispongas de datos representativos.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 0.2 · Definir T, E y P</summary>
+            <div class="answer">
+              <p>Para cada caso, especifica tarea $T$, experiencia $E$ y medida $P$:</p>
+              <ol>
+                <li>Predecir el precio de una vivienda.</li>
+                <li>Detectar tumores malignos en imágenes de mamografía.</li>
+                <li>Recomendar películas a usuarios.</li>
+              </ol>
+              <p><strong>Orientación:</strong> 1) $T$: regresión del precio; $E$: historial de ventas con características; $P$: MAE o RMSE en euros. 2) $T$: clasificación binaria; $E$: imágenes etiquetadas por biopsia; $P$: sensibilidad a una especificidad fija, o AUC. 3) $T$: ranking de ítems; $E$: interacciones usuario–ítem; $P$: precision@k, recall@k o NDCG.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- 0.3 -->
+        <article class="lesson" id="l-m0-l3" data-title="¿Qué es Deep Learning?">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 0.3</div>
+              <h2>¿Qué es Deep Learning?</h2>
+              <div class="lesson-meta"><span>13 min de lectura</span><span class="sep"></span><span>Conceptual + diagrama</span><span class="sep"></span><span>Nivel básico</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m0-l3"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead"><strong>Deep Learning (DL)</strong> es una familia de modelos de ML basados en redes neuronales con muchas capas apiladas. Cada capa transforma la representación de la entrada; las capas profundas aprenden abstracciones cada vez más complejas.</p>
+
+            <h3>La jerarquía IA ⊃ ML ⊃ DL</h3>
+            <p>No son sinónimos. La IA es el objetivo amplio; el ML es la rama que aprende de datos; el DL es una técnica dentro del ML. Podemos visualizarlo así:</p>
+            <div class="figure">
+              <div class="figure-frame">
+                <svg class="svg-diagram" viewBox="0 0 620 330" role="img" aria-label="Diagrama de conjuntos: IA contiene ML, que contiene DL">
+                  <defs>
+                    <linearGradient id="gIA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3355c8" stop-opacity=".16"/><stop offset="1" stop-color="#3355c8" stop-opacity=".05"/></linearGradient>
+                    <linearGradient id="gML" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0e7c6b" stop-opacity=".18"/><stop offset="1" stop-color="#0e7c6b" stop-opacity=".06"/></linearGradient>
+                    <linearGradient id="gDL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a86a12" stop-opacity=".22"/><stop offset="1" stop-color="#a86a12" stop-opacity=".08"/></linearGradient>
+                  </defs>
+                  <rect x="14" y="14" width="592" height="302" rx="26" fill="url(#gIA)" stroke="#3355c8" stroke-opacity=".45"/>
+                  <text x="42" y="48" font-size="15" font-weight="700" fill="#3355c8">Inteligencia Artificial</text>
+                  <text x="42" y="68" font-size="11" fill="currentColor" opacity=".62">Razonar, planificar, percibir, decidir</text>
+                  <rect x="70" y="92" width="480" height="200" rx="22" fill="url(#gML)" stroke="#0e7c6b" stroke-opacity=".5"/>
+                  <text x="96" y="124" font-size="14" font-weight="700" fill="#0e7c6b">Machine Learning</text>
+                  <text x="96" y="142" font-size="11" fill="currentColor" opacity=".62">Aprender patrones a partir de datos</text>
+                  <rect x="132" y="166" width="356" height="100" rx="18" fill="url(#gDL)" stroke="#a86a12" stroke-opacity=".55"/>
+                  <text x="156" y="196" font-size="13.5" font-weight="700" fill="#a86a12">Deep Learning</text>
+                  <text x="156" y="214" font-size="10.5" fill="currentColor" opacity=".65">Redes neuronales profundas</text>
+                  <text x="156" y="242" font-size="10.5" fill="currentColor" opacity=".55">CNN · RNN · Transformers</text>
+                  <text x="474" y="190" font-size="10" fill="currentColor" opacity=".55">Sistemas expertos</text>
+                  <text x="474" y="205" font-size="10" fill="currentColor" opacity=".55">Búsqueda A*</text>
+                  <text x="474" y="220" font-size="10" fill="currentColor" opacity=".55">Lógica</text>
+                  <text x="490" y="262" font-size="10" fill="currentColor" opacity=".55">SVM, árboles,</text>
+                  <text x="490" y="276" font-size="10" fill="currentColor" opacity=".55">regresión</text>
+                </svg>
+              </div>
+              <figcaption>Relación conceptual. El DL es una subfamilia del ML; no todo el ML usa redes neuronales.</figcaption>
+            </div>
+
+            <h3>¿Qué hace «profunda» a una red?</h3>
+            <p>Una red neuronal es una composición de funciones:</p>
+            <div class="formula">
+              <span class="formula-label">Red de $L$ capas</span>
+              $$h^{(0)} = x, \qquad h^{(\ell)} = \sigma\left(W^{(\ell)} h^{(\ell-1)} + b^{(\ell)}\right), \qquad \hat{y} = h^{(L)}$$
+              <span class="formula-caption">$W^{(\ell)}$: matriz de pesos; $b^{(\ell)}$: sesgo; $\sigma$: función de activación no lineal (ReLU, tanh, etc.).</span>
+            </div>
+            <p>La profundidad permite <strong>composición jerárquica</strong>: en visión, las primeras capas detectan bordes, las intermedias texturas y partes, las profundas objetos completos. En lenguaje, las primeras capas capturan morfología y las profundas relaciones semánticas y de largo alcance.</p>
+
+            <div class="callout math">
+              <span class="callout-title">Por qué la no linealidad es imprescindible</span>
+              Si todas las capas fueran lineales, su composición seguiría siendo lineal: $W_2(W_1x) = (W_2W_1)x$. La red colapsaría a un solo modelo lineal. Las activaciones no lineales son lo que permite aproximar funciones arbitrariamente complejas (teorema de aproximación universal).
+            </div>
+
+            <h3>¿Por qué explotó el DL a partir de 2012?</h3>
+            <ul>
+              <li><strong>Datos:</strong> ImageNet (2009) y la web masiva proporcionaron millones de ejemplos etiquetados.</li>
+              <li><strong>Cómputo:</strong> las GPU permitieron entrenar redes grandes en días en lugar de décadas.</li>
+              <li><strong>Algoritmos:</strong> ReLU, dropout, batch normalization, inicialización adecuada y optimizadores como Adam estabilizaron el entrenamiento profundo.</li>
+              <li><strong>Infraestructura:</strong> frameworks como TensorFlow y PyTorch redujeron la barrera de implementación.</li>
+            </ul>
+            <p>En 2012, AlexNet redujo el error top-5 de ImageNet de ≈26% a ≈15% y marcó el inicio de la era moderna del DL. En 2017, el artículo <em>Attention Is All You Need</em> introdujo el Transformer, arquitectura que sostiene la mayoría de los modelos de lenguaje actuales.</p>
+
+            <h3>Cuándo usar DL (y cuándo no)</h3>
+            <div class="two-col">
+              <div>
+                <h4>Brilla cuando…</h4>
+                <ul>
+                  <li>Hay datos no estructurados: imágenes, audio, texto, video.</li>
+                  <li>Existen millones de ejemplos o se dispone de un modelo preentrenado.</li>
+                  <li>La relación es muy no lineal y las features son difíciles de diseñar a mano.</li>
+                  <li>Se necesita aprender representaciones, no solo predecir.</li>
+                </ul>
+              </div>
+              <div>
+                <h4>No es la primera opción si…</h4>
+                <ul>
+                  <li>Hay pocos datos tabulares (cientos o miles de filas).</li>
+                  <li>La interpretabilidad es un requisito legal fuerte.</li>
+                  <li>Un modelo lineal o un árbol con boosting ya alcanza el rendimiento necesario.</li>
+                  <li>El costo de inferencia o de energía es crítico.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="callout tip">
+              <span class="callout-title">Mito frecuente</span>
+              «DL siempre supera a ML clásico». Falso. En datos tabulares pequeños y medianos, gradient boosting (XGBoost, LightGBM) suele igualar o superar a las redes neuronales con mucho menos costo. La elección depende del problema, los datos y las restricciones.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 0.3 · IA, ML o DL</summary>
+            <div class="answer">
+              <p>Clasifica: (a) un sistema de reglas que aprueba créditos según umbrales fijos; (b) una regresión logística entrenada con datos; (c) un Transformer que traduce texto; (d) un algoritmo genético que optimiza una ruta; (e) una CNN que detecta neumonía.</p>
+              <p><strong>Respuestas:</strong> (a) IA simbólica, no ML; (b) ML, no DL; (c) DL (y ML, e IA); (d) IA/búsqueda metaheurística, no ML necesariamente; (e) DL. El ejercicio muestra que «IA» es el término paraguas y que no todo sistema inteligente aprende de datos.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- 0.4 -->
+        <article class="lesson" id="l-m0-l4" data-title="Historia y evolución">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 0.4</div>
+              <h2>Historia y evolución de la IA</h2>
+              <div class="lesson-meta"><span>11 min de lectura</span><span class="sep"></span><span>Contexto</span><span class="sep"></span><span>Nivel básico</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m0-l4"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">La IA no nació con ChatGPT. Es el resultado de más de setenta años de avances, fracasos y resurgimientos. Conocer esta historia evita repetir errores y ayuda a distinguir una tendencia real de una moda.</p>
+
+            <div class="timeline">
+              <div class="tl-item"><div class="year">1943</div><h4>Neurona de McCulloch–Pitts</h4><p>Primer modelo matemático de una neurona artificial: una función de umbral con entradas binarias.</p></div>
+              <div class="tl-item"><div class="year">1950</div><h4>Test de Turing</h4><p>Alan Turing propone evaluar la inteligencia por la indistinguibilidad conversacional, no por el mecanismo interno.</p></div>
+              <div class="tl-item"><div class="year">1956</div><h4>Conferencia de Dartmouth</h4><p>Se acuña el término «inteligencia artificial». Nace la disciplina como campo de investigación.</p></div>
+              <div class="tl-item"><div class="year">1958</div><h4>Perceptrón de Rosenblatt</h4><p>Primer algoritmo de aprendizaje para un clasificador lineal; gran entusiasmo y luego críticas (Minsky y Papert, 1969) por su incapacidad de resolver XOR.</p></div>
+              <div class="tl-item"><div class="year">1970–1980</div><h4>Primer «invierno de la IA»</h4><p>Las promesas superan los resultados; se recortan fondos. Sobreviven enfoques simbólicos y sistemas expertos.</p></div>
+              <div class="tl-item"><div class="year">1986</div><h4>Backpropagation popularizado</h4><p>Rumelhart, Hinton y Williams muestran cómo entrenar redes multicapa con la regla de la cadena. Resurge el conexionismo.</p></div>
+              <div class="tl-item"><div class="year">1990–2000</div><h4>Auge del ML estadístico</h4><p>SVM, boosting, bosques aleatorios y métodos probabilísticos desplazan a los sistemas expertos. La evaluación con datos se vuelve estándar.</p></div>
+              <div class="tl-item"><div class="year">2009</div><h4>ImageNet</h4><p>Base de datos de más de 14 millones de imágenes etiquetadas; habilita benchmarks masivos de visión.</p></div>
+              <div class="tl-item"><div class="year">2012</div><h4>AlexNet</h4><p>Una CNN profunda gana ImageNet con amplio margen usando GPU. Comienza la era del Deep Learning.</p></div>
+              <div class="tl-item"><div class="year">2014</div><h4>GANs y seq2seq</h4><p>Redes generativas adversarias y modelos secuencia-a-secuencia transforman la generación de imágenes y la traducción.</p></div>
+              <div class="tl-item"><div class="year">2017</div><h4>Transformer</h4><p><em>Attention Is All You Need</em> elimina la recurrencia y permite entrenamiento paralelo a gran escala.</p></div>
+              <div class="tl-item"><div class="year">2018–2020</div><h4>BERT y GPT</h4><p>El preentrenamiento auto-supervisado a gran escala se vuelve el paradigma dominante en NLP.</p></div>
+              <div class="tl-item"><div class="year">2022–hoy</div><h4>Modelos generativos masivos</h4><p>Difusión para imágenes y LLMs conversacionales. La IA generativa entra en productos de uso masivo y se plantean nuevos retos de evaluación, seguridad y regulación.</p></div>
+            </div>
+
+            <h3>Tres lecciones de la historia</h3>
+            <ol>
+              <li><strong>El entusiasmo no sustituye la evidencia.</strong> Cada invierno de la IA siguió a promesas que no se pudieron medir ni reproducir. La cultura de benchmarks y validación existe por esta razón.</li>
+              <li><strong>Los cuellos de botella cambian.</strong> Ayer fue el cómputo; hoy son los datos de calidad, la evaluación, la eficiencia energética y la confiabilidad.</li>
+              <li><strong>Las ideas viejas vuelven con mejores recursos.</strong> Las redes neuronales de los años cincuenta son la base del DL actual; la diferencia es escala, datos y optimización.</li>
+            </ol>
+
+            <div class="callout history">
+              <span class="callout-title">Dato</span>
+              El término «inteligencia artificial» se atribuye a John McCarthy, quien lo propuso para la conferencia de Dartmouth de 1956. La propuesta original especulaba que cada aspecto del aprendizaje podría describirse con tanta precisión que una máquina podría simularlo. Setenta años después, seguimos trabajando en esa agenda.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 0.4 · Línea de tiempo</summary>
+            <div class="answer">
+              <p>Ordena cronológicamente y explica en una frase la importancia de cada hito: Transformer, AlexNet, Dartmouth, backpropagation, ImageNet, perceptrón.</p>
+              <p><strong>Orden:</strong> perceptrón (1958) → Dartmouth (1956, en realidad anterior; cuidado con la trampa) → backpropagation (1986) → ImageNet (2009) → AlexNet (2012) → Transformer (2017). La trampa es intencional: Dartmouth precede al perceptrón. Verifica siempre las fechas en lugar de asumir una narrativa lineal.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- 0.5 -->
+        <article class="lesson" id="l-m0-l5" data-title="Aplicaciones y tipos de problemas">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 0.5</div>
+              <h2>Aplicaciones y tipos de problemas</h2>
+              <div class="lesson-meta"><span>14 min de lectura</span><span class="sep"></span><span>Panorama aplicado</span><span class="sep"></span><span>Nivel básico</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m0-l5"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Antes de elegir un algoritmo, hay que identificar el <strong>tipo de tarea</strong>. La tarea determina la salida del modelo, la función de pérdida, las métricas y el diseño del experimento.</p>
+
+            <h3>Taxonomía de tareas</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Tarea</th><th>Salida</th><th>Ejemplo real</th><th>Métrica típica</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Regresión</strong></td><td>Número continuo</td><td>Precio de vivienda, demanda eléctrica</td><td>MAE, RMSE, $R^2$</td></tr>
+                  <tr><td><strong>Clasificación binaria</strong></td><td>Una de dos clases</td><td>Spam, fraude, diagnóstico</td><td>ROC-AUC, F1, recall</td></tr>
+                  <tr><td><strong>Clasificación multiclase</strong></td><td>Una de $K$ clases</td><td>Dígitos, especies, tema de noticia</td><td>Accuracy, macro-F1</td></tr>
+                  <tr><td><strong>Clasificación multietiqueta</strong></td><td>Varias etiquetas a la vez</td><td>Etiquetas de una imagen, diagnósticos múltiples</td><td>mAP, micro-F1</td></tr>
+                  <tr><td><strong>Clustering</strong></td><td>Grupos sin etiqueta</td><td>Segmentación de clientes</td><td>Silhouette, Davies–Bouldin</td></tr>
+                  <tr><td><strong>Reducción de dimensionalidad</strong></td><td>Representación comprimida</td><td>Visualización, preprocesamiento</td><td>Varianza explicada</td></tr>
+                  <tr><td><strong>Detección de anomalías</strong></td><td>Puntuación de rareza</td><td>Fraude, fallos industriales</td><td>Precision@k, AUC</td></tr>
+                  <tr><td><strong>Ranking / recomendación</strong></td><td>Lista ordenada</td><td>Películas, productos, búsqueda</td><td>NDCG, MAP, recall@k</td></tr>
+                  <tr><td><strong>Generación</strong></td><td>Texto, imagen, audio</td><td>LLMs, difusión, voz sintética</td><td>Perplejidad, FID, evaluación humana</td></tr>
+                  <tr><td><strong>Secuencia</strong></td><td>Etiquetas por paso</td><td>NER, transcripción, series temporales</td><td>F1 por entidad, error temporal</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Casos de estudio reales</h3>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">Salud</span><h4>Detección de retinopatía diabética</h4><p>CNNs entrenadas con imágenes de fondo de ojo alcanzan sensibilidad cercana a especialistas en estudios controlados. El reto no es solo el modelo: es la generalización entre hospitales y la validación clínica.</p></div>
+              <div class="algo-card"><span class="tag">Finanzas</span><h4>Detección de fraude</h4><p>Clasificación extremadamente desbalanceada (≈0.1% de fraudes). Se prioriza recall y se ajusta el umbral según el costo de falsos positivos y falsos negativos.</p></div>
+              <div class="algo-card"><span class="tag">Industria</span><h4>Mantenimiento predictivo</h4><p>Series temporales de sensores para estimar la vida útil restante de una máquina. Combina feature engineering, modelos de regresión y detección de anomalías.</p></div>
+              <div class="algo-card"><span class="tag">Lenguaje</span><h4>Asistentes y traducción</h4><p>Transformers preentrenados con auto-supervisión; ajuste fino o prompting para tareas específicas. La evaluación humana sigue siendo insustituible en matices.</p></div>
+              <div class="algo-card"><span class="tag">Retail</span><h4>Pronóstico de demanda</h4><p>Regresión con variables de calendario, precio y promociones. Un error del 5% puede valer millones en inventario; la calibración importa tanto como la precisión.</p></div>
+              <div class="algo-card"><span class="tag">Energía</span><h4>Predicción de consumo</h4><p>Modelos jerárquicos por hogar, clima y hora. La incertidumbre se modela explícitamente con intervalos de predicción.</p></div>
+            </div>
+
+            <h3>El ciclo de vida de un proyecto</h3>
+            <ol>
+              <li><strong>Definir el problema y la métrica de negocio.</strong> «Predecir churn» no es un objetivo; «reducir cancelaciones un 10% sin aumentar incentivos más de X» sí lo es.</li>
+              <li><strong>Recolectar y explorar datos.</strong> Calidad, cobertura, sesgos, valores faltantes y fugas de información.</li>
+              <li><strong>Preprocesar y dividir.</strong> Entrenamiento, validación y prueba; pipelines reproducibles.</li>
+              <li><strong>Establecer una línea base.</strong> Un modelo trivial (media, clase mayoritaria) da contexto al rendimiento.</li>
+              <li><strong>Entrenar y comparar modelos.</strong> Validación cruzada, búsqueda de hiperparámetros, análisis de errores.</li>
+              <li><strong>Evaluar y comunicar.</strong> Métricas técnicas + impacto esperado + limitaciones.</li>
+              <li><strong>Desplegar y monitorear.</strong> Data drift, model drift, retroalimentación y reentrenamiento.</li>
+            </ol>
+
+            <div class="callout warn">
+              <span class="callout-title">Advertencia profesional</span>
+              Un modelo con accuracy del 99% puede ser inútil. Si el 99% de los correos no son spam, un clasificador que siempre dice «no spam» acierta el 99% y detecta cero spam. La métrica debe reflejar el costo real de los errores.
+            </div>
+
+            <h3>Ética y responsabilidad</h3>
+            <p>Los sistemas de ML toman decisiones que afectan personas: créditos, diagnósticos, contratación, justicia penal. Un modelo aprende los sesgos presentes en los datos. Por eso son necesarios la auditoría de sesgo, la explicabilidad, la privacidad diferencial y la gobernanza. Estas no son cuestiones opcionales: son parte de la ingeniería de ML responsable.</p>
+
+            <details class="exercise">
+              <summary>Ejercicio 0.5 · Diseñar un caso</summary>
+              <div class="answer">
+                <p>Elige una aplicación de tu interés y responde: ¿qué tipo de tarea es? ¿qué datos necesitarías? ¿qué métrica usarías y por qué? ¿qué errores son más costosos? ¿qué riesgos éticos identificas? Escribe una ficha de media página. Este hábito —pensar antes de modelar— es el que distingue un proyecto viable de uno condenado.</p>
+              </div>
+            </details>
+          </div>
+          <div class="quiz-mount" data-quiz="0"></div>
+        </article>

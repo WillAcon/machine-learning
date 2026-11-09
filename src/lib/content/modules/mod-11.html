@@ -1,0 +1,1523 @@
+<article class="lesson" id="l-m11-l1" data-title="Proyecto 1 · Predicción de precios de vivienda">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Proyecto 11.1</div>
+              <h2>Proyecto 1 · Predicción de precios de vivienda</h2>
+              <div class="lesson-meta"><span>32 min</span><span class="sep"></span><span>Regresión</span><span class="sep"></span><span>California Housing</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m11-l1"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Este primer proyecto recorre el ciclo completo de un problema de regresión: entender el dataset, construir una baseline, detectar fuga de información, comparar modelos y comunicar resultados con incertidumbre. Es deliberadamente pequeño para que puedas repetirlo entero en una tarde.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Formular un problema de regresión con métricas alineadas al coste.</div>
+              <div>Construir una baseline honesta y un pipeline reproducible.</div>
+              <div>Detectar fuga geográfica y duplicados en la partición.</div>
+              <div>Reportar error con intervalos y análisis por subgrupos.</div>
+            </div>
+
+            <h3>El problema</h3>
+            <p>Predecir el valor mediano de una vivienda en un distrito de California a partir de ocho variables censales. El dataset <strong>California Housing</strong> está disponible directamente en Scikit-learn con <code>fetch_california_housing</code>. Contiene 20 640 registros y la variable objetivo está expresada en cientos de miles de dólares (1990).</p>
+
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Variable</th><th>Descripción</th><th>Cuidado</th></tr></thead>
+                <tbody>
+                  <tr><td>MedInc</td><td>Ingreso mediano del bloque</td><td>Unidad censal, no hogar individual</td></tr>
+                  <tr><td>HouseAge</td><td>Edad mediana de las viviendas</td><td>Relación no lineal con el precio</td></tr>
+                  <tr><td>AveRooms / AveBedrms</td><td>Habitaciones y dormitorios promedio</td><td>Valores extremos por bloques pequeños</td></tr>
+                  <tr><td>Population</td><td>Población del bloque</td><td>Puede correlacionar con ruido</td></tr>
+                  <tr><td>AveOccup</td><td>Ocupantes por hogar</td><td>Outliers que distorsionan escaladores</td></tr>
+                  <tr><td>Latitude / Longitude</td><td>Coordenadas del bloque</td><td>Fuga si se parte aleatoriamente por proximidad</td></tr>
+                  <tr><td>MedHouseVal</td><td>Valor mediano (objetivo)</td><td>Está truncado en 5.00001</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">El objetivo está censurado</span>
+              Muchos distritos costosos aparecen con el valor máximo 5.00001. Un modelo lineal puede subestimar sistemáticamente esa región. Revisa cuántos registros están en el tope y considera reportar el error por separado ahí.
+            </div>
+
+            <h3>Preguntas antes de modelar</h3>
+            <ol>
+              <li><strong>¿Qué decisión depende de la predicción?</strong> Si se usa para priorizar tasaciones, el coste de sobreestimar y subestimar puede ser distinto.</li>
+              <li><strong>¿Cuál es la baseline?</strong> Predecir la media o la mediana del entrenamiento. Si tu modelo no la supera, algo está mal.</li>
+              <li><strong>¿La partición refleja el uso real?</strong> Si el modelo se aplicará a distritos nuevos, una partición aleatoria por filas es demasiado optimista porque distritos vecinos comparten información.</li>
+              <li><strong>¿Qué error es aceptable?</strong> Un MAE de 0.5 equivale a 50 000 dólares; juzga en unidades del problema, no solo en la métrica normalizada.</li>
+            </ol>
+
+            <h3>Pipeline y baseline</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">proyecto_vivienda.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+import pandas as pd
+from sklearn.datasets import fetch_california_housing
+from sklearn.model_selection import train_test_split, KFold, cross_validate
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import Ridge
+from sklearn.ensemble import HistGradientBoostingRegressor
+from sklearn.dummy import DummyRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+datos = fetch_california_housing(as_frame=True)
+df = datos.frame
+print(df.shape)
+print(df.describe().T[["mean", "std", "min", "max"]])
+print("tope del objetivo:", (df["MedHouseVal"] >= 5.0).mean())
+
+X = df.drop(columns="MedHouseVal")
+y = df["MedHouseVal"]
+
+# Partición estratificada por precio para que el test cubra todo el rango
+bins = pd.qcut(y, q=5, labels=False)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=bins
+)
+
+baseline = DummyRegressor(strategy="median")
+baseline.fit(X_train, y_train)
+pred_base = baseline.predict(X_test)
+print("MAE baseline:", mean_absolute_error(y_test, pred_base))
+
+modelos = {
+    "ridge": Pipeline([
+        ("imputar", SimpleImputer(strategy="median")),
+        ("escalar", StandardScaler()),
+        ("modelo", Ridge(alpha=1.0))
+    ]),
+    "hist_gb": HistGradientBoostingRegressor(
+        max_iter=400, learning_rate=0.05, max_leaf_nodes=31,
+        l2_regularization=1.0, random_state=42
+    )
+}
+
+cv = KFold(n_splits=5, shuffle=True, random_state=42)
+for nombre, modelo in modelos.items():
+    scores = cross_validate(
+        modelo, X_train, y_train, cv=cv,
+        scoring=("neg_mean_absolute_error", "neg_root_mean_squared_error", "r2"),
+        n_jobs=-1
+    )
+    print(nombre)
+    print("  MAE :", -scores["test_neg_mean_absolute_error"].mean())
+    print("  RMSE:", -scores["test_neg_root_mean_squared_error"].mean())
+    print("  R2  :", scores["test_r2"].mean())
+
+# Ajuste final y evaluación única sobre test
+final = modelos["hist_gb"].fit(X_train, y_train)
+pred = final.predict(X_test)
+
+mae = mean_absolute_error(y_test, pred)
+rmse = np.sqrt(mean_squared_error(y_test, pred))
+r2 = r2_score(y_test, pred)
+print(f"test  MAE={mae:.3f}  RMSE={rmse:.3f}  R2={r2:.3f}")
+
+# Error por rango de precio: un promedio global puede ocultar fallos
+cortes = [0, 1.5, 2.5, 3.5, 5.1]
+etiquetas = ["bajo", "medio-bajo", "medio-alto", "alto"]
+grupo = pd.cut(y_test, bins=cortes, labels=etiquetas)
+analisis = pd.DataFrame({"real": y_test, "pred": pred, "grupo": grupo})
+print(analisis.groupby("grupo", observed=True).apply(
+    lambda d: pd.Series({
+        "n": len(d),
+        "MAE": np.mean(np.abs(d.real - d.pred)),
+        "sesgo": np.mean(d.pred - d.real)
+    })
+))</code></pre></div>
+
+            <h3>Fuga de información geográfica</h3>
+            <p>La partición aleatoria mezcla distritos vecinos entre train y test. Como latitude y longitude están en las features y los precios son espacialmente suaves, el modelo puede «reconocer» la zona en lugar de generalizar. Si el objetivo es predecir distritos nuevos, usa una partición por región:</p>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">split_espacial.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.cluster import KMeans
+from sklearn.model_selection import GroupShuffleSplit
+
+# Agrupa coordenadas en 20 regiones approx. y separa regiones completas
+coords = X[["Latitude", "Longitude"]]
+regiones = KMeans(n_clusters=20, n_init=10, random_state=42).fit_predict(coords)
+
+gss = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
+train_idx, test_idx = next(gss.split(X, y, groups=regiones))
+X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+
+# Ninguna región debe aparecer en ambos lados
+print(set(regiones[train_idx]) & set(regiones[test_idx]))   # set()</code></pre></div>
+            <p>La segunda versión suele dar un error mayor y más honesto. Esa diferencia es exactamente la fuga que la partición aleatoria ocultaba.</p>
+
+            <h3>Criterios de evaluación</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Criterio</th><th>Insuficiente</th><th>Aceptable</th><th>Excelente</th></tr></thead>
+                <tbody>
+                  <tr><td>Formulación</td><td>Sin métrica ni baseline</td><td>Métrica definida y baseline</td><td>Métrica ligada al coste y análisis de errores</td></tr>
+                  <tr><td>Datos</td><td>Sin EDA</td><td>EDA básico y outliers</td><td>EDA, censura del target y análisis espacial</td></tr>
+                  <tr><td>Validación</td><td>Un solo split</td><td>K-fold</td><td>K-fold + partición espacial comparada</td></tr>
+                  <tr><td>Modelo</td><td>Solo un modelo sin justificar</td><td>Baseline + 2 modelos</td><td>Selección justificada con dispersión entre folds</td></tr>
+                  <tr><td>Comunicación</td><td>Solo un número</td><td>Tabla de métricas</td><td>Error por subgrupo, sesgo e interpretación</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Entregables</h3>
+            <ul>
+              <li>Notebook o script que reproduzca el pipeline de principio a fin con semilla fija.</li>
+              <li>Tabla comparativa de baseline, Ridge y gradient boosting con media y desviación entre folds.</li>
+              <li>Gráfico de residuos y análisis por rango de precio.</li>
+              <li>Un párrafo con la decisión recomendada y sus limitaciones.</li>
+              <li>Archivo <code>requirements.txt</code> con versiones fijadas.</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">Cómo saber que está bien</span>
+              Otra persona debe poder ejecutar tu notebook desde cero, obtener el mismo número y entender por qué elegiste ese modelo. Un resultado reproducible y explicado vale más que un R² ligeramente mayor sin contexto.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 11.1 · Mejorar con criterio</summary>
+            <div class="answer">
+              <p>Prueba tres mejoras: variables derivadas (habitaciones por persona, ratio de ocupación), transformación logarítmica del target y un modelo con pérdida robusta. Para cada una, reporta el cambio en MAE y en el error del decil más caro. ¿Alguna mejora reduce el error global pero empeora el grupo caro?</p>
+              <p><strong>Orientación:</strong> el logaritmo del target puede ayudar si la distribución es asimétrica, pero complica la interpretación y el error en dólares. Las variables derivadas pueden capturar hacinamiento. Un modelo robusto puede mejorar la mediana del error y empeorar la cola. La decisión depende de qué error importa.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m11-l2" data-title="Proyecto 2 · Clasificación de noticias con 20 Newsgroups">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Proyecto 11.2</div>
+              <h2>Proyecto 2 · Clasificación de noticias con 20 Newsgroups</h2>
+              <div class="lesson-meta"><span>30 min</span><span class="sep"></span><span>NLP clásico</span><span class="sep"></span><span>TF-IDF</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m11-l2"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Clasificar texto en veinte categorías parece un problema resuelto, hasta que descubres que las cabeceras de los mensajes filtran la respuesta. Este proyecto trata tanto de modelar como de limpiar un dataset realista y de interpretar los errores de un clasificador de texto.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Preparar un corpus de texto evitando fuga por metadatos.</div>
+              <div>Comparar representaciones dispersas y modelos lineales.</div>
+              <div>Elegir macro F1 frente a accuracy en clases desbalanceadas.</div>
+              <div>Analizar confusiones y términos discriminativos.</div>
+            </div>
+
+            <h3>Dataset</h3>
+            <p><strong>20 Newsgroups</strong> contiene aproximadamente 18 800 mensajes de Usenet repartidos en 20 grupos temáticos. Scikit-learn ofrece una descarga con particiones oficiales de train y test. Algunos grupos están más relacionados entre sí (por ejemplo, <code>comp.*</code> o <code>rec.*</code>), lo que hace que ciertas confusiones sean esperables.</p>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">cargar_noticias.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.datasets import fetch_20newsgroups
+
+# Quitar cabeceras, pies y citas reduce la fuga de metadatos
+train = fetch_20newsgroups(
+    subset="train", remove=("headers", "footers", "quotes"), shuffle=True,
+    random_state=42
+)
+test = fetch_20newsgroups(
+    subset="test", remove=("headers", "footers", "quotes"), shuffle=True,
+    random_state=42
+)
+
+print(len(train.data), len(test.data))
+print(len(train.target_names), "categorías")
+print(train.target_names[:5])</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Las cabeceras son un atajo</span>
+              Los campos <code>From</code>, <code>Newsgroups</code> y las firmas pueden contener el nombre del grupo. Si los dejas, el modelo aprende a leer la etiqueta en lugar del contenido. Elimínalos y documenta la decisión.
+            </div>
+
+            <h3>Baseline y modelo</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">clasificar_noticias.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import LinearSVC
+from sklearn.pipeline import make_pipeline
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import classification_report, f1_score, confusion_matrix
+import numpy as np
+
+def evaluar(modelo, nombre):
+    modelo.fit(train.data, train.target)
+    pred = modelo.predict(test.data)
+    print(nombre)
+    print("macro F1:", f1_score(test.target, pred, average="macro"))
+    print(classification_report(
+        test.target, pred, target_names=train.target_names, digits=3
+    ))
+    return pred
+
+tfidf = dict(
+    ngram_range=(1, 2), min_df=2, max_df=0.9,
+    sublinear_tf=True, strip_accents="unicode"
+)
+
+lineal = make_pipeline(
+    TfidfVectorizer(**tfidf),
+    LogisticRegression(max_iter=3000, C=2.0, class_weight="balanced")
+)
+pred_lineal = evaluar(lineal, "TF-IDF + regresión logística")
+
+svm = make_pipeline(
+    TfidfVectorizer(**tfidf),
+    LinearSVC(C=1.0, class_weight="balanced")
+)
+pred_svm = evaluar(svm, "TF-IDF + LinearSVC")
+
+# Matriz de confusión: qué categorías se confunden
+matriz = confusion_matrix(test.target, pred_svm)
+pares = []
+for i in range(len(train.target_names)):
+    for j in range(i + 1, len(train.target_names)):
+        if matriz[i, j] + matriz[j, i] > 0:
+            pares.append((matriz[i, j] + matriz[j, i], i, j))
+for n, i, j in sorted(pares, reverse=True)[:8]:
+    print(f"{n:4d}  {train.target_names[i]} <-> {train.target_names[j]}")
+
+# Términos con más peso para una clase
+vocab = np.array(svm.named_steps["tfidfvectorizer"].get_feature_names_out())
+coefs = svm.named_steps["linearsvc"].coef_
+clase = train.target_names.index("sci.space")
+for idx in np.argsort(coefs[clase])[-12:][::-1]:
+    print(f"{vocab[idx]:>24s}  {coefs[clase][idx]:+.3f}")</code></pre></div>
+
+            <h3>Qué mide cada métrica</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Métrica</th><th>Qué responde</th><th>Cuándo usarla</th></tr></thead>
+                <tbody>
+                  <tr><td>Accuracy</td><td>Proporción de aciertos</td><td>Clases balanceadas y errores equivalentes</td></tr>
+                  <tr><td>Macro F1</td><td>Rendimiento promedio por clase</td><td>Clases desbalanceadas o todas importan igual</td></tr>
+                  <tr><td>Micro F1</td><td>Rendimiento global ponderado por tamaño</td><td>Cuando importa el volumen total de aciertos</td></tr>
+                  <tr><td>Matriz de confusión</td><td>Qué clases se confunden</td><td>Siempre, para entender los errores</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Accuracy alta con una clase olvidada</h4></div>
+              <div class="example-body">
+                <p>Si el grupo mayoritario representa el 10 % de los datos y el modelo lo predice siempre, la accuracy es 0.10, pero el F1 macro es aproximadamente $0.10/20=0.005$. En 20 clases, una accuracy del 60 % puede esconder dos o tres clases con recall cercano a cero.</p>
+                <p>Por eso este proyecto reporta macro F1 y la matriz de confusión. La pregunta no es solo «cuántos aciertos», sino «qué categorías quedan sin detectar».</p>
+              </div>
+            </div>
+
+            <h3>Criterios de evaluación</h3>
+            <ul>
+              <li><strong>Datos:</strong> justifica la eliminación de cabeceras y citas; documenta el tamaño y el balance de clases.</li>
+              <li><strong>Modelado:</strong> incluye al menos una baseline (por ejemplo, <code>DummyClassifier</code>) y dos modelos con preprocesado dentro del pipeline.</li>
+              <li><strong>Validación:</strong> usa la partición oficial o una validación cruzada; no ajustes el vectorizador con test.</li>
+              <li><strong>Métricas:</strong> macro F1, informe por clase y matriz de confusión.</li>
+              <li><strong>Interpretación:</strong> explica al menos tres confusiones con evidencia cualitativa.</li>
+            </ul>
+
+            <h3>Entregables</h3>
+            <ul>
+              <li>Script reproducible con carga, limpieza, entrenamiento y evaluación.</li>
+              <li>Tabla de resultados por modelo y por clase.</li>
+              <li>Top de términos por clase para el modelo elegido.</li>
+              <li>Análisis de errores con ejemplos concretos y una propuesta de mejora.</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">Siguiente paso natural</span>
+              Repite el experimento con un Transformer preentrenado pequeño y compara macro F1, tiempo de entrenamiento y latencia de inferencia. No asumas que el Transformer gana: en un corpus con vocabulario técnico y etiquetas ruidosas, un modelo lineal bien ajustado sigue siendo una baseline formidable.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 11.2 · Diseñar la limpieza</summary>
+            <div class="answer">
+              <p>Compara tres versiones del corpus: (a) texto crudo, (b) sin cabeceras/pies/citas, (c) sin cabeceras y sin palabras vacías. Entrena el mismo modelo y reporta macro F1 y tiempo. ¿Qué versión gana y por qué?</p>
+              <p><strong>Orientación:</strong> (b) suele ser la más honesta. Eliminar stopwords puede reducir dimensionalidad pero también eliminar negaciones y conectores relevantes. La versión (a) suele inflar el resultado por fuga de metadatos. Documenta el efecto de cada decisión por separado.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m11-l3" data-title="Proyecto 3 · Segmentación de clientes con RFM y K-Means">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Proyecto 11.3</div>
+              <h2>Proyecto 3 · Segmentación de clientes con RFM y K-Means</h2>
+              <div class="lesson-meta"><span>30 min</span><span class="sep"></span><span>No supervisado</span><span class="sep"></span><span>Negocio</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m11-l3"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Segmentar clientes no es ejecutar K-Means y pintar colores: es traducir transacciones en variables con significado, elegir un número de grupos defendible y convertir los clusters en acciones concretas. Este proyecto usa el dataset Online Retail de UCI.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Construir variables RFM (recencia, frecuencia, monetario).</div>
+              <div>Decidir transformaciones y escalado para clustering.</div>
+              <div>Elegir k con silhouette, codo y criterio de negocio.</div>
+              <div>Perfilar segmentos y proponer acciones.</div>
+            </div>
+
+            <h3>Dataset</h3>
+            <p><strong>Online Retail</strong> (UCI Machine Learning Repository) contiene transacciones de un minorista británico entre 2010 y 2011: número de factura, producto, cantidad, precio, fecha, identificador de cliente y país. Tiene valores faltantes, devoluciones y cantidades negativas; limpiarlo es parte del proyecto.</p>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">rfm.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+import pandas as pd
+
+df = pd.read_excel("Online Retail.xlsx")
+print(df.shape)
+print(df.isna().sum())
+
+# 1) Limpieza mínima y documentada
+df = df.dropna(subset=["CustomerID"])
+df["InvoiceNo"] = df["InvoiceNo"].astype(str)
+df = df[~df["InvoiceNo"].str.startswith("C")]        # devoluciones
+df = df[(df["Quantity"] > 0) & (df["UnitPrice"] > 0)]  # importes válidos
+df["Total"] = df["Quantity"] * df["UnitPrice"]
+
+# 2) RFM por cliente
+fecha_ref = df["InvoiceDate"].max() + pd.Timedelta(days=1)
+rfm = df.groupby("CustomerID").agg(
+    Recencia=("InvoiceDate", lambda s: (fecha_ref - s.max()).days),
+    Frecuencia=("InvoiceNo", "nunique"),
+    Monetario=("Total", "sum")
+)
+print(rfm.describe())
+
+# 3) Distribuciones asimétricas: log1p antes de escalar
+rfm_log = np.log1p(rfm[["Recencia", "Frecuencia", "Monetario"]])
+
+from sklearn.preprocessing import StandardScaler
+X = StandardScaler().fit_transform(rfm_log)</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">No elimines clientes sin mirar</span>
+              Descartar clientes con una sola compra elimina precisamente el segmento «nuevo» o «de paso», que puede ser el más accionable. Si lo haces, justifícalo y reporta cuántos quedan fuera. La limpieza no es neutral: cambia el negocio que vas a describir.
+            </div>
+
+            <h3>Elegir k</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">elegir_k.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score, davies_bouldin_score
+
+resultados = []
+for k in range(2, 11):
+    km = KMeans(n_clusters=k, n_init=20, random_state=42)
+    etiquetas = km.fit_predict(X)
+    resultados.append({
+        "k": k,
+        "inercia": km.inertia_,
+        "silhouette": silhouette_score(X, etiquetas),
+        "davies_bouldin": davies_bouldin_score(X, etiquetas),
+        "tamano_min": np.bincount(etiquetas).min(),
+        "tamano_max": np.bincount(etiquetas).max()
+    })
+
+print(pd.DataFrame(resultados).round(3).to_string(index=False))</code></pre></div>
+            <p>El codo de la inercia sugiere un rango, no una respuesta. Silhouette premia grupos compactos y separados, pero puede preferir soluciones triviales con grupos muy pequeños. Añade el criterio de negocio: ¿puedes accionar seis segmentos con tu equipo? ¿Los segmentos tienen tamaño suficiente para una campaña?</p>
+
+            <h3>Perfilar y accionar</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">perfiles.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">k_final = 4
+km = KMeans(n_clusters=k_final, n_init=50, random_state=42)
+rfm["segmento"] = km.fit_predict(X)
+
+perfil = rfm.groupby("segmento").agg(
+    clientes=("Recencia", "size"),
+    recencia_media=("Recencia", "mean"),
+    frecuencia_media=("Frecuencia", "mean"),
+    monetario_medio=("Monetario", "mean"),
+    monetario_total=("Monetario", "sum")
+).sort_values("monetario_total", ascending=False)
+
+perfil["pct_clientes"] = perfil["clientes"] / perfil["clientes"].sum()
+perfil["pct_ingresos"] = perfil["monetario_total"] / perfil["monetario_total"].sum()
+print(perfil.round(2))</code></pre></div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Un segmento no es una persona</h4></div>
+              <div class="example-body">
+                <p>Un cluster con recencia baja, frecuencia alta y monetario alto se puede describir como «clientes leales de alto valor». Pero el centroide no dice por qué compran ni qué quieren. Para diseñar una acción necesitas evidencia adicional: categorías compradas, país, ticket medio y quizá entrevistas.</p>
+                <p>La acción razonable podría ser un programa de fidelización, no un descuento genérico. Un cluster de recencia alta y frecuencia baja sugiere reactivación, pero antes verifica que no sean cuentas cerradas o devoluciones mal clasificadas.</p>
+              </div>
+            </div>
+
+            <h3>Criterios de evaluación</h3>
+            <table class="data">
+              <thead><tr><th>Dimensión</th><th>Qué se evalúa</th><th>Peso sugerido</th></tr></thead>
+              <tbody>
+                <tr><td>Preparación</td><td>Limpieza documentada, RFM correcto, transformación justificada</td><td>25 %</td></tr>
+                <tr><td>Clustering</td><td>Comparación de k, métricas y estabilidad</td><td>25 %</td></tr>
+                <tr><td>Interpretación</td><td>Perfiles coherentes y acciones específicas</td><td>30 %</td></tr>
+                <tr><td>Reproducibilidad</td><td>Semillas, artefactos y pasos claros</td><td>20 %</td></tr>
+              </tbody>
+            </table>
+
+            <h3>Entregables</h3>
+            <ul>
+              <li>Tabla RFM por cliente y tabla de perfiles por segmento.</li>
+              <li>Gráfico de codo y silhouette con la elección de k justificada.</li>
+              <li>Una acción concreta por segmento, con canal, mensaje y métrica de éxito.</li>
+              <li>Análisis de sensibilidad: ¿cambian los segmentos con otra semilla o con log?</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">El valor está en la acción</span>
+              Un informe con cuatro clusters y colores no cambia nada. El entregable debe responder: a quién contactamos, con qué oferta, por qué canal y cómo mediremos si funcionó. Si no puedes responder eso, el clustering es un ejercicio descriptivo, no un proyecto.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 11.3 · Estabilidad del clustering</summary>
+            <div class="answer">
+              <p>Ejecuta K-Means con 20 semillas distintas para k=4. Calcula el índice de Rand ajustado entre pares de soluciones. ¿Los segmentos son estables? Prueba también con y sin transformación logarítmica.</p>
+              <p><strong>Orientación:</strong> si el ARI medio es bajo, los clusters dependen de la inicialización y no son una estructura robusta. La transformación logarítmica suele estabilizar porque reduce el peso de clientes extremos. Reporta la dispersión, no solo la mejor solución.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m11-l4" data-title="Proyecto 4 · Detección de spam">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Proyecto 11.4</div>
+              <h2>Proyecto 4 · Detección de spam</h2>
+              <div class="lesson-meta"><span>28 min</span><span class="sep"></span><span>Clasificación</span><span class="sep"></span><span>Coste asimétrico</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m11-l4"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">El spam es un problema de clasificación con clases muy desbalanceadas y costes distintos: un falso positivo puede ocultar un mensaje importante, mientras que un falso negativo deja pasar publicidad. Aquí no basta con accuracy; hay que fijar un umbral con criterio.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Trabajar con un dataset desbalanceado sin fuga.</div>
+              <div>Interpretar precision, recall y PR-AUC.</div>
+              <div>Elegir umbral según coste de cada error.</div>
+              <div>Detectar duplicados y atajos en datos de texto.</div>
+            </div>
+
+            <h3>Dataset</h3>
+            <p><strong>SMS Spam Collection</strong> (UCI) contiene 5 574 mensajes etiquetados como <em>ham</em> o <em>spam</em>; alrededor del 13 % son spam. Es pequeño, así que cada decisión de partición importa. Empieza por deduplicar: los mensajes repetidos entre train y test inflan las métricas.</p>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file" string="true">spam.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import pandas as pd
+from sklearn.model_selection import train_test_split
+
+df = pd.read_csv("spam.csv", encoding="latin-1")
+df = df[["v1", "v2"]].rename(columns={"v1": "etiqueta", "v2": "texto"})
+df["spam"] = (df["etiqueta"] == "spam").astype(int)
+
+print(df["spam"].value_counts(normalize=True))
+print("duplicados exactos:", df.duplicated(subset="texto").sum())
+
+df = df.drop_duplicates(subset="texto").reset_index(drop=True)
+X_train, X_test, y_train, y_test = train_test_split(
+    df["texto"], df["spam"], test_size=0.2,
+    random_state=42, stratify=df["spam"]
+)
+print(len(X_train), len(X_test), y_train.mean(), y_test.mean())</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Deduplica antes de dividir</span>
+              Si el mismo SMS aparece en train y test, el modelo lo memoriza y la métrica sube sin generalizar. En datasets de texto es habitual encontrar cadenas copiadas. Deduplicar es parte de la validación, no una limpieza cosmética.
+            </div>
+
+            <h3>Modelo y umbral</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">spam_modelo.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+from sklearn.pipeline import make_pipeline
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    average_precision_score, precision_recall_curve,
+    classification_report, confusion_matrix, roc_auc_score
+)
+
+modelo = make_pipeline(
+    TfidfVectorizer(
+        ngram_range=(1, 2), min_df=2, sublinear_tf=True,
+        strip_accents="unicode", lowercase=True
+    ),
+    LogisticRegression(max_iter=3000, class_weight="balanced", C=1.0)
+)
+modelo.fit(X_train, y_train)
+
+proba = modelo.predict_proba(X_test)[:, 1]
+print("PR-AUC:", average_precision_score(y_test, proba))
+print("ROC-AUC:", roc_auc_score(y_test, proba))
+
+# Curva precision-recall y elección de umbral
+precision, recall, umbrales = precision_recall_curve(y_test, proba)
+
+def metricas_en(umbral):
+    pred = (proba >= umbral).astype(int)
+    tn, fp, fn, tp = confusion_matrix(y_test, pred).ravel()
+    return {
+        "umbral": umbral,
+        "precision": tp / max(tp + fp, 1),
+        "recall": tp / max(tp + fn, 1),
+        "fp": fp,
+        "fn": fn
+    }
+
+for u in [0.3, 0.5, 0.7, 0.9]:
+    print(metricas_en(u))
+
+# Umbral según coste: falso positivo 5x más caro que falso negativo
+coste_fp, coste_fn = 5.0, 1.0
+costes = []
+for u in np.linspace(0.05, 0.95, 91):
+    m = metricas_en(u)
+    costes.append((coste_fp * m["fp"] + coste_fn * m["fn"], u, m))
+mejor = min(costes, key=lambda t: t[0])
+print("umbral óptimo por coste:", mejor[1], mejor[2])
+
+pred_final = (proba >= mejor[1]).astype(int)
+print(classification_report(y_test, pred_final, digits=3))</code></pre></div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Por qué accuracy no sirve aquí</h4></div>
+              <div class="example-body">
+                <p>Con 13 % de spam, predecir siempre «ham» da 87 % de accuracy y detecta cero spam. La PR-AUC de ese clasificador es igual a la prevalencia (0.13), y el recall de spam es 0. Un modelo útil debe superar esa referencia.</p>
+                <p>Si el coste de un falso positivo es cinco veces el de un falso negativo, el umbral óptimo se desplaza hacia arriba: prefieres dejar pasar algo de spam antes que bloquear mensajes legítimos. Ese trade-off debe decidirlo el producto, no el algoritmo.</p>
+              </div>
+            </div>
+
+            <h3>Criterios de evaluación</h3>
+            <ul>
+              <li><strong>Datos:</strong> deduplicación, análisis de prevalencia y discusión de posibles atajos (números, enlaces, mayúsculas).</li>
+              <li><strong>Modelo:</strong> baseline mayoritaria, regresión logística y al menos una alternativa (Naive Bayes o SVM).</li>
+              <li><strong>Métricas:</strong> PR-AUC, precision/recall a varios umbrales y matriz de confusión.</li>
+              <li><strong>Decisión:</strong> umbral justificado con una matriz de costes explícita.</li>
+              <li><strong>Robustez:</strong> prueba con mensajes nuevos escritos por ti y reporta errores.</li>
+            </ul>
+
+            <h3>Entregables</h3>
+            <ul>
+              <li>Pipeline reproducible con deduplicación y partición estratificada.</li>
+              <li>Gráfico precision-recall con el umbral elegido marcado.</li>
+              <li>Justificación del coste de FP y FN en el contexto de uso.</li>
+              <li>Análisis de al menos diez errores, con hipótesis de causa.</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">El modelo aprende el dataset, no el spam</span>
+              Un clasificador de SMS puede aprender que ciertos números o palabras aparecen en el corpus. En producción, el spam cambia. Evalúa con datos de otra época o fuente y monitorea la tasa de falsos positivos; es la métrica que más rápido destruye la confianza del usuario.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 11.4 · Cambiar el coste</summary>
+            <div class="answer">
+              <p>Repite la elección de umbral con tres matrices de coste: (1) FP = FN, (2) FP = 10·FN, (3) FN = 10·FP. Explica en qué escenario de producto tiene sentido cada una y cómo cambia el número de mensajes bloqueados.</p>
+              <p><strong>Orientación:</strong> FP caro prioriza precisión (filtro conservador); FN caro prioriza recall (filtro agresivo). El umbral no es una propiedad del modelo, es una decisión de producto. Documenta el escenario y el coste unitario usado.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m11-l5" data-title="Proyecto 5 · Predicción de churn">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Proyecto 11.5</div>
+              <h2>Proyecto 5 · Predicción de churn</h2>
+              <div class="lesson-meta"><span>32 min</span><span class="sep"></span><span>Tabular</span><span class="sep"></span><span>Negocio</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m11-l5"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Predecir qué clientes abandonarán es uno de los casos más comunes de ML aplicado. También es uno de los más fáciles de arruinar con fuga de información, métricas inadecuadas y una acción posterior mal diseñada. Este proyecto integra preprocesado tabular, desbalance y evaluación por coste.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Construir un pipeline con variables numéricas y categóricas.</div>
+              <div>Evitar fuga al imputar y codificar.</div>
+              <div>Usar PR-AUC y calibración en clases desbalanceadas.</div>
+              <div>Traducir probabilidades en una campaña de retención.</div>
+            </div>
+
+            <h3>Dataset</h3>
+            <p><strong>Telco Customer Churn</strong> (público en Kaggle) contiene 7 043 clientes de telecomunicaciones con variables de contrato, servicios, cargos y una etiqueta <code>Churn</code>. La tasa de abandono ronda el 26 %, así que accuracy vuelve a ser engañosa. Verifica la licencia y cita la fuente en tu entrega.</p>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">churn.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import pandas as pd
+import numpy as np
+
+df = pd.read_csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
+print(df.shape)
+print(df["Churn"].value_counts(normalize=True))
+
+# TotalCharges llega como texto con espacios
+df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
+print("nulos en TotalCharges:", df["TotalCharges"].isna().sum())
+
+y = (df["Churn"] == "Yes").astype(int)
+X = df.drop(columns=["customerID", "Churn"])
+
+num_cols = X.select_dtypes(include=np.number).columns.tolist()
+cat_cols = X.select_dtypes(exclude=np.number).columns.tolist()
+print("numéricas:", num_cols)
+print("categóricas:", cat_cols)</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Fuga por identificador y por tiempo</span>
+              <code>customerID</code> no debe entrar: es un identificador, no una señal. Si el dataset tuviera fecha de alta y de baja, usar la fecha de baja como feature sería fuga directa. Revisa cada columna preguntando: ¿estaría disponible en el momento de la predicción?
+            </div>
+
+            <h3>Pipeline completo</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">churn_pipeline.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.model_selection import StratifiedKFold, cross_validate, train_test_split
+from sklearn.metrics import (
+    average_precision_score, roc_auc_score, classification_report,
+    precision_recall_curve, brier_score_loss
+)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+preprocesar = ColumnTransformer([
+    ("num", Pipeline([
+        ("imputar", SimpleImputer(strategy="median")),
+        ("escalar", StandardScaler())
+    ]), num_cols),
+    ("cat", Pipeline([
+        ("imputar", SimpleImputer(strategy="most_frequent")),
+        ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False))
+    ]), cat_cols)
+])
+
+modelo = Pipeline([
+    ("preprocesar", preprocesar),
+    ("clasificador", LogisticRegression(
+        max_iter=3000, class_weight="balanced", C=1.0
+    ))
+])
+
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+scores = cross_validate(
+    modelo, X_train, y_train, cv=cv,
+    scoring=("roc_auc", "average_precision", "f1", "accuracy"),
+    n_jobs=-1
+)
+for metrica in ["test_roc_auc", "test_average_precision", "test_f1", "test_accuracy"]:
+    print(metrica, scores[metrica].mean().round(3), "+-", scores[metrica].std().round(3))
+
+modelo.fit(X_train, y_train)
+proba = modelo.predict_proba(X_test)[:, 1]
+print("test PR-AUC:", average_precision_score(y_test, proba).round(3))
+print("test ROC-AUC:", roc_auc_score(y_test, proba).round(3))
+print("Brier:", brier_score_loss(y_test, proba).round(3))
+
+# Umbral orientado a recall alto para campaña de retención
+precision, recall, umbrales = precision_recall_curve(y_test, proba)
+objetivo = 0.80
+idx = np.where(recall[:-1] >= objetivo)[0][-1]
+umbral = umbrales[idx]
+pred = (proba >= umbral).astype(int)
+print("umbral para recall>=", objetivo, ":", round(float(umbral), 3))
+print(classification_report(y_test, pred, digits=3))</code></pre></div>
+
+            <h3>Del score a la acción</h3>
+            <p>Un modelo de churn no retiene clientes por sí solo. La acción típica es contactar a un subconjunto con una oferta. Eso impone restricciones:</p>
+            <ul>
+              <li><strong>Capacidad:</strong> si el equipo solo puede llamar a 300 clientes al mes, el umbral debe producir aproximadamente ese volumen, no el que maximiza F1.</li>
+              <li><strong>Coste:</strong> compara el valor esperado de retener con el coste del incentivo y de la llamada.</li>
+              <li><strong>Incrementalidad:</strong> contactar a quien se iba a quedar igual no genera valor. Un grupo de control es necesario para medir el efecto real de la campaña.</li>
+              <li><strong>Calibración:</strong> si usas la probabilidad para calcular valor esperado, verifica que esté calibrada (Brier, curva de calibración).</li>
+            </ul>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>F1 alto, campaña inútil</h4></div>
+              <div class="example-body">
+                <p>Un modelo con F1 0.62 concentra sus aciertos en clientes con contrato mensual y pocos meses de antigüedad. Si el equipo ya contactaba a ese perfil por defecto, el modelo no aporta nada nuevo. La métrica de negocio es el uplift de retención frente al grupo de control, no el F1.</p>
+                <p><strong>Diseño correcto:</strong> elegir el grupo de contacto con el modelo, asignar aleatoriamente parte a control, comparar retención a 60–90 días y calcular el retorno incremental. Sin control, cualquier mejora puede ser estacionalidad.</p>
+              </div>
+            </div>
+
+            <h3>Criterios de evaluación</h3>
+            <table class="data">
+              <thead><tr><th>Criterio</th><th>Peso</th><th>Qué debe demostrar</th></tr></thead>
+              <tbody>
+                <tr><td>Preprocesado</td><td>25 %</td><td>Pipeline sin fuga, imputación y codificación correctas</td></tr>
+                <tr><td>Validación</td><td>25 %</td><td>Estratificada, métricas con dispersión, test reservado</td></tr>
+                <tr><td>Métricas</td><td>20 %</td><td>PR-AUC, recall, calibración y umbral justificado</td></tr>
+                <tr><td>Acción</td><td>20 %</td><td>Campaña con capacidad, coste y grupo de control</td></tr>
+                <tr><td>Documentación</td><td>10 %</td><td>Supuestos, limitaciones y reproducibilidad</td></tr>
+              </tbody>
+            </table>
+
+            <h3>Entregables</h3>
+            <ul>
+              <li>Pipeline serializado y script de entrenamiento con semilla.</li>
+              <li>Tabla de métricas por modelo y por fold.</li>
+              <li>Curva de calibración y justificación del umbral operativo.</li>
+              <li>Diseño de la campaña: segmento, capacidad, incentivo, control y métrica de éxito.</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">Prueba de humo del artefacto</span>
+              Antes de entregar, guarda el pipeline con <code>joblib</code>, cárgalo en un proceso nuevo y verifica que produce la misma probabilidad para un cliente de referencia. Si falla, el artefacto no está listo aunque el notebook funcione.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 11.5 · Análisis de capacidad</summary>
+            <div class="answer">
+              <p>Ordena los clientes de test por probabilidad y calcula, para 100, 300 y 1 000 contactos, cuántos churners reales capturas y qué precisión tienes. Compara con contactar aleatoriamente el mismo número. ¿Qué umbral elegirías y por qué?</p>
+              <p><strong>Orientación:</strong> construye una tabla de ganancia acumulada (lift). A 300 contactos, compara el número de churners capturados frente a la selección aleatoria. El umbral debe surgir de esa tabla y del coste, no de un valor por defecto de 0.5.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m11-l6" data-title="Proyecto 6 · Clasificación de imágenes con Fashion-MNIST">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Proyecto 11.6</div>
+              <h2>Proyecto 6 · Clasificación de imágenes con Fashion-MNIST</h2>
+              <div class="lesson-meta"><span>34 min</span><span class="sep"></span><span>CNN</span><span class="sep"></span><span>Visión</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m11-l6"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Fashion-MNIST es el sustituto moderno de MNIST: 70 000 imágenes de ropa en 28×28 y diez clases. Es lo bastante pequeño para entrenar en CPU en minutos y lo bastante difícil para que una red densa no sea suficiente. El objetivo es construir una CNN, evaluarla con rigor y analizar sus confusiones.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Construir un pipeline de datos de imagen en PyTorch.</div>
+              <div>Diseñar una CNN pequeña con augmentation válido.</div>
+              <div>Evaluar con macro F1 y matriz de confusión.</div>
+              <div>Diagnosticar overfitting con curvas de entrenamiento.</div>
+            </div>
+
+            <h3>Dataset y contrato</h3>
+            <p>Fashion-MNIST tiene 60 000 imágenes de entrenamiento y 10 000 de test, en escala de grises, con diez clases: camiseta, pantalón, jersey, vestido, abrigo, sandalia, camisa, zapatilla, bolso y botín. Las imágenes ya están centradas y normalizadas en tamaño, lo que reduce la variabilidad pero también hace que el problema sea más limpio que una foto real.</p>
+
+            <div class="callout warn">
+              <span class="callout-title">Las clases se confunden de forma predecible</span>
+              Camiseta, jersey, camisa y abrigo comparten silueta. Un accuracy alto puede ocultar que el modelo no distingue camisa de camiseta. Reporta F1 por clase y mira la matriz de confusión antes de celebrar.
+            </div>
+
+            <h3>Datos y augmentation</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">datos_fashion.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+from torch.utils.data import DataLoader
+from torchvision import datasets, transforms
+
+MEDIA, DESV = (0.2860,), (0.3530,)
+
+train_tf = transforms.Compose([
+    transforms.RandomCrop(28, padding=2),
+    transforms.RandomHorizontalFlip(p=0.5),
+    transforms.ToTensor(),
+    transforms.Normalize(MEDIA, DESV)
+])
+
+test_tf = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(MEDIA, DESV)
+])
+
+train_ds = datasets.FashionMNIST("data", train=True, download=True, transform=train_tf)
+test_ds = datasets.FashionMNIST("data", train=False, download=True, transform=test_tf)
+
+train_loader = DataLoader(train_ds, batch_size=128, shuffle=True, num_workers=2)
+test_loader = DataLoader(test_ds, batch_size=256, shuffle=False, num_workers=2)
+
+clases = train_ds.classes
+print(clases)
+print(len(train_ds), len(test_ds))</code></pre></div>
+
+            <h3>La CNN</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">cnn_fashion.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+import torch.nn as nn
+
+class CNN(nn.Module):
+    def __init__(self, n_clases=10):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(1, 32, 3, padding=1, bias=False),
+            nn.BatchNorm2d(32), nn.ReLU(inplace=True),
+            nn.Conv2d(32, 32, 3, padding=1, bias=False),
+            nn.BatchNorm2d(32), nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),                       # 14x14
+            nn.Conv2d(32, 64, 3, padding=1, bias=False),
+            nn.BatchNorm2d(64), nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),                       # 7x7
+            nn.Conv2d(64, 128, 3, padding=1, bias=False),
+            nn.BatchNorm2d(128), nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool2d(1)
+        )
+        self.cabeza = nn.Sequential(
+            nn.Flatten(),
+            nn.Dropout(0.3),
+            nn.Linear(128, n_clases)
+        )
+
+    def forward(self, x):
+        return self.cabeza(self.features(x))
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+modelo = CNN().to(device)
+print(sum(p.numel() for p in modelo.parameters()), "parámetros")
+
+criterio = nn.CrossEntropyLoss(label_smoothing=0.05)
+optimizador = torch.optim.AdamW(modelo.parameters(), lr=1e-3, weight_decay=1e-4)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizador, T_max=10)</code></pre></div>
+
+            <h3>Entrenamiento y evaluación</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">entrenar_fashion.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+from sklearn.metrics import f1_score, confusion_matrix, classification_report
+
+def evaluar(modelo, loader):
+    modelo.eval()
+    reales, predichos = [], []
+    with torch.no_grad():
+        for xb, yb in loader:
+            xb = xb.to(device)
+            logits = modelo(xb)
+            predichos.extend(logits.argmax(1).cpu().numpy())
+            reales.extend(yb.numpy())
+    return np.array(reales), np.array(predichos)
+
+historial = []
+for epoch in range(10):
+    modelo.train()
+    perdida_total = 0.0
+    for xb, yb in train_loader:
+        xb, yb = xb.to(device), yb.to(device)
+        optimizador.zero_grad()
+        perdida = criterio(modelo(xb), yb)
+        perdida.backward()
+        optimizador.step()
+        perdida_total += perdida.item() * len(xb)
+    scheduler.step()
+
+    reales, predichos = evaluar(modelo, test_loader)
+    macro_f1 = f1_score(reales, predichos, average="macro")
+    acc = (reales == predichos).mean()
+    historial.append((epoch, perdida_total / len(train_ds), acc, macro_f1))
+    print(f"epoch {epoch:2d} loss={historial[-1][1]:.4f} acc={acc:.4f} macroF1={macro_f1:.4f}")
+
+print(classification_report(reales, predichos, target_names=clases, digits=3))
+print(confusion_matrix(reales, predichos))</code></pre></div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Leer la matriz de confusión</h4></div>
+              <div class="example-body">
+                <p>Si la matriz muestra que «camisa» se predice como «camiseta» y «jersey» con frecuencia, el modelo está capturando la silueta general pero no los detalles de cuello y mangas. A 28×28 esos detalles ocupan pocos píxeles. Aumentar resolución no siempre es posible; una alternativa es usar pérdidas que penalicen más esos pares o recolectar ejemplos más informativos.</p>
+                <p>No confundas una confusión esperable con un fallo del pipeline. Revisa imágenes concretas: a veces la etiqueta es ambigua incluso para una persona.</p>
+              </div>
+            </div>
+
+            <h3>Criterios de evaluación</h3>
+            <ul>
+              <li><strong>Pipeline:</strong> normalización correcta, dataloaders sin fuga, augmentation justificado.</li>
+              <li><strong>Modelo:</strong> CNN con al menos tres bloques convolucionales y comparación con una baseline densa o logística.</li>
+              <li><strong>Entrenamiento:</strong> curvas de pérdida y macro F1, elección de épocas sin mirar test.</li>
+              <li><strong>Evaluación:</strong> macro F1, matriz de confusión y análisis de las tres confusiones principales.</li>
+              <li><strong>Reproducibilidad:</strong> semilla, versiones, tiempo de entrenamiento y hardware.</li>
+            </ul>
+
+            <h3>Entregables</h3>
+            <ul>
+              <li>Script de entrenamiento y script de evaluación separados.</li>
+              <li>Gráfico de curvas de train y validación (usa un split de validación, no test).</li>
+              <li>Matriz de confusión y diez imágenes mal clasificadas con comentario.</li>
+              <li>Comparación con CIFAR-10 como extensión opcional, sin afirmar resultados no medidos.</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">Extensión: CIFAR-10</span>
+              Si tu equipo tiene GPU, repite el proyecto con CIFAR-10 (32×32, color, diez clases). La dificultad aumenta: necesitarás augmentation más fuerte, más épocas y probablemente transfer learning. No reutilices hiperparámetros de Fashion-MNIST sin volver a validar.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 11.6 · Ablación de augmentation</summary>
+            <div class="answer">
+              <p>Entrena tres veces con: sin augmentation, solo RandomCrop, y RandomCrop + Flip. Mantén todo lo demás igual y compara macro F1 y la brecha train–test. ¿Qué transformación aporta más y en qué clase?</p>
+              <p><strong>Orientación:</strong> espera que el flip ayude poco porque muchas prendas son casi simétricas, mientras el recorte combate el sobreajuste posicional. Revisa el F1 por clase: la mejora global puede venir de una sola categoría. Reporta medias y dispersión entre semillas si puedes.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m11-l7" data-title="Proyecto 7 · Análisis de sentimiento con IMDB">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Proyecto 11.7</div>
+              <h2>Proyecto 7 · Análisis de sentimiento con IMDB</h2>
+              <div class="lesson-meta"><span>32 min</span><span class="sep"></span><span>Transformers</span><span class="sep"></span><span>Texto</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m11-l7"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Clasificar reseñas como positivas o negativas es un problema equilibrado y bien estudiado, ideal para comparar un baseline clásico con un Transformer preentrenado. El aprendizaje real está en medir el coste, analizar errores y no confundir un buen F1 con comprensión del lenguaje.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Comparar TF-IDF con fine-tuning de un Transformer.</div>
+              <div>Diseñar una partición y una métrica honestas.</div>
+              <div>Analizar errores por longitud, negación y ambigüedad.</div>
+              <div>Medir latencia y coste de inferencia.</div>
+            </div>
+
+            <h3>Dataset</h3>
+            <p><strong>IMDB Movie Reviews</strong> contiene 50 000 reseñas etiquetadas, con 25 000 para entrenamiento y 25 000 para test, balanceadas. Es un dataset en inglés; si trabajas en español, usa un modelo preentrenado en español y un corpus equivalente, y no mezcles tokenizadores.</p>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">cargar_imdb.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from datasets import load_dataset
+
+ds = load_dataset("imdb")
+print(ds)
+print(ds["train"][0]["text"][:400])
+print(ds["train"].features["label"].names)
+
+# Subconjunto para iterar rápido; usa todo para el resultado final
+train = ds["train"].shuffle(seed=42).select(range(10000))
+test = ds["test"].shuffle(seed=42).select(range(5000))
+print(len(train), len(test))</code></pre></div>
+
+            <h3>Baseline TF-IDF</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">baseline_imdb.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.pipeline import make_pipeline
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import f1_score, accuracy_score
+
+X_train = train["text"]
+y_train = train["label"]
+X_test = test["text"]
+y_test = test["label"]
+
+baseline = make_pipeline(
+    TfidfVectorizer(ngram_range=(1, 2), min_df=3, max_df=0.9, sublinear_tf=True),
+    LogisticRegression(max_iter=3000, C=1.0)
+)
+baseline.fit(X_train, y_train)
+pred = baseline.predict(X_test)
+print("accuracy:", accuracy_score(y_test, pred))
+print("F1 macro:", f1_score(y_test, pred, average="macro"))</code></pre></div>
+
+            <h3>Fine-tuning de DistilBERT</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">finetune_imdb.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+from transformers import (
+    AutoTokenizer, AutoModelForSequenceClassification,
+    TrainingArguments, Trainer
+)
+from sklearn.metrics import accuracy_score, f1_score
+
+modelo_base = "distilbert-base-uncased"
+tok = AutoTokenizer.from_pretrained(modelo_base)
+
+def tokenizar(batch):
+    return tok(batch["text"], truncation=True, max_length=256)
+
+train_tok = train.map(tokenizar, batched=True)
+test_tok = test.map(tokenizar, batched=True)
+
+modelo = AutoModelForSequenceClassification.from_pretrained(
+    modelo_base, num_labels=2
+)
+
+def metricas(eval_pred):
+    logits, labels = eval_pred
+    preds = np.argmax(logits, axis=-1)
+    return {
+        "accuracy": accuracy_score(labels, preds),
+        "f1_macro": f1_score(labels, preds, average="macro")
+    }
+
+args = TrainingArguments(
+    output_dir="modelo_imdb",
+    learning_rate=2e-5,
+    per_device_train_batch_size=16,
+    per_device_eval_batch_size=32,
+    num_train_epochs=2,
+    weight_decay=0.01,
+    eval_strategy="epoch",
+    save_strategy="epoch",
+    load_best_model_at_end=True,
+    metric_for_best_model="f1_macro",
+    logging_steps=100,
+    seed=42,
+    report_to="none"
+)
+
+trainer = Trainer(
+    model=modelo, args=args,
+    train_dataset=train_tok, eval_dataset=test_tok,
+    compute_metrics=metricas
+)
+trainer.train()
+print(trainer.evaluate())</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">No uses test para ajustar</span>
+              En este ejemplo se evalúa con test para simplificar, pero en un proyecto real reserva un conjunto de validación para elegir épocas y hiperparámetros, y toca test una sola vez. Ajustar max_length, learning rate o epochs mirando test invalida la estimación.
+            </div>
+
+            <h3>Análisis de errores</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">errores_imdb.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import pandas as pd
+
+predicciones = trainer.predict(test_tok)
+probs = np.exp(predicciones.predictions) / np.exp(predicciones.predictions).sum(axis=1, keepdims=True)
+pred = probs.argmax(axis=1)
+confianza = probs.max(axis=1)
+
+errores = pd.DataFrame({
+    "texto": test["text"],
+    "real": test["label"],
+    "pred": pred,
+    "confianza": confianza,
+    "longitud": [len(t.split()) for t in test["text"]]
+})
+errores = errores[errores.real != errores.pred]
+
+print("errores:", len(errores), "de", len(test))
+print(errores.sort_values("confianza", ascending=False).head(10)[["real", "pred", "confianza", "longitud"]])
+
+# Rendimiento por longitud
+errores["tramo"] = pd.qcut(errores["longitud"], 4, labels=["corto", "medio", "largo", "muy largo"])
+print(errores.groupby("tramo", observed=True).size())</code></pre></div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Un error de alta confianza no siempre es un fallo del modelo</h4></div>
+              <div class="example-body">
+                <p>Una reseña puede decir «la fotografía es hermosa, pero la historia es aburrida» y estar etiquetada como positiva por la puntuación global. El modelo puede predecir negativa con confianza alta y, sin embargo, tener razón sobre el tono. La etiqueta es una agregación, no una verdad absoluta.</p>
+                <p>Antes de contar un error, lee el texto completo y revisa la definición de la etiqueta. En datasets de reseñas, la etiqueta suele venir de la puntuación en estrellas; una reseña de 6/10 puede ser ambigua. Documenta estos casos en lugar de contarlos como fallos puros.</p>
+              </div>
+            </div>
+
+            <h3>Criterios de evaluación</h3>
+            <ul>
+              <li><strong>Comparación justa:</strong> mismo train/test para baseline y Transformer, misma métrica y mismo preprocesado de etiquetas.</li>
+              <li><strong>Coste:</strong> tiempo de entrenamiento, memoria, latencia por muestra y tamaño del artefacto.</li>
+              <li><strong>Calidad:</strong> accuracy, F1 macro y análisis de errores por longitud y confianza.</li>
+              <li><strong>Ética:</strong> discute sesgos del corpus (inglés, cine occidental) y límites de generalización.</li>
+              <li><strong>Reproducibilidad:</strong> semilla, versión de Transformers, hardware y comando de ejecución.</li>
+            </ul>
+
+            <h3>Entregables</h3>
+            <ul>
+              <li>Tabla comparativa baseline vs. Transformer con métricas y coste.</li>
+              <li>Diez errores analizados con el texto y una hipótesis.</li>
+              <li>Medición de latencia en CPU y, si disponible, GPU.</li>
+              <li>Recomendación final: qué modelo usarías en producción y por qué.</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">La comparación honesta incluye el coste</span>
+              Un Transformer puede ganar 3 puntos de F1 y costar cien veces más por consulta. Si el volumen es alto y la latencia importa, el baseline puede ser la elección correcta. Un proyecto maduro reporta ambos lados del trade-off.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 11.7 · Presupuesto de inferencia</summary>
+            <div class="answer">
+              <p>Supón 5 millones de reseñas al mes y un presupuesto de 200 dólares mensuales de cómputo. Estima el coste por muestra de ambos modelos con tus mediciones y decide cuál es viable. ¿Qué harías si el Transformer excede el presupuesto?</p>
+              <p><strong>Orientación:</strong> mide latencia y coste real por 1 000 muestras en el hardware objetivo; multiplica. Alternativas: destilación, cuantización, batching, un modelo más pequeño o usar el Transformer solo en casos de baja confianza del baseline. Documenta los supuestos de precio.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m11-l8" data-title="Proyecto 8 · Sistema de recomendación con MovieLens">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Proyecto 11.8</div>
+              <h2>Proyecto 8 · Sistema de recomendación con MovieLens</h2>
+              <div class="lesson-meta"><span>34 min</span><span class="sep"></span><span>Filtrado colaborativo</span><span class="sep"></span><span>Ranking</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m11-l8"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Recomendar películas combina predicción de ratings y ordenación de candidatos. Son dos problemas distintos: un modelo puede predecir bien las notas y, aun así, recomendar siempre lo mismo. Este proyecto construye una baseline de sesgos, un modelo de factores latentes y una evaluación de ranking.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Separar evaluación de rating y de ranking.</div>
+              <div>Construir una baseline de media global y sesgos.</div>
+              <div>Entrenar factores latentes con SVD.</div>
+              <div>Detectar fuga temporal y problemas de cold start.</div>
+            </div>
+
+            <h3>Dataset</h3>
+            <p><strong>MovieLens 100K</strong> (GroupLens) contiene 100 000 valoraciones de 943 usuarios sobre 1 682 películas, con timestamps. Es pequeño, clásico y suficiente para comparar enfoques. Descarga <code>u.data</code> y <code>u.item</code> desde el sitio oficial y cita la versión.</p>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">cargar_movielens.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import pandas as pd
+
+ratings = pd.read_csv(
+    "u.data", sep="\t", names=["usuario", "pelicula", "rating", "timestamp"]
+)
+peliculas = pd.read_csv(
+    "u.item", sep="|", encoding="latin-1", header=None,
+    names=["pelicula", "titulo", "fecha", "vacia", "url"] + [f"g{i}" for i in range(19)]
+)[["pelicula", "titulo"]]
+
+print(ratings.shape, ratings["usuario"].nunique(), ratings["pelicula"].nunique())
+print(ratings["rating"].describe())
+
+# Partición temporal por usuario: último 20 % de interacciones como test
+ratings = ratings.sort_values(["usuario", "timestamp"])
+test = ratings.groupby("usuario", group_keys=False).apply(
+    lambda d: d.tail(max(1, int(round(len(d) * 0.2))))
+)
+train = ratings.drop(test.index)
+print(len(train), len(test))</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Partición aleatoria vs. temporal</span>
+              Una partición aleatoria permite que el modelo use interacciones futuras para predecir pasadas, algo imposible en producción. La partición temporal es más difícil y más honesta. Si usas validación cruzada, hazla por tiempo o por usuario, no mezclando fechas.
+            </div>
+
+            <h3>Baseline de sesgos</h3>
+            <div class="formula">
+              <span class="formula-label">Modelo de media y sesgos</span>
+              $$\hat r_{ui}=\mu+b_u+b_i, \qquad b_u=\frac{1}{|I_u|}\sum_{i\in I_u}(r_{ui}-\mu), \qquad b_i=\frac{1}{|U_i|}\sum_{u\in U_i}(r_{ui}-\mu-b_u)$$
+              <span class="formula-caption">$\mu$ es la media global, $b_u$ el sesgo del usuario y $b_i$ el de la película. Es una baseline fuerte y muy difícil de superar por poco margen.</span>
+            </div>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">baseline_sesgos.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+
+mu = train["rating"].mean()
+sesgo_u = train.groupby("usuario")["rating"].mean() - mu
+sesgo_i = train.groupby("pelicula")["rating"].mean() - mu - train["usuario"].map(sesgo_u)
+sesgo_i = sesgo_i.fillna(0.0)
+
+def predecir_baseline(df):
+    return (
+        mu
+        + df["usuario"].map(sesgo_u).fillna(0.0)
+        + df["pelicula"].map(sesgo_i).fillna(0.0)
+    ).clip(1, 5)
+
+test = test.copy()
+test["pred"] = predecir_baseline(test)
+rmse = np.sqrt(np.mean((test["rating"] - test["pred"]) ** 2))
+mae = np.mean(np.abs(test["rating"] - test["pred"]))
+print(f"baseline RMSE={rmse:.3f} MAE={mae:.3f}")</code></pre></div>
+
+            <h3>Factores latentes con SVD</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">svd.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from scipy.sparse import csr_matrix
+from scipy.sparse.linalg import svds
+
+# Matriz residual: rating - baseline, solo para pares observados
+residual = train["rating"] - predecir_baseline(train)
+usuarios = train["usuario"].astype("category")
+peliculas_cat = train["pelicula"].astype("category")
+
+R = csr_matrix(
+    (residual, (usuarios.cat.codes, peliculas_cat.cat.codes)),
+    shape=(usuarios.cat.categories.size, peliculas_cat.cat.categories.size)
+)
+
+k = 32
+U, sigma, Vt = svds(R, k=k)
+pred_residual = U @ np.diag(sigma) @ Vt
+
+# Mapear de vuelta a ids originales
+mapa_u = dict(enumerate(usuarios.cat.categories))
+mapa_i = dict(enumerate(peliculas_cat.cat.categories))
+
+def predecir_svd(df):
+    filas = df["usuario"].map({v: k for k, v in mapa_u.items()}).to_numpy()
+    cols = df["pelicula"].map({v: k for k, v in mapa_i.items()}).to_numpy()
+    base = predecir_baseline(df).to_numpy()
+    return np.clip(base + pred_residual[filas, cols], 1, 5)
+
+test["pred_svd"] = predecir_svd(test)
+rmse_svd = np.sqrt(np.mean((test["rating"] - test["pred_svd"]) ** 2))
+print("SVD RMSE:", round(rmse_svd, 3))</code></pre></div>
+
+            <p>El SVD sobre residuales solo está definido para pares observados. Para predecir un par no observado, la reconstrucción completa de la matriz funciona como aproximación, pero cuidado: las celdas no observadas no tienen residual real, y el modelo puede asignarles valores arbitrarios. En la práctica se usa SGD con regularización o bibliotecas como Surprise o Implicit.</p>
+
+            <h3>Evaluación de ranking</h3>
+            <p>Predecir bien un rating no garantiza recomendar bien. Para ranking, genera para cada usuario un conjunto de candidatos (películas no vistas), ordena por score y mide:</p>
+            <ul>
+              <li><strong>Precision@k:</strong> proporción de recomendaciones relevantes entre las k primeras.</li>
+              <li><strong>Recall@k:</strong> proporción de ítems relevantes recuperados.</li>
+              <li><strong>NDCG@k:</strong> calidad del orden, penalizando relevantes en posiciones bajas.</li>
+              <li><strong>Cobertura:</strong> porcentaje del catálogo que aparece en alguna recomendación.</li>
+            </ul>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>El problema de recomendar lo popular</h4></div>
+              <div class="example-body">
+                <p>Un modelo que recomienda las películas mejor valoradas por todos tiene buen precision@k en el test, porque los usuarios suelen ver películas populares. Pero no personaliza, reduce la cobertura del catálogo y favorece aún más a los éxitos existentes.</p>
+                <p>Reporta cobertura y diversidad junto con precisión. Si el objetivo es descubrimiento, una recomendación popular puede ser un fracaso de producto aunque la métrica suba.</p>
+              </div>
+            </div>
+
+            <h3>Criterios de evaluación</h3>
+            <table class="data">
+              <thead><tr><th>Criterio</th><th>Peso</th><th>Qué se evalúa</th></tr></thead>
+              <tbody>
+                <tr><td>Particiones</td><td>25 %</td><td>Temporal por usuario, sin fuga, justificada</td></tr>
+                <tr><td>Baseline</td><td>20 %</td><td>Media global y sesgos bien implementados</td></tr>
+                <tr><td>Modelo</td><td>25 %</td><td>Factores latentes con regularización o SGD</td></tr>
+                <tr><td>Ranking</td><td>20 %</td><td>Precision/recall/NDCG y cobertura</td></tr>
+                <tr><td>Análisis</td><td>10 %</td><td>Cold start, popularidad y limitaciones</td></tr>
+              </tbody>
+            </table>
+
+            <h3>Entregables</h3>
+            <ul>
+              <li>Tabla de RMSE/MAE para baseline, SVD y un modelo adicional.</li>
+              <li>Evaluación de ranking a k = 5 y 10.</li>
+              <li>Análisis de cold start: usuarios y películas con pocas interacciones.</li>
+              <li>Discusión de sesgo de popularidad y una propuesta para mitigarlo.</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">El offline no es el online</span>
+              Un recomendador puede mejorar en offline y empeorar la satisfacción real. La evaluación definitiva es un experimento A/B con una métrica de producto (clic, reproducción, retención) y un grupo de control. El offline sirve para descartar, no para declarar victoria.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 11.8 · Evaluar el ranking</summary>
+            <div class="answer">
+              <p>Para 100 usuarios de test, genera las 10 mejores recomendaciones y calcula precision@10, recall@10 y NDCG@10. Define qué consideras «relevante» (por ejemplo, rating ≥ 4) y documenta la decisión. Compara con recomendar las 10 películas más populares.</p>
+              <p><strong>Orientación:</strong> la relevancia es una definición de producto. Con ratings ≥ 4, muchas películas no vistas no tienen etiqueta; el recall se calcula solo sobre las relevantes observadas. La comparación con popularidad revela si el modelo personaliza o solo reproduce el éxito.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m11-l9" data-title="Proyecto 9 · Detección de anomalías en transacciones">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Proyecto 11.9</div>
+              <h2>Proyecto 9 · Detección de anomalías en transacciones</h2>
+              <div class="lesson-meta"><span>32 min</span><span class="sep"></span><span>Anomalías</span><span class="sep"></span><span>Desbalance extremo</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m11-l9"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">En fraude, la clase positiva es rarísima y las etiquetas son costosas. Un modelo que detecta el 90 % del fraude puede generar tantas alertas que el equipo no pueda revisarlas. Este proyecto usa el dataset de fraude de tarjetas de crédito de UCI/Kaggle para practicar métricas, umbrales y coste operativo.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Evaluar con PR-AUC y curvas de coste.</div>
+              <div>Entrenar Isolation Forest sin supervisión.</div>
+              <div>Comparar detección no supervisada y supervisada.</div>
+              <div>Fijar un umbral según capacidad de revisión.</div>
+            </div>
+
+            <h3>Dataset</h3>
+            <p><strong>Credit Card Fraud Detection</strong> (ULB / UCI, también en Kaggle) contiene 284 807 transacciones europeas de dos días, de las cuales 492 son fraudulentas (aproximadamente 0.172 %). Las features <code>V1</code>–<code>V28</code> son componentes PCA anonimizados; <code>Time</code> y <code>Amount</code> están disponibles. La extrema rareza hace que accuracy sea inútil.</p>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file" string="true">fraude.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import pandas as pd
+
+df = pd.read_csv("creditcard.csv")
+print(df.shape)
+print(df["Class"].value_counts())
+print("prevalencia:", df["Class"].mean())
+
+# Partición estratificada ANTES de cualquier resampling
+from sklearn.model_selection import train_test_split
+
+X = df.drop(columns="Class")
+y = df["Class"]
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+print(y_train.sum(), y_test.sum())</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Nunca hagas oversampling antes de dividir</span>
+              Si duplicas fraudes y luego divides, la misma transacción puede aparecer en train y test. La métrica se vuelve fantasía. Divide primero; si necesitas balancear, hazlo solo dentro de cada fold de entrenamiento.
+            </div>
+
+            <h3>Isolation Forest</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file" string="true">isolation_forest.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import IsolationForest
+from sklearn.metrics import average_precision_score, precision_recall_curve, roc_auc_score
+
+escalador = StandardScaler()
+X_train_esc = escalador.fit_transform(X_train)
+X_test_esc = escalador.transform(X_test)
+
+modelo = IsolationForest(
+    n_estimators=300,
+    max_samples=256,
+    contamination="auto",
+    random_state=42,
+    n_jobs=-1
+)
+modelo.fit(X_train_esc)
+
+# score_samples: menor = más anómalo; lo invertimos para que mayor = más sospechoso
+score = -modelo.score_samples(X_test_esc)
+print("PR-AUC:", average_precision_score(y_test, score))
+print("ROC-AUC:", roc_auc_score(y_test, score))
+
+precision, recall, umbrales = precision_recall_curve(y_test, score)
+
+# Capacidad operativa: revisar 500 transacciones al día
+n_revision = 500
+indice = np.argsort(score)[-n_revision:]
+capturados = y_test.iloc[indice].sum()
+print("fraudes capturados en top 500:", capturados, "de", y_test.sum())
+print("precision en top 500:", capturados / n_revision)</code></pre></div>
+
+            <h3>Comparación con un modelo supervisado</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">comparar.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
+
+supervisado = make_pipeline(
+    StandardScaler(),
+    LogisticRegression(
+        max_iter=3000, class_weight="balanced", C=0.1
+    )
+)
+supervisado.fit(X_train, y_train)
+score_sup = supervisado.predict_proba(X_test)[:, 1]
+print("supervisado PR-AUC:", average_precision_score(y_test, score_sup))
+
+for nombre, s in [("isolation", score), ("supervisado", score_sup)]:
+    indice = np.argsort(s)[-n_revision:]
+    print(nombre, "capturados:", y_test.iloc[indice].sum())</code></pre></div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>La métrica que importa es operativa</h4></div>
+              <div class="example-body">
+                <p>Si el equipo de fraude puede revisar 500 alertas al día, el modelo debe ordenar las transacciones para que las primeras 500 concentren la mayor cantidad de fraude posible. La pregunta no es «¿cuál es el F1?», sino «¿cuántos fraudes capturamos con las alertas que podemos atender?».</p>
+                <p>Un PR-AUC alto con un umbral que genera 50 000 alertas es inútil. Reporta la curva de ganancia acumulada y el coste por caso: fraude no detectado, revisión manual y cliente bloqueado por error.</p>
+              </div>
+            </div>
+
+            <h3>Criterios de evaluación</h3>
+            <ul>
+              <li><strong>Datos:</strong> prevalencia, partición estratificada, escalado ajustado solo con train.</li>
+              <li><strong>Modelos:</strong> Isolation Forest y al menos un supervisado con <code>class_weight</code>.</li>
+              <li><strong>Métricas:</strong> PR-AUC, precision/recall, captura en top-k y coste esperado.</li>
+              <li><strong>Umbral:</strong> justificado por capacidad de revisión, no por 0.5.</li>
+              <li><strong>Limitaciones:</strong> anonimización PCA, dos días de datos, posible drift y sesgo temporal.</li>
+            </ul>
+
+            <h3>Entregables</h3>
+            <ul>
+              <li>Tabla comparativa de modelos con PR-AUC y captura en top-k.</li>
+              <li>Curva de ganancia acumulada y elección del umbral operativo.</li>
+              <li>Análisis de falsos positivos: ¿qué clientes se verían afectados?</li>
+              <li>Propuesta de monitoreo de drift y de reentrenamiento.</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">Fraude no es solo un problema de ML</span>
+              Las reglas de negocio, la verificación adicional y la fricción controlada también detectan fraude. Un modelo debe integrarse en un proceso con revisión humana y apelación. Un falso positivo no es solo una métrica: es un cliente bloqueado injustamente.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 11.9 · Curva de coste</summary>
+            <div class="answer">
+              <p>Define un coste para fraude no detectado (por ejemplo, el importe medio), un coste por revisión manual y un coste por falso positivo (compensación o pérdida de cliente). Calcula el coste total para umbrales de 100, 500 y 1 000 alertas y elige el menor. ¿Coincide con el umbral que maximiza F1?</p>
+              <p><strong>Orientación:</strong> casi nunca coincide. El umbral óptimo por coste suele ser más conservador o más agresivo que el de F1. Documenta los supuestos de coste y haz análisis de sensibilidad: si el coste de un falso positivo se duplica, ¿cambia la decisión?</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m11-l10" data-title="Proyecto final · De problema a sistema">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Proyecto 11.10</div>
+              <h2>Proyecto final · De problema a sistema</h2>
+              <div class="lesson-meta"><span>40 min</span><span class="sep"></span><span>Integrador</span><span class="sep"></span><span>Cierre del curso</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m11-l10"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">El proyecto final no es un notebook más grande: es un sistema pequeño y completo que otra persona puede ejecutar, evaluar y cuestionar. Aquí tienes el contrato de entrega, la rúbrica y las preguntas que un jurado haría. Úsalo como checklist, no como plantilla para rellenar.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Elegir un problema con datos y métrica defendibles.</div>
+              <div>Estructurar un repositorio reproducible.</div>
+              <div>Documentar limitaciones, sesgos y decisiones.</div>
+              <div>Presentar resultados sin exagerar la evidencia.</div>
+            </div>
+
+            <h3>El alcance correcto</h3>
+            <p>Un proyecto final realista cabe en 4–6 semanas y responde una pregunta concreta. Evita «usar deep learning para algo». Prefiere: «predecir la probabilidad de reingreso hospitalario a 30 días con datos tabulares públicos», «clasificar reseñas de un dominio concreto» o «detectar transacciones anómalas con capacidad de revisión limitada».</p>
+
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Fase</th><th>Tiempo sugerido</th><th>Entregable</th></tr></thead>
+                <tbody>
+                  <tr><td>Definición</td><td>3–4 días</td><td>Pregunta, decisión, métrica, coste del error y baseline</td></tr>
+                  <tr><td>Datos</td><td>1 semana</td><td>Fuente, licencia, EDA, calidad y partición</td></tr>
+                  <tr><td>Modelado</td><td>1–2 semanas</td><td>Baseline, 2–3 modelos, validación y selección</td></tr>
+                  <tr><td>Evaluación</td><td>1 semana</td><td>Test reservado, subgrupos, errores y calibración</td></tr>
+                  <tr><td>Empaquetado</td><td>3–5 días</td><td>Repositorio, artefacto, script de inferencia, README</td></tr>
+                  <tr><td>Comunicación</td><td>2–3 días</td><td>Informe de 4–6 páginas y presentación de 10 minutos</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Estructura del repositorio</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Texto</span><span class="file">estructura.txt</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-text">proyecto/
+├── README.md                 # problema, datos, cómo ejecutar, resultados
+├── requirements.txt          # versiones fijadas
+├── data/
+│   ├── raw/                  # datos originales (no versionar si son grandes)
+│   └── processed/            # datos derivados reproducibles
+├── notebooks/
+│   └── 01_eda.ipynb          # exploración, no entrenamiento final
+├── src/
+│   ├── data.py               # carga y validación
+│   ├── features.py           # transformaciones
+│   ├── train.py              # entrenamiento y selección
+│   ├── evaluate.py           # métricas y análisis
+│   └── predict.py            # inferencia desde artefacto
+├── artifacts/
+│   ├── modelo.joblib
+│   └── metricas.json
+├── reports/
+│   ├── figuras/
+│   └── informe.pdf
+└── tests/
+    ├── test_data.py
+    └── test_predict.py</code></pre></div>
+
+            <h3>Qué debe contener el README</h3>
+            <ol>
+              <li><strong>Problema y decisión:</strong> qué se predice y qué haría alguien con la salida.</li>
+              <li><strong>Datos:</strong> fuente, licencia, fecha de descarga, tamaño y limitaciones.</li>
+              <li><strong>Métrica:</strong> principal y secundarias, con justificación y coste del error.</li>
+              <li><strong>Resultados:</strong> tabla con media y dispersión, no un único número.</li>
+              <li><strong>Reproducción:</strong> comandos exactos, versiones y semilla.</li>
+              <li><strong>Limitaciones:</strong> qué no cubre, qué subgrupos fallan y qué haría falta para producción.</li>
+            </ol>
+
+            <h3>Rúbrica de evaluación</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Dimensión</th><th>0–1</th><th>2–3</th><th>4</th></tr></thead>
+                <tbody>
+                  <tr><td>Problema</td><td>Vago o sin decisión</td><td>Claro y acotado</td><td>Claro, relevante y con coste de error explícito</td></tr>
+                  <tr><td>Datos</td><td>Sin EDA ni licencia</td><td>EDA y limpieza básicas</td><td>Calidad, fuga, sesgos y partición justificada</td></tr>
+                  <tr><td>Metodología</td><td>Un modelo sin baseline</td><td>Baseline y comparación</td><td>Diseño experimental, dispersión y selección honesta</td></tr>
+                  <tr><td>Evaluación</td><td>Solo accuracy</td><td>Métricas adecuadas</td><td>Subgrupos, calibración, errores y coste</td></tr>
+                  <tr><td>Ingeniería</td><td>Notebook sin orden</td><td>Scripts y README</td><td>Artefacto reproducible, tests y comando único</td></tr>
+                  <tr><td>Comunicación</td><td>Sin contexto</td><td>Informe claro</td><td>Narrativa honesta con límites y siguiente paso</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">No inventes resultados</span>
+              Si no mediste una comparación, no la afirmes. Si tu modelo no supera la baseline, repórtalo: un resultado negativo bien documentado es más valioso que un número inventado. La integridad es parte de la competencia profesional.
+            </div>
+
+            <h3>Preguntas que te hará el jurado</h3>
+            <ul>
+              <li>¿Cuál es la baseline y por cuánto la superas, con qué incertidumbre?</li>
+              <li>¿Cómo evitaste la fuga de información en la partición y en el preprocesado?</li>
+              <li>¿Qué subgrupo tiene peor rendimiento y qué harías al respecto?</li>
+              <li>¿Qué decisión toma una persona con tu salida y cuál es el coste de un falso positivo?</li>
+              <li>¿Qué cambia en producción y cómo lo detectarías?</li>
+              <li>¿Qué no puedes afirmar con tus datos?</li>
+            </ul>
+
+            <h3>Checklist de entrega</h3>
+            <div class="checklist">
+              <div><span class="box">□</span><div><b>Reproducible.</b> Un comando instala, entrena y evalúa; el resultado coincide con el reportado.</div></div>
+              <div><span class="box">□</span><div><b>Sin fuga.</b> Preprocesado dentro del pipeline, partición documentada, test reservado.</div></div>
+              <div><span class="box">□</span><div><b>Métricas honestas.</b> Media y dispersión, subgrupos y comparación con baseline.</div></div>
+              <div><span class="box">□</span><div><b>Artefacto probado.</b> Carga en un proceso limpio y reproduce una predicción de referencia.</div></div>
+              <div><span class="box">□</span><div><b>Limitaciones escritas.</b> Dominio, datos, sesgos, cobertura y riesgos.</div></div>
+              <div><span class="box">□</span><div><b>Sin secretos ni datos personales.</b> Repositorio limpio y licencias respetadas.</div></div>
+            </div>
+
+            <div class="callout info">
+              <span class="callout-title">Cierre del curso</span>
+              Has pasado de la intuición a la implementación y de la implementación al sistema. La competencia que importa no es memorizar algoritmos: es formular un problema, medir con honestidad, reconocer límites y comunicar decisiones. Eso es lo que separa un notebook de un proyecto de Machine Learning.
+            </div>
+
+            <div class="quiz-mount" data-quiz="11"></div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 11.10 · Elevator pitch del proyecto</summary>
+            <div class="answer">
+              <p>Escribe en 150 palabras: problema, decisión, datos, métrica, baseline, resultado principal y limitación más importante. Después responde: ¿qué haría alguien distinto si tuviera tu modelo? Si no hay una acción concreta, el problema no está bien definido.</p>
+              <p><strong>Orientación:</strong> un buen pitch nombra el usuario y la decisión, no la arquitectura. La métrica debe ser comprensible para alguien no técnico. La limitación debe ser específica: «no cubre pacientes pediátricos» es mejor que «tiene limitaciones». Termina con el siguiente paso verificable.</p>
+            </div>
+          </details>
+        </article>

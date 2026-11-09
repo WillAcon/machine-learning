@@ -1,0 +1,605 @@
+<article class="lesson" id="l-m6-l1" data-title="Principios de evaluación">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 6.1</div>
+              <h2>Principios de evaluación</h2>
+              <div class="lesson-meta"><span>16 min</span><span class="sep"></span><span>Metodología</span><span class="sep"></span><span>Particiones</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m6-l1"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un modelo no vale por lo que aprende, sino por lo que generaliza. Evaluar bien es diseñar un experimento honesto: separar los datos antes de tocar el modelo, elegir una métrica alineada con el coste real y reportar la incertidumbre.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Separar entrenamiento, validación y test sin fuga de información.</div>
+              <div>Elegir métricas según el problema y el coste de los errores.</div>
+              <div>Detectar y evitar data leakage.</div>
+              <div>Reportar resultados con variabilidad, no solo con un número.</div>
+            </div>
+
+            <h3>Las tres particiones</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Conjunto</th><th>Uso</th><th>Qué no hacer</th></tr></thead>
+                <tbody>
+                  <tr><td>Entrenamiento</td><td>Ajustar parámetros y transformaciones</td><td>Evaluar el rendimiento final</td></tr>
+                  <tr><td>Validación</td><td>Elegir modelo, hiperparámetros y umbral</td><td>Reportarlo como resultado definitivo</td></tr>
+                  <tr><td>Test</td><td>Estimar el rendimiento en datos no vistos</td><td>Usarlo para tomar decisiones</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>La regla es simple: <strong>toda decisión que mire los datos de test contamina la estimación</strong>. Si ajustas el umbral, imputas valores, seleccionas features o comparas 50 modelos usando test, el número final deja de ser una estimación independiente.</p>
+
+            <h3>Data leakage: el error más caro</h3>
+            <p>La fuga de información ocurre cuando el modelo accede durante el entrenamiento a información que no tendría en producción. Ejemplos frecuentes:</p>
+            <ul>
+              <li>Estandarizar o imputar con todo el dataset antes de dividir.</li>
+              <li>Incluir una variable que se calcula después del evento que quieres predecir (por ejemplo, «fecha de cancelación» para predecir cancelación).</li>
+              <li>Duplicados entre train y test, o el mismo cliente en ambos conjuntos.</li>
+              <li>En series temporales, mezclar futuro y pasado.</li>
+            </ul>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Una fuga que parece inofensiva</h4></div>
+              <div class="example-body">
+                <p>Quieres predecir si un paciente tendrá una complicación. Entre las features incluyes «medicamento administrado». En los datos históricos, ese medicamento solo se administra después de detectar la complicación. El modelo aprende una regla trivial y obtiene un AUC de 0.98 en validación, pero en producción no puede saber el medicamento antes de que ocurra el evento.</p>
+                <p><strong>Lección:</strong> antes de usar una variable, pregúntate si estará disponible en el momento exacto de la predicción.</p>
+              </div>
+            </div>
+
+            <h3>El tamaño de la partición</h3>
+            <p>70/15/15 o 80/10/10 son valores razonables para datasets medianos. Con pocos datos, la validación cruzada aprovecha mejor la muestra. Con millones de filas, una partición fija grande es suficiente y más rápida. Lo importante no es el porcentaje exacto, sino que cada conjunto sea representativo y suficientemente grande para la métrica.</p>
+
+            <div class="callout info">
+              <span class="callout-title">Estratificar</span>
+              En clasificación con clases desbalanceadas, usa división estratificada para conservar la proporción de clases en cada conjunto. En regresión, considera estratificar por bins de la variable objetivo si la distribución es muy asimétrica.
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">split.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.model_selection import train_test_split
+
+# 1) Separar test desde el inicio y no tocarlo
+X_temp, X_test, y_temp, y_test = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=42
+)
+
+# 2) Del resto, separar validación
+X_train, X_val, y_train, y_val = train_test_split(
+    X_temp, y_temp, test_size=0.25, stratify=y_temp, random_state=42
+)
+
+print(X_train.shape, X_val.shape, X_test.shape)</code></pre></div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 6.1 · Detectar fugas</summary>
+            <div class="answer">
+              <p>Enumera tres posibles fugas de información en un modelo que predice abandono de clientes usando datos de una plataforma. Para cada una, indica cómo la detectarías y cómo la corregirías.</p>
+              <p><strong>Orientación:</strong> (a) usar la fecha de baja como feature: eliminarla y reconstruir el dataset con información disponible antes de la baja; (b) calcular la media de consumo con todo el periodo: calcularla solo con la ventana previa; (c) clientes duplicados en train y test: agrupar por cliente antes de dividir.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m6-l2" data-title="Matriz de confusión, precisión y recall">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 6.2</div>
+              <h2>Matriz de confusión, precisión y recall</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Métricas</span><span class="sep"></span><span>Simulador</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m6-l2"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">La exactitud resume todo en un número y por eso oculta lo importante. La matriz de confusión separa los cuatro tipos de acierto y error, y a partir de ella se construyen las métricas que sí responden a preguntas de negocio.</p>
+
+            <h3>Los cuatro cuadrantes</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th></th><th>Predicho positivo</th><th>Predicho negativo</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Real positivo</strong></td><td>TP · verdadero positivo</td><td>FN · falso negativo (se escapó)</td></tr>
+                  <tr><td><strong>Real negativo</strong></td><td>FP · falso positivo (falsa alarma)</td><td>TN · verdadero negativo</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="sim" data-sim="confusion">
+              <div class="sim-head">
+                <div class="sim-icon">⊞</div>
+                <div><h4>Simulador · Matriz de confusión</h4><p>Cambia los conteos y observa cómo se mueven precisión, recall, F1 y exactitud.</p></div>
+              </div>
+              <div class="sim-body">
+                <div class="sim-canvas-wrap"><canvas id="cmCanvas" width="560" height="300" aria-label="Simulador de matriz de confusión"></canvas></div>
+                <div class="sim-controls">
+                  <div class="ctrl"><label for="cmTP">TP <output>verdaderos positivos</output></label><input type="number" id="cmTP" min="0" step="1" value="40"></div>
+                  <div class="ctrl"><label for="cmFP">FP <output>falsos positivos</output></label><input type="number" id="cmFP" min="0" step="1" value="10"></div>
+                  <div class="ctrl"><label for="cmFN">FN <output>falsos negativos</output></label><input type="number" id="cmFN" min="0" step="1" value="15"></div>
+                  <div class="ctrl"><label for="cmTN">TN <output>verdaderos negativos</output></label><input type="number" id="cmTN" min="0" step="1" value="935"></div>
+                  <div class="sim-readout">
+                    <div>precisión = <b id="cmPrec">—</b></div>
+                    <div>recall = <b id="cmRec">—</b></div>
+                    <div>F1 = <b id="cmF1">—</b></div>
+                    <div>exactitud = <b id="cmAcc">—</b></div>
+                  </div>
+                  <div class="sim-hint">Sube FP: la precisión cae. Sube FN: el recall cae. La exactitud apenas se mueve porque TN domina.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="formula">
+              <span class="formula-label">Métricas derivadas</span>
+              $$P=\frac{TP}{TP+FP}, \qquad R=\frac{TP}{TP+FN}, \qquad F_1=\frac{2PR}{P+R}, \qquad \text{Exactitud}=\frac{TP+TN}{TP+FP+FN+TN}$$
+              <span class="formula-caption">Precisión responde «de lo que marqué positivo, ¿cuánto lo era?». Recall responde «de los positivos reales, ¿cuántos detecté?». F1 equilibra ambas con media armónica.</span>
+            </div>
+
+            <h3>Ejemplo numérico</h3>
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Detección de fraude</h4></div>
+              <div class="example-body">
+                <p>TP = 40, FP = 10, FN = 15, TN = 935.</p>
+                <p>Precisión = $40/50=0.80$. Recall = $40/55\approx0.727$. F1 = $2(0.8)(0.727)/(1.527)\approx0.762$. Exactitud = $975/1000=0.975$.</p>
+                <p>La exactitud de 97.5% suena excelente, pero el recall de 72.7% significa que se escapan 15 de cada 55 fraudes. Si cada fraude cuesta 1 000 y cada falsa alarma cuesta 20, el coste esperado es $15\cdot1000+10\cdot20=15\,200$. Un umbral más bajo detectaría más fraudes a costa de más falsas alarmas; la decisión depende de esos costes.</p>
+              </div>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">La exactitud engaña con desbalance</span>
+              Con 1% de positivos, predecir siempre negativo da 99% de exactitud y 0% de recall. Nunca reportes solo exactitud en un problema desbalanceado.
+            </div>
+
+            <h3>¿Qué métrica elegir?</h3>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">Precisión</span><h4>Cuando el falso positivo es caro</h4><p>Filtros de spam, alertas que interrumpen a una persona, bloqueo de transacciones legítimas.</p></div>
+              <div class="algo-card"><span class="tag">Recall</span><h4>Cuando el falso negativo es caro</h4><p>Detección de cáncer, fraude, fallos de seguridad. Es preferible revisar de más.</p></div>
+              <div class="algo-card"><span class="tag">F1</span><h4>Cuando ambos importan</h4><p>Resumen único para comparar modelos, aunque oculta el balance real entre precisión y recall.</p></div>
+              <div class="algo-card"><span class="tag">Coste</span><h4>Cuando conoces los costes</h4><p>Minimiza $c_{FP}\cdot FP+c_{FN}\cdot FN$. Es la métrica más alineada con el negocio.</p></div>
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 6.2 · Cambiar el umbral</summary>
+            <div class="answer">
+              <p>Con un umbral de 0.5 obtienes TP=40, FP=10, FN=15, TN=935. Si bajas el umbral, estima cualitativamente qué pasa con TP, FP, FN y con precisión/recall. ¿Qué umbral elegirías si cada falso negativo cuesta 50 veces más que un falso positivo?</p>
+              <p><strong>Orientación:</strong> bajar el umbral aumenta TP y FP, reduce FN; el recall sube y la precisión baja. Con un coste de FN mucho mayor, conviene un umbral bajo que priorice recall, aceptando más falsas alarmas.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m6-l3" data-title="Curvas ROC, PR y elección de umbral">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 6.3</div>
+              <h2>Curvas ROC, PR y elección de umbral</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Ranking</span><span class="sep"></span><span>Curvas</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m6-l3"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un clasificador no solo devuelve una clase: devuelve una puntuación o probabilidad. Las curvas ROC y precision–recall evalúan la calidad de ese ranking en todos los umbrales posibles, no solo en uno.</p>
+
+            <h3>Curva ROC</h3>
+            <p>Representa la tasa de verdaderos positivos (recall) frente a la tasa de falsos positivos para todos los umbrales. El área bajo la curva (AUC) tiene una interpretación elegante: es la probabilidad de que un positivo aleatorio reciba una puntuación mayor que un negativo aleatorio.</p>
+            <div class="formula">
+              <span class="formula-label">TPR, FPR y AUC</span>
+              $$\text{TPR}=\frac{TP}{TP+FN}, \qquad \text{FPR}=\frac{FP}{FP+TN}, \qquad \text{AUC}=P(s^+>s^-)$$
+              <span class="formula-caption">AUC = 0.5 es azar; 1.0 es separación perfecta. Un modelo con AUC alto puede seguir teniendo mal rendimiento en el umbral operativo elegido.</span>
+            </div>
+
+            <h3>Curva precision–recall</h3>
+            <p>Con clases muy desbalanceadas, la curva ROC puede verse optimista porque el FPR se calcula sobre un número enorme de negativos. La curva PR se centra en los positivos y es más informativa cuando la clase positiva es rara. Su resumen habitual es el <strong>average precision</strong> (área bajo PR).</p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Mismo AUC, distinto rendimiento operativo</h4></div>
+              <div class="example-body">
+                <p>Dos modelos tienen AUC 0.90. En el umbral 0.5, el modelo A logra precisión 0.80 y recall 0.60; el modelo B logra precisión 0.55 y recall 0.85. Para una campaña de retención con capacidad limitada, A es mejor; para detección de fraude, B puede ser preferible. El AUC global no decide por ti.</p>
+              </div>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">curvas.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import (
+    roc_curve, roc_auc_score,
+    precision_recall_curve, average_precision_score
+)
+
+probs = modelo.predict_proba(X_test)[:, 1]
+
+fpr, tpr, umbrales_roc = roc_curve(y_test, probs)
+prec, rec, umbrales_pr = precision_recall_curve(y_test, probs)
+
+print("ROC-AUC:", round(roc_auc_score(y_test, probs), 3))
+print("Average precision:", round(average_precision_score(y_test, probs), 3))
+
+fig, ax = plt.subplots(1, 2, figsize=(11, 4))
+ax[0].plot(fpr, tpr, label=f"AUC={roc_auc_score(y_test, probs):.3f}")
+ax[0].plot([0, 1], [0, 1], "--", color="gray")
+ax[0].set(xlabel="FPR", ylabel="TPR", title="ROC")
+ax[1].plot(rec, prec)
+ax[1].set(xlabel="Recall", ylabel="Precisión", title="Precision–Recall")
+plt.show()
+
+# Elegir umbral por F1
+f1 = 2 * prec * rec / (prec + rec + 1e-9)
+mejor = np.argmax(f1)
+print("umbral óptimo por F1:", umbrales_pr[mejor], "F1:", round(f1[mejor], 3))</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">El umbral es una decisión de negocio</span>
+              El modelo produce puntuaciones; el umbral convierte esas puntuaciones en acciones. No lo elijas por defecto en 0.5. Elígelo con validación y con los costes reales de cada tipo de error.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 6.3 · Leer curvas</summary>
+            <div class="answer">
+              <p>Explica por qué dos modelos con la misma AUC pueden tener curvas PR distintas. ¿Cuál elegirías si solo puedes revisar el 2% de los casos con mayor score?</p>
+              <p><strong>Orientación:</strong> la AUC resume el ranking global, pero la PR pondera el rendimiento en la zona de alto recall/precisión. Si solo revisas el top 2%, compara la precisión en ese top-k: el modelo con mejor precisión temprana es el útil, aunque su AUC sea similar.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m6-l4" data-title="Métricas de regresión">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 6.4</div>
+              <h2>Métricas de regresión</h2>
+              <div class="lesson-meta"><span>18 min</span><span class="sep"></span><span>MAE, RMSE, R²</span><span class="sep"></span><span>Interpretación</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m6-l4"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">En regresión, el error se mide en unidades de la salida. La elección entre MAE, RMSE y R² no es estética: cambia qué errores penalizas y cómo interpretas el resultado.</p>
+
+            <div class="formula">
+              <span class="formula-label">Las métricas básicas</span>
+              $$\text{MAE}=\frac1n\sum|y_i-\hat y_i|, \qquad \text{MSE}=\frac1n\sum(y_i-\hat y_i)^2, \qquad \text{RMSE}=\sqrt{\text{MSE}}$$
+              $$R^2=1-\frac{\sum(y_i-\hat y_i)^2}{\sum(y_i-\bar y)^2}$$
+              <span class="formula-caption">MAE es robusta y fácil de explicar; RMSE penaliza más los errores grandes; R² compara con predecir la media.</span>
+            </div>
+
+            <h3>Cuándo usar cada una</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Métrica</th><th>Ventaja</th><th>Riesgo</th></tr></thead>
+                <tbody>
+                  <tr><td>MAE</td><td>Interpretable en unidades; robusta a outliers</td><td>No diferencia errores grandes de pequeños</td></tr>
+                  <tr><td>RMSE</td><td>Penaliza errores grandes; misma unidad que la salida</td><td>Sensible a outliers</td></tr>
+                  <tr><td>R²</td><td>Comparación relativa con la media</td><td>Puede ser negativo; no indica el tamaño del error</td></tr>
+                  <tr><td>MAPE</td><td>Error porcentual, útil para comparar escalas</td><td>Explota si $y$ está cerca de cero; sesga hacia valores pequeños</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Un outlier cambia la historia</h4></div>
+              <div class="example-body">
+                <p>Errores absolutos: 1, 1, 1, 1, 10. MAE = 2.8. RMSE = $\sqrt{(1+1+1+1+100)/5}=\sqrt{20.8}\approx4.56$. El error grande domina el RMSE. Si ese outlier es un dato corrupto, RMSE lo amplifica; si es un caso crítico que no quieres ignorar, RMSE es apropiado.</p>
+              </div>
+            </div>
+
+            <h3>Ejemplo de R²</h3>
+            <p>Si la varianza total de $y$ es 100 y el error cuadrático medio del modelo es 25, entonces $R^2=1-25/100=0.75$: el modelo explica el 75% de la varianza. Un $R^2$ negativo en test significa que el modelo predice peor que la media del test, algo posible con sobreajuste o distribuciones distintas.</p>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">metricas_regresion.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+mae = mean_absolute_error(y_test, y_pred)
+rmse = mean_squared_error(y_test, y_pred) ** 0.5
+r2 = r2_score(y_test, y_pred)
+
+# MAPE con protección para valores cercanos a cero
+mask = np.abs(y_test) > 1e-8
+mape = np.mean(np.abs((y_test[mask] - y_pred[mask]) / y_test[mask])) * 100
+
+print(f"MAE={mae:.2f}  RMSE={rmse:.2f}  R2={r2:.3f}  MAPE={mape:.1f}%")</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Compara siempre contra una baseline</span>
+              Un RMSE de 20 000 en precios de vivienda no dice nada por sí solo. Compáralo con predecir la media (RMSE de la baseline). Si tu modelo no mejora sustancialmente, no justifica su complejidad.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 6.4 · Elegir métrica</summary>
+            <div class="answer">
+              <p>Para predecir el tiempo de entrega de paquetes, ¿preferirías MAE o RMSE? ¿Y para estimar el precio de un seguro con algunos siniestros extremos? Justifica.</p>
+              <p><strong>Orientación:</strong> para tiempos de entrega, MAE es más interpretable y menos sensible a retrasos atípicos; para seguros, RMSE (o una pérdida asimétrica) puede reflejar mejor el coste de los errores grandes, aunque conviene analizar la distribución y usar métricas robustas como complemento.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m6-l5" data-title="Validación cruzada">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 6.5</div>
+              <h2>Validación cruzada</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>k-fold</span><span class="sep"></span><span>Series temporales</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m6-l5"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Una sola partición puede darte suerte o mala suerte. La validación cruzada rota el conjunto de validación para que cada ejemplo se use como test una vez, produciendo una estimación más estable y una medida de variabilidad.</p>
+
+            <h3>K-fold</h3>
+            <ol>
+              <li>Divide los datos en $k$ particiones de tamaño similar.</li>
+              <li>Entrena con $k-1$ y valida con la restante.</li>
+              <li>Repite $k$ veces, rotando la partición de validación.</li>
+              <li>Reporta la media y la desviación estándar de la métrica.</li>
+            </ol>
+            <p>$k=5$ o $10$ son valores habituales. Con $k=n$ (leave-one-out) el sesgo es mínimo, pero la varianza y el coste son altos.</p>
+
+            <h3>Variantes según la estructura de los datos</h3>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">Estratificada</span><h4>Clasificación desbalanceada</h4><p>Conserva la proporción de clases en cada fold. Es el valor por defecto recomendado para clasificación.</p></div>
+              <div class="algo-card"><span class="tag">GroupKFold</span><h4>Datos agrupados</h4><p>Si hay varios registros por paciente, cliente o usuario, todos deben caer en el mismo fold para evitar fuga.</p></div>
+              <div class="algo-card"><span class="tag">TimeSeriesSplit</span><h4>Series temporales</h4><p>Entrena con el pasado y valida con el futuro. Nunca mezcles aleatoriamente el tiempo.</p></div>
+              <div class="algo-card"><span class="tag">Repeated</span><h4>Pocos datos</h4><p>Repite k-fold con distintas semillas para reducir la dependencia de una partición concreta.</p></div>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Interpretar media y desviación</h4></div>
+              <div class="example-body">
+                <p>Modelo A: F1 = 0.81 ± 0.01. Modelo B: F1 = 0.83 ± 0.06. Aunque B tiene mejor media, su variabilidad es mucho mayor. Con pocos datos, la diferencia podría no ser estable. Antes de elegir B, conviene repetir la validación y comprobar si la mejora se mantiene.</p>
+              </div>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">cross_validation.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+from sklearn.model_selection import (
+    StratifiedKFold, GroupKFold, TimeSeriesSplit, cross_val_score
+)
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+
+modelo = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))
+
+# Clasificación estratificada
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+scores = cross_val_score(modelo, X, y, cv=cv, scoring="f1")
+print(f"F1 = {scores.mean():.3f} ± {scores.std():.3f}")
+
+# Grupos: todos los registros de un paciente en el mismo fold
+# cv = GroupKFold(n_splits=5)
+# scores = cross_val_score(modelo, X, y, cv=cv, groups=paciente_id, scoring="roc_auc")
+
+# Serie temporal: siempre entrena con el pasado
+# cv = TimeSeriesSplit(n_splits=5)
+# scores = cross_val_score(modelo, X, y, cv=cv, scoring="neg_mean_absolute_error")</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">El pipeline no es opcional</span>
+              Si escalas o imputas fuera del pipeline, la validación cruzada filtra información entre folds. Coloca todas las transformaciones que aprenden parámetros dentro del pipeline.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 6.5 · Diseñar la validación</summary>
+            <div class="answer">
+              <p>Para cada caso, elige el esquema de validación: (a) predecir churn con 20 000 clientes y 3 registros por cliente; (b) predecir demanda diaria de los próximos 30 días; (c) clasificar imágenes de 10 clases con 500 imágenes por clase; (d) comparar dos modelos con solo 200 filas.</p>
+              <p><strong>Orientación:</strong> (a) GroupKFold por cliente; (b) TimeSeriesSplit con horizonte; (c) StratifiedKFold de 5; (d) repeated stratified k-fold y reportar media ± desviación, siendo consciente de la incertidumbre.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m6-l6" data-title="Búsqueda de hiperparámetros">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 6.6</div>
+              <h2>Búsqueda de hiperparámetros</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Grid y random search</span><span class="sep"></span><span>Código</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m6-l6"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Los hiperparámetros no se aprenden con gradiente: se eligen mediante búsqueda y validación. La diferencia entre un modelo mediocre y uno bueno a menudo está menos en el algoritmo que en una búsqueda bien diseñada.</p>
+
+            <h3>Estrategias</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Método</th><th>Cómo funciona</th><th>Cuándo usarlo</th></tr></thead>
+                <tbody>
+                  <tr><td>Grid search</td><td>Prueba todas las combinaciones de una rejilla</td><td>Pocos hiperparámetros y rangos conocidos</td></tr>
+                  <tr><td>Random search</td><td>Muestrea combinaciones aleatorias</td><td>Espacios grandes; suele ser más eficiente</td></tr>
+                  <tr><td>Bayesiana</td><td>Modela la función objetivo y elige el siguiente punto</td><td>Evaluaciones costosas</td></tr>
+                  <tr><td>Successive halving</td><td>Elimina configuraciones malas con pocos recursos</td><td>Entrenamientos largos</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout info">
+              <span class="callout-title">Random search gana más de lo que parece</span>
+              Con muchos hiperparámetros, solo unos pocos importan. Grid search desperdicia evaluaciones variando los irrelevantes; random search explora mejor el espacio relevante con el mismo presupuesto.
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">busqueda.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold
+from sklearn.ensemble import RandomForestClassifier
+from scipy.stats import loguniform, randint
+
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+busqueda = RandomizedSearchCV(
+    RandomForestClassifier(random_state=42),
+    param_distributions={
+        "n_estimators": randint(100, 600),
+        "max_depth": randint(3, 25),
+        "min_samples_leaf": randint(1, 10),
+        "max_features": ["sqrt", "log2", None],
+        "class_weight": [None, "balanced"]
+    },
+    n_iter=40,
+    scoring="f1",
+    cv=cv,
+    random_state=42,
+    n_jobs=-1,
+    verbose=1
+)
+
+busqueda.fit(X_train, y_train)
+print("mejores parámetros:", busqueda.best_params_)
+print("mejor F1 CV:", round(busqueda.best_score_, 3))
+
+# Evaluación final única sobre test
+from sklearn.metrics import classification_report
+y_pred = busqueda.best_estimator_.predict(X_test)
+print(classification_report(y_test, y_pred))</code></pre></div>
+
+            <h3>Buenas prácticas</h3>
+            <ul>
+              <li>Define el espacio de búsqueda con conocimiento del algoritmo, no con números arbitrarios.</li>
+              <li>Usa la misma semilla y el mismo esquema de validación para comparar modelos.</li>
+              <li>Registra cada experimento: parámetros, métrica, tiempo y versión de datos.</li>
+              <li>No busques sobre test. El test se evalúa una vez al final.</li>
+              <li>Incluye una baseline simple en la comparación.</li>
+            </ul>
+
+            <div class="callout warn">
+              <span class="callout-title">Sobreajuste de la validación</span>
+              Si pruebas cientos de configuraciones y eliges la mejor, parte de la mejora puede ser suerte de la partición. Repite la validación con otra semilla o usa nested cross-validation cuando necesites una estimación insesgada del proceso completo.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 6.6 · Presupuesto de búsqueda</summary>
+            <div class="answer">
+              <p>Tienes 2 horas de cómputo y 20 000 filas. ¿Preferirías grid search de 5 hiperparámetros con 4 valores cada uno (1 024 combinaciones) o random search de 40 combinaciones con validación cruzada de 5 folds? Justifica.</p>
+              <p><strong>Orientación:</strong> random search es más viable: 40×5 = 200 entrenamientos frente a 1 024×5 = 5 120. Además explora rangos continuos y no desperdicia presupuesto en combinaciones irrelevantes. Si el espacio es pequeño y bien conocido, grid puede ser suficiente.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m6-l7" data-title="Calibración y umbrales por coste">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 6.7</div>
+              <h2>Calibración y umbrales por coste</h2>
+              <div class="lesson-meta"><span>18 min</span><span class="sep"></span><span>Probabilidades</span><span class="sep"></span><span>Decisión</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m6-l7"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un modelo puede ordenar bien y, aun así, dar probabilidades mal calibradas. Si usas la probabilidad para decidir cuánto riesgo asumir, necesitas que un 0.8 signifique realmente 80% de probabilidad.</p>
+
+            <h3>Qué es calibración</h3>
+            <p>Un clasificador está calibrado si, entre todos los ejemplos a los que asigna probabilidad $p$, la proporción de positivos es aproximadamente $p$. Se visualiza con un <strong>reliability diagram</strong> y se resume con el <strong>expected calibration error</strong>.</p>
+            <div class="formula">
+              <span class="formula-label">ECE</span>
+              $$\text{ECE}=\sum_{b=1}^{B}\frac{|S_b|}{n}\left|\text{acc}(S_b)-\text{conf}(S_b)\right|$$
+              <span class="formula-caption">Se agrupan las predicciones en bins de confianza; se compara la precisión observada con la confianza media en cada bin.</span>
+            </div>
+
+            <h3>Métodos de calibración</h3>
+            <ul>
+              <li><strong>Platt scaling:</strong> ajusta una regresión logística sobre las puntuaciones del modelo usando un conjunto de calibración.</li>
+              <li><strong>Isotonic regression:</strong> ajusta una función monótona no paramétrica; flexible pero necesita más datos.</li>
+              <li><strong>Temperature scaling:</strong> divide los logits por una temperatura; muy usado en redes neuronales.</li>
+            </ul>
+
+            <h3>Umbral por coste</h3>
+            <p>Si un falso positivo cuesta $c_{FP}$ y un falso negativo cuesta $c_{FN}$, el umbral óptimo no es 0.5. Para un clasificador calibrado, se predice positivo cuando el coste esperado de hacerlo es menor:</p>
+            <div class="formula">
+              <span class="formula-label">Regla de decisión con costes</span>
+              $$p\cdot c_{FN} > (1-p)\cdot c_{FP} \quad\Longrightarrow\quad p>\frac{c_{FP}}{c_{FP}+c_{FN}}$$
+              <span class="formula-caption">Si un falso negativo cuesta 9 veces más que un falso positivo, el umbral es $1/(1+9)=0.1$.</span>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Umbral para revisión manual</h4></div>
+              <div class="example-body">
+                <p>Un modelo de fraude calibrado. Cada fraude no detectado cuesta 1 000; cada revisión de una falsa alarma cuesta 50. Umbral = $50/(50+1000)\approx0.048$. Con ese umbral se revisan muchas más transacciones, pero el coste total esperado es menor si el modelo está calibrado. Si no lo está, el umbral calculado no se cumple en la práctica.</p>
+              </div>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">calibracion.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.calibration import CalibratedClassifierCV, calibration_curve
+from sklearn.metrics import brier_score_loss
+import matplotlib.pyplot as plt
+
+# El conjunto de calibración debe ser independiente del de entrenamiento
+calibrado = CalibratedClassifierCV(base_modelo, method="isotonic", cv="prefit")
+calibrado.fit(X_val, y_val)
+
+probs = calibrado.predict_proba(X_test)[:, 1]
+frac_pos, mean_pred = calibration_curve(y_test, probs, n_bins=10)
+plt.plot(mean_pred, frac_pos, marker="o")
+plt.plot([0, 1], [0, 1], "--", color="gray")
+plt.xlabel("probabilidad predicha")
+plt.ylabel("fracción de positivos")
+plt.title("Diagrama de calibración")
+plt.show()
+
+print("Brier score:", round(brier_score_loss(y_test, probs), 4))</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">Brier score</span>
+              Combina calibración y discriminación: $\frac1n\sum(p_i-y_i)^2$. Menor es mejor. No sustituye a analizar la curva de calibración, pero es útil para comparar.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 6.7 · Coste y umbral</summary>
+            <div class="answer">
+              <p>En un cribado médico, un falso negativo cuesta 100 veces más que un falso positivo. ¿Qué umbral usarías si las probabilidades están calibradas? ¿Qué harías si el modelo no está calibrado?</p>
+              <p><strong>Orientación:</strong> umbral = $1/(1+100)\approx0.0099$, muy bajo, priorizando recall. Si no está calibrado, primero calibra con un conjunto independiente o elige el umbral empíricamente sobre la curva de validación según el coste, sin asumir que la probabilidad es literal.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m6-l8" data-title="Comparar modelos y reportar resultados">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 6.8</div>
+              <h2>Comparar modelos y reportar resultados</h2>
+              <div class="lesson-meta"><span>18 min</span><span class="sep"></span><span>Incertidumbre</span><span class="sep"></span><span>Cierre</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m6-l8"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">«El modelo A tiene 0.842 y el B 0.839» no es una comparación. La diferencia puede ser ruido de la partición. Comparar bien exige medir variabilidad, considerar el coste y evitar conclusiones que los datos no sostienen.</p>
+
+            <h3>Qué reportar como mínimo</h3>
+            <ul>
+              <li>Métrica principal y por qué se eligió.</li>
+              <li>Baseline y su resultado.</li>
+              <li>Media y desviación (o intervalo) entre folds o semillas.</li>
+              <li>Tamaño y composición de train/validación/test.</li>
+              <li>Hiperparámetros y procedimiento de selección.</li>
+              <li>Coste computacional y latencia si es relevante.</li>
+              <li>Limitaciones y riesgos conocidos.</li>
+            </ul>
+
+            <h3>Comparaciones pareadas</h3>
+            <p>Cuando evalúas dos modelos sobre los mismos folds, las observaciones no son independientes. Una prueba de diferencias pareadas o un intervalo de confianza bootstrap sobre la diferencia es más informativo que comparar dos medias aisladas.</p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Una mejora que no es mejora</h4></div>
+              <div class="example-body">
+                <p>Modelo A: 0.81 ± 0.02. Modelo B: 0.83 ± 0.05. La diferencia de medias es 0.02, menor que la variabilidad de B. No hay evidencia suficiente para afirmar que B es mejor. Antes de desplegarlo, repite con más semillas, comprueba la diferencia por fold y analiza el coste.</p>
+              </div>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">comparar.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+from sklearn.model_selection import cross_val_score, RepeatedStratifiedKFold
+from scipy import stats
+
+cv = RepeatedStratifiedKFold(n_splits=5, n_repeats=5, random_state=42)
+a = cross_val_score(modelo_a, X, y, cv=cv, scoring="f1")
+b = cross_val_score(modelo_b, X, y, cv=cv, scoring="f1")
+
+dif = a - b
+print(f"A: {a.mean():.3f} ± {a.std():.3f}")
+print(f"B: {b.mean():.3f} ± {b.std():.3f}")
+print(f"diferencia media: {dif.mean():.3f}")
+print("IC 95% bootstrap:", np.percentile(
+    [np.mean(np.random.choice(dif, len(dif), replace=True)) for _ in range(5000)],
+    [2.5, 97.5]
+))
+print("t pareada:", stats.ttest_rel(a, b))</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">No confundas significancia con relevancia</span>
+              Con muchos datos, una diferencia minúscula puede ser estadísticamente significativa y operativamente irrelevante. Pregúntate siempre si la mejora justifica el coste de mantener un modelo más complejo.
+            </div>
+
+            <div class="quiz-mount" data-quiz="6"></div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 6.8 · Informe de evaluación</summary>
+            <div class="answer">
+              <p>Redacta un informe de una página para un modelo de aprobación de crédito. Incluye métrica principal, baseline, validación, umbral, coste de errores y limitaciones. ¿Qué no afirmarías sin más evidencia?</p>
+              <p><strong>Orientación:</strong> usar AUC/PR y una matriz de confusión con umbral de negocio; comparar con regresión logística baseline; reportar intervalos; no afirmar causalidad ni equidad sin análisis específico; explicar que el modelo es una herramienta de apoyo, no una decisión automática.</p>
+            </div>
+          </details>
+        </article>

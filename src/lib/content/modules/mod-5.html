@@ -1,0 +1,669 @@
+<article class="lesson" id="l-m5-l1" data-title="Panorama del aprendizaje no supervisado">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 5.1</div>
+              <h2>Panorama del aprendizaje no supervisado</h2>
+              <div class="lesson-meta"><span>16 min</span><span class="sep"></span><span>Mapa conceptual</span><span class="sep"></span><span>Sin código todavía</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m5-l1"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Sin etiquetas no hay una respuesta correcta que copiar. El aprendizaje no supervisado busca estructura: grupos, direcciones de varianza, densidades, factores latentes o ejemplos atípicos. Es más difícil de evaluar y, por eso, exige más criterio humano.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Distinguir clustering, reducción de dimensionalidad y detección de anomalías.</div>
+              <div>Elegir una medida de distancia adecuada al tipo de dato.</div>
+              <div>Reconocer cuándo un resultado no supervisado es útil y cuándo es solo un dibujo bonito.</div>
+              <div>Evitar conclusiones causales a partir de patrones de agrupamiento.</div>
+            </div>
+
+            <h3>Tres familias de problemas</h3>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">Clustering</span><h4>Agrupar</h4><p>Encontrar subconjuntos de ejemplos similares: clientes con hábitos parecidos, documentos del mismo tema, imágenes semejantes.</p></div>
+              <div class="algo-card"><span class="tag">Dimensionalidad</span><h4>Comprimir</h4><p>Representar cada ejemplo con menos variables conservando la información relevante: PCA, t-SNE, autoencoders.</p></div>
+              <div class="algo-card"><span class="tag">Anomalías</span><h4>Detectar lo raro</h4><p>Modelar lo normal y marcar desviaciones: fraude, fallos industriales, intrusiones, errores de sensores.</p></div>
+              <div class="algo-card"><span class="tag">Estructura</span><h4>Descubrir</h4><p>Estimar densidades, factores latentes o reglas de asociación que expliquen la distribución de los datos.</p></div>
+            </div>
+
+            <h3>La distancia define el resultado</h3>
+            <p>Todo algoritmo de clustering necesita una noción de similitud. Cambiar la distancia cambia los grupos. Las más comunes son:</p>
+            <div class="formula">
+              <span class="formula-label">Distancias habituales</span>
+              $$d_2(\mathbf{x},\mathbf{y})=\sqrt{\sum_j (x_j-y_j)^2}, \qquad d_1(\mathbf{x},\mathbf{y})=\sum_j |x_j-y_j|, \qquad d_{\cos}(\mathbf{x},\mathbf{y})=1-\frac{\mathbf{x}\cdot\mathbf{y}}{\|\mathbf{x}\|\|\mathbf{y}\|}$$
+              <span class="formula-caption">Euclidiana para variables continuas escaladas; Manhattan es más robusta a outliers; coseno es estándar en texto y embeddings.</span>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">Escalar no es opcional</span>
+              Si una variable se mide en miles y otra entre 0 y 1, la distancia euclidiana estará dominada por la primera. Estandariza o normaliza antes de aplicar K-Means, DBSCAN, PCA o KNN.
+            </div>
+
+            <h3>Un ejemplo numérico mínimo</h3>
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Distancia euclidiana entre dos clientes</h4></div>
+              <div class="example-body">
+                <p>Cliente A: edad 30, gasto mensual 200. Cliente B: edad 40, gasto 260. Sin escalar, la distancia es $\sqrt{10^2+60^2}\approx 60.8$, dominada por el gasto. Si estandarizamos con media 35 y desviación 10 para edad, y media 230 y desviación 50 para gasto, las diferencias pasan a ser 1 y 0.6, y la distancia es $\sqrt{1+0.36}\approx 1.17$.</p>
+                <p><strong>Conclusión:</strong> la misma pareja de clientes parece muy lejana o bastante cercana según la escala. La distancia no es una propiedad absoluta de los datos: es una decisión de modelado.</p>
+              </div>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">distancias.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+from sklearn.preprocessing import StandardScaler
+
+X = np.array([[30, 200], [40, 260], [29, 190], [55, 420]], dtype=float)
+
+def distancias(X, escalar=True):
+    Z = StandardScaler().fit_transform(X) if escalar else X
+    D = np.sqrt(((Z[:, None, :] - Z[None, :, :]) ** 2).sum(axis=2))
+    return D
+
+print("sin escalar:\n", np.round(distancias(X, False), 2))
+print("estandarizado:\n", np.round(distancias(X, True), 2))</code></pre></div>
+
+            <h3>Cómo se evalúa lo no supervisado</h3>
+            <p>No hay etiquetas, así que no hay accuracy. Se usan dos familias de criterios:</p>
+            <ul>
+              <li><strong>Internos:</strong> silhouette, Davies–Bouldin, inercia, varianza explicada. Miden cohesión y separación, pero favorecen ciertas formas.</li>
+              <li><strong>Externos:</strong> estabilidad ante remuestreo, coherencia con conocimiento del dominio, utilidad en una tarea posterior (por ejemplo, segmentación que mejora una campaña).</li>
+            </ul>
+            <p>Un agrupamiento es valioso si es <em>estable</em>, <em>interpretable</em> y <em>accionable</em>. Si cambia por completo al repetir con otra semilla, no es un descubrimiento: es ruido.</p>
+
+            <div class="callout info">
+              <span class="callout-title">Cuidado con la interpretación</span>
+              Que un algoritmo agrupe clientes en tres clusters no significa que existan tres tipos naturales de clientes. Significa que, con esa distancia, ese algoritmo y esos parámetros, esa partición minimiza cierto criterio. La validación con negocio es imprescindible.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 5.1 · Diseñar un estudio de segmentación</summary>
+            <div class="answer">
+              <p>Una tienda online quiere segmentar clientes usando: número de compras al año, gasto total, días desde la última compra y porcentaje de devoluciones. Propón un pipeline y responde: ¿qué distancia usarías?, ¿escalarías?, ¿cómo validarías que los segmentos son útiles?</p>
+              <p><strong>Orientación:</strong> estandarizar las cuatro variables (o aplicar transformación logarítmica al gasto si está muy sesgado), usar K-Means con varios valores de k y comparar silhouette y estabilidad; validar con negocio comprobando que los segmentos difieren en tasa de recompra o ticket medio. No interpretar los clusters como tipos psicológicos.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m5-l2" data-title="K-Means">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 5.2</div>
+              <h2>K-Means: asignar y actualizar</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Algoritmo + simulador</span><span class="sep"></span><span>Implementación</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m5-l2"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">K-Means es el algoritmo de clustering más usado y el más malinterpretado. Es rápido, simple y funciona bien cuando los grupos son aproximadamente esféricos y tienen tamaño similar. Fuera de ese régimen puede producir resultados engañosos.</p>
+
+            <h3>El objetivo</h3>
+            <div class="formula">
+              <span class="formula-label">Inercia o suma de cuadrados intra-cluster</span>
+              $$J=\sum_{k=1}^{K}\sum_{\mathbf{x}\in C_k}\|\mathbf{x}-\boldsymbol{\mu}_k\|^2, \qquad \boldsymbol{\mu}_k=\frac{1}{|C_k|}\sum_{\mathbf{x}\in C_k}\mathbf{x}$$
+              <span class="formula-caption">K-Means alterna dos pasos: asignar cada punto al centroide más cercano y recalcular cada centroide como la media de su cluster. Ambos pasos nunca aumentan $J$.</span>
+            </div>
+
+            <h3>El algoritmo paso a paso</h3>
+            <ol>
+              <li>Elegir $K$ y inicializar $K$ centroides.</li>
+              <li><strong>Asignación:</strong> cada punto va al centroide con menor distancia al cuadrado.</li>
+              <li><strong>Actualización:</strong> cada centroide se mueve a la media de los puntos asignados.</li>
+              <li>Repetir hasta que las asignaciones no cambien o se alcance un máximo de iteraciones.</li>
+            </ol>
+            <p>El resultado depende de la inicialización. Una mala elección puede dejar dos centroides en el mismo grupo y otro capturando dos grupos reales. <strong>K-Means++</strong> elige centroides iniciales separados con probabilidad proporcional a la distancia al centroide más cercano, lo que mejora mucho la convergencia.</p>
+
+            <div class="sim" data-sim="kmeans">
+              <div class="sim-head">
+                <div class="sim-icon">◍</div>
+                <div><h4>Simulador · K-Means</h4><p>Cambia k, avanza iteración a iteración y observa cómo se mueven los centroides.</p></div>
+              </div>
+              <div class="sim-body">
+                <div class="sim-canvas-wrap"><canvas id="kmCanvas" width="560" height="360" aria-label="Simulador de K-Means"></canvas></div>
+                <div class="sim-controls">
+                  <div class="ctrl"><label for="kmK">Número de clusters k <output id="kmKOut">3</output></label><input type="range" id="kmK" min="2" max="6" step="1" value="3"></div>
+                  <div class="btn-row">
+                    <button class="btn small" id="kmStep" type="button">Paso</button>
+                    <button class="btn small primary" id="kmRun" type="button">Ejecutar</button>
+                    <button class="btn small" id="kmReset" type="button">Reiniciar</button>
+                  </div>
+                  <div class="sim-readout">
+                    <div>inercia = <b id="kmInertia">—</b></div>
+                    <div>iteración = <b id="kmIter">0</b></div>
+                  </div>
+                  <div class="sim-hint">Los círculos grandes son centroides. Prueba k = 3 y k = 6: la inercia siempre baja al aumentar k, pero eso no significa mejor clustering.</div>
+                </div>
+              </div>
+            </div>
+
+            <h3>Ejemplo numérico en una dimensión</h3>
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Dos iteraciones con K = 2</h4></div>
+              <div class="example-body">
+                <p>Datos: $\{1,2,3,8,9,10\}$. Centroides iniciales: $\mu_1=1$, $\mu_2=10$.</p>
+                <p><strong>Asignación:</strong> $C_1=\{1,2,3\}$ y $C_2=\{8,9,10\}$ porque 3 está más cerca de 1 que de 10.</p>
+                <p><strong>Actualización:</strong> $\mu_1=2$ y $\mu_2=9$. En la siguiente asignación nada cambia; el algoritmo converge.</p>
+                <p>Inercia final: $(1-2)^2+(2-2)^2+(3-2)^2+(8-9)^2+(9-9)^2+(10-9)^2=4$. Si hubiéramos inicializado $\mu_1=1$, $\mu_2=2$, el resultado sería distinto: dos clusters desbalanceados. La inicialización importa.</p>
+              </div>
+            </div>
+
+            <h3>Implementación desde cero y con Scikit-learn</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">kmeans.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.datasets import make_blobs
+from sklearn.preprocessing import StandardScaler
+
+X, _ = make_blobs(n_samples=500, centers=4, cluster_std=1.2, random_state=42)
+X = StandardScaler().fit_transform(X)
+
+def kmeans_desde_cero(X, k, iters=30, seed=0):
+    rng = np.random.default_rng(seed)
+    centros = X[rng.choice(len(X), k, replace=False)]
+    for _ in range(iters):
+        d = ((X[:, None, :] - centros[None, :, :]) ** 2).sum(axis=2)
+        etiquetas = d.argmin(axis=1)
+        nuevos = np.array([X[etiquetas == j].mean(axis=0) if np.any(etiquetas == j) else centros[j]
+                           for j in range(k)])
+        if np.allclose(nuevos, centros):
+            break
+        centros = nuevos
+    inercia = ((X - centros[etiquetas]) ** 2).sum()
+    return etiquetas, centros, inercia
+
+etiq, centros, inercia = kmeans_desde_cero(X, 4)
+print("inercia desde cero:", round(inercia, 2))
+
+modelo = KMeans(n_clusters=4, n_init=10, random_state=42).fit(X)
+print("inercia sklearn:", round(modelo.inertia_, 2))
+print("silhouette:", round(__import__("sklearn.metrics", fromlist=["silhouette_score"]).silhouette_score(X, modelo.labels_), 3))</code></pre></div>
+
+            <h3>Ventajas y limitaciones</h3>
+            <div class="two-col">
+              <div><h4>Ventajas</h4><ul><li>Muy rápido: $O(nKd)$ por iteración.</li><li>Fácil de implementar e interpretar.</li><li>Funciona bien con clusters compactos y esféricos.</li><li>Escala a millones de puntos con variantes mini-batch.</li></ul></div>
+              <div><h4>Limitaciones</h4><ul><li>Hay que elegir $K$.</li><li>Asume clusters convexos y de varianza similar.</li><li>Sensible a outliers y a la escala.</li><li>Resultado depende de la inicialización.</li><li>No detecta ruido: todo punto pertenece a un cluster.</li></ul></div>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">No uses la inercia para elegir k</span>
+              La inercia siempre disminuye al aumentar $K$ y llega a cero cuando $K=n$. Es un criterio de ajuste, no de complejidad. Para elegir $K$ usa silhouette, estabilidad o conocimiento del dominio.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicios 5.2</summary>
+            <div class="answer">
+              <p>(a) Implementa K-Means con inicialización aleatoria y con K-Means++ sobre el mismo dataset. Compara la inercia en 20 semillas. (b) Genera dos clusters alargados y observa por qué K-Means los corta mal. (c) ¿Qué ocurre si un cluster queda vacío durante la actualización?</p>
+              <p><strong>Orientación:</strong> K-Means++ suele dar menor varianza de inercia entre semillas. Con clusters alargados, la frontera perpendicular a la dirección de máxima separación no respeta la forma real. Si un cluster queda vacío, se puede reasignar su centroide al punto más lejano o mantenerlo; Scikit-learn lo maneja internamente.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m5-l3" data-title="Elegir el número de clusters">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 5.3</div>
+              <h2>Elegir el número de clusters</h2>
+              <div class="lesson-meta"><span>18 min</span><span class="sep"></span><span>Criterios</span><span class="sep"></span><span>Código</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m5-l3"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">No existe un $K$ «verdadero» esperando ser descubierto. Existe un $K$ útil para una decisión. Los criterios cuantitativos ayudan, pero la última palabra la tiene el uso que se dará a los grupos.</p>
+
+            <h3>Método del codo</h3>
+            <p>Se calcula la inercia para varios valores de $K$ y se busca el punto donde la curva deja de caer abruptamente. Es una heurística visual, no una prueba estadística, y a menudo el «codo» es ambiguo.</p>
+
+            <h3>Coeficiente de silhouette</h3>
+            <div class="formula">
+              <span class="formula-label">Silhouette por punto y promedio</span>
+              $$s(i)=\frac{b(i)-a(i)}{\max\{a(i),b(i)\}}, \qquad S=\frac{1}{n}\sum_{i=1}^{n}s(i)$$
+              <span class="formula-caption">$a(i)$: distancia media a los puntos de su propio cluster. $b(i)$: distancia media al cluster vecino más cercano. $s(i)\in[-1,1]$; cerca de 1 indica punto bien asignado.</span>
+            </div>
+            <p>Un silhouette global alto indica clusters compactos y separados. Pero también favorece clusters convexos: un agrupamiento por densidad con formas arbitrarias puede tener silhouette mediocre y ser correcto.</p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Interpretar silhouette</h4></div>
+              <div class="example-body">
+                <p>Para un punto, $a(i)=2$ y $b(i)=7$. Entonces $s(i)=(7-2)/7\approx0.71$: el punto está mucho más cerca de su cluster que del vecino. Si $a(i)=6$ y $b(i)=5$, $s(i)=(5-6)/6\approx-0.17$: probablemente está mal asignado.</p>
+                <p>Un promedio global de 0.55 es razonable; por debajo de 0.25 conviene dudar de la estructura. No obstante, estos umbrales dependen del dominio.</p>
+              </div>
+            </div>
+
+            <h3>Otras herramientas</h3>
+            <ul>
+              <li><strong>Davies–Bouldin:</strong> menor es mejor; compara dispersión intra-cluster con separación entre centroides.</li>
+              <li><strong>Calinski–Harabasz:</strong> mayor es mejor; cociente entre dispersión entre clusters y dentro de ellos.</li>
+              <li><strong>Gap statistic:</strong> compara la inercia observada con la esperada bajo datos sin estructura.</li>
+              <li><strong>Estabilidad:</strong> repite el clustering sobre submuestras y mide cuánto se conservan las asignaciones (por ejemplo, con adjusted Rand index).</li>
+            </ul>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">elegir_k.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
+
+for k in range(2, 9):
+    modelo = KMeans(n_clusters=k, n_init=20, random_state=42).fit(X)
+    sil = silhouette_score(X, modelo.labels_)
+    db = davies_bouldin_score(X, modelo.labels_)
+    ch = calinski_harabasz_score(X, modelo.labels_)
+    print(f"k={k}: inercia={modelo.inertia_:.1f} silhouette={sil:.3f} DB={db:.3f} CH={ch:.1f}")</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">Regla práctica</span>
+              Prueba un rango de $K$, elimina los que tengan clusters de tamaño ridículo o no interpretables, y entre los restantes elige el que tenga mejor silhouette <em>y</em> estabilidad. Si dos soluciones son parecidas, prefiere la más simple.
+            </div>
+
+            <h3>Cuando K-Means no es la herramienta</h3>
+            <p>Si los grupos tienen forma de media luna, densidades muy distintas o hay ruido, K-Means fuerza una partición incorrecta. En esos casos conviene DBSCAN, clustering jerárquico o modelos de mezcla gaussianos.</p>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 5.3 · Elegir k con evidencia</summary>
+            <div class="answer">
+              <p>Genera datos con `make_blobs` para 4 centros y calcula silhouette para $K=2,\dots,8$. ¿Coincide el máximo con 4? Repite con `cluster_std=3.0`. Explica qué cambia.</p>
+              <p><strong>Orientación:</strong> con clusters bien separados, el máximo suele estar en 4. Con dispersión alta, los clusters se solapan y el criterio puede preferir menos grupos; la estructura real existe, pero ya no es separable de forma clara.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m5-l4" data-title="Clustering jerárquico y DBSCAN">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 5.4</div>
+              <h2>Clustering jerárquico y DBSCAN</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Dos familias</span><span class="sep"></span><span>Comparación</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m5-l4"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">K-Means impone una forma. El clustering jerárquico construye una jerarquía completa de grupos y DBSCAN descubre regiones densas de forma arbitraria. Ambos amplían el repertorio cuando los supuestos de K-Means no se cumplen.</p>
+
+            <h3>Clustering aglomerativo</h3>
+            <p>Se empieza con cada punto como un cluster y se fusionan iterativamente los dos más cercanos hasta formar uno solo. El resultado se visualiza como un <strong>dendrograma</strong>: cortar a cierta altura produce una partición.</p>
+            <div class="formula">
+              <span class="formula-label">Criterios de enlace</span>
+              $$d_{\text{single}}(A,B)=\min_{a\in A,b\in B}d(a,b), \quad d_{\text{complete}}=\max_{a,b}d(a,b), \quad d_{\text{average}}=\frac{1}{|A||B|}\sum_{a,b}d(a,b)$$
+              <span class="formula-caption">Single linkage puede encadenar puntos a través de puentes; complete produce clusters compactos; Ward minimiza el aumento de varianza intra-cluster y es el más usado con distancia euclidiana.</span>
+            </div>
+            <p>Su coste es mayor que K-Means ($O(n^2\log n)$ o $O(n^3)$ según implementación), pero para datasets medianos ofrece una visión global muy informativa.</p>
+
+            <h3>DBSCAN: densidad</h3>
+            <p>DBSCAN define un punto como <strong>núcleo</strong> si tiene al menos <code>min_samples</code> vecinos dentro de un radio <code>eps</code>. Los puntos núcleo conectados forman un cluster; los puntos alcanzables desde un núcleo se incorporan; el resto es ruido.</p>
+            <div class="callout info">
+              <span class="callout-title">Ventaja clave</span>
+              DBSCAN no necesita elegir el número de clusters, detecta formas no convexas y etiqueta ruido. Su debilidad es que <code>eps</code> y <code>min_samples</code> son sensibles a la escala y a la densidad variable.
+            </div>
+
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Criterio</th><th>K-Means</th><th>Jerárquico</th><th>DBSCAN</th></tr></thead>
+                <tbody>
+                  <tr><td>Número de clusters</td><td>Se fija antes</td><td>Se decide al cortar</td><td>Se descubre</td></tr>
+                  <tr><td>Forma de clusters</td><td>Esférica/convexa</td><td>Depende del enlace</td><td>Arbitraria</td></tr>
+                  <tr><td>Ruido</td><td>No lo modela</td><td>No lo modela</td><td>Lo etiqueta</td></tr>
+                  <tr><td>Escalabilidad</td><td>Alta</td><td>Media/baja</td><td>Media (índice espacial)</td></tr>
+                  <tr><td>Interpretabilidad</td><td>Centroides</td><td>Dendrograma</td><td>Regiones densas</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">jerarquico_dbscan.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_moons
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import AgglomerativeClustering, DBSCAN
+from scipy.cluster.hierarchy import dendrogram, linkage
+
+X, _ = make_moons(n_samples=400, noise=0.06, random_state=42)
+X = StandardScaler().fit_transform(X)
+
+# Jerárquico con enlace Ward
+jer = AgglomerativeClustering(n_clusters=2, linkage="ward").fit(X)
+print("jerárquico:", np.bincount(jer.labels_))
+
+# Dendrograma (sobre una submuestra para legibilidad)
+Z = linkage(X[:120], method="ward")
+plt.figure(figsize=(10, 4))
+dendrogram(Z, no_labels=True)
+plt.title("Dendrograma (Ward)")
+plt.show()
+
+# DBSCAN
+db = DBSCAN(eps=0.25, min_samples=8).fit(X)
+print("DBSCAN etiquetas:", np.unique(db.labels_, return_counts=True))</code></pre></div>
+
+            <h3>Elegir eps en DBSCAN</h3>
+            <p>Una heurística útil es el <strong>gráfico de k-distancias</strong>: para cada punto se calcula la distancia a su $k$-ésimo vecino, se ordenan y se busca el codo. Ese valor sugiere un <code>eps</code> razonable. También se puede usar el silhouette ignorando los puntos de ruido, aunque no es una medida perfecta.</p>
+
+            <div class="callout warn">
+              <span class="callout-title">Densidad variable</span>
+              Si los clusters tienen densidades muy distintas, un único <code>eps</code> puede fusionar los densos y fragmentar los dispersos. HDBSCAN resuelve parcialmente este problema construyendo una jerarquía de densidades.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 5.4 · Comparar métodos</summary>
+            <div class="answer">
+              <p>Con el dataset de dos lunas, compara K-Means, aglomerativo Ward y DBSCAN. Dibuja las etiquetas. ¿Cuál respeta mejor la forma? ¿Qué ocurre con K-Means y por qué?</p>
+              <p><strong>Orientación:</strong> K-Means corta las lunas con una frontera aproximadamente lineal porque minimiza distancia a centroides. Ward suele mejorar algo, pero DBSCAN respeta la conectividad densa y asigna ruido a los puntos aislados.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m5-l5" data-title="PCA: reducir dimensión conservando varianza">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 5.5</div>
+              <h2>PCA: reducir dimensión conservando varianza</h2>
+              <div class="lesson-meta"><span>24 min</span><span class="sep"></span><span>Álgebra lineal</span><span class="sep"></span><span>Simulador</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m5-l5"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">PCA encuentra las direcciones ortogonales en las que los datos varían más. Es una técnica lineal, no supervisada y muy útil para visualizar, comprimir y eliminar redundancia antes de modelar.</p>
+
+            <h3>La idea geométrica</h3>
+            <p>Centramos los datos y buscamos una dirección unitaria $\mathbf{u}$ que maximice la varianza de las proyecciones $\mathbf{u}^\top\mathbf{x}_i$. La solución es el autovector principal de la matriz de covarianza.</p>
+            <div class="formula">
+              <span class="formula-label">Problema de autovalores</span>
+              $$\Sigma=\frac{1}{n-1}\sum_{i=1}^{n}(\mathbf{x}_i-\bar{\mathbf{x}})(\mathbf{x}_i-\bar{\mathbf{x}})^\top, \qquad \Sigma\mathbf{u}_j=\lambda_j\mathbf{u}_j$$
+              <span class="formula-caption">Los autovalores $\lambda_1\ge\lambda_2\ge\dots$ indican la varianza explicada por cada componente. Los autovectores son ortogonales.</span>
+            </div>
+
+            <div class="sim" data-sim="pca">
+              <div class="sim-head">
+                <div class="sim-icon">↗</div>
+                <div><h4>Simulador · PCA en 2D</h4><p>Gira el eje de proyección y observa qué porcentaje de la varianza total captura.</p></div>
+              </div>
+              <div class="sim-body">
+                <div class="sim-canvas-wrap"><canvas id="pcaCanvas" width="560" height="360" aria-label="Simulador de PCA"></canvas></div>
+                <div class="sim-controls">
+                  <div class="ctrl"><label for="pcaAngle">Ángulo del eje <output id="pcaAngleOut">0</output></label><input type="range" id="pcaAngle" min="0" max="180" step="1" value="0"></div>
+                  <div class="btn-row">
+                    <button class="btn small primary" id="pcaPrincipal" type="button">Eje principal</button>
+                    <button class="btn small" id="pcaReset" type="button">Nuevos datos</button>
+                  </div>
+                  <div class="sim-readout">
+                    <div>varianza proyectada = <b id="pcaVar">—</b></div>
+                    <div>varianza total = <b id="pcaTotal">—</b></div>
+                  </div>
+                  <div class="sim-hint">La varianza proyectada es máxima cuando el eje coincide con el componente principal. Gira el eje y compruébalo.</div>
+                </div>
+              </div>
+            </div>
+
+            <h3>Ejemplo numérico</h3>
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Dos variables correlacionadas</h4></div>
+              <div class="example-body">
+                <p>Supón que la matriz de covarianza es $\Sigma=\begin{pmatrix}4&3\\3&4\end{pmatrix}$. Sus autovalores son $7$ y $1$, con autovectores $(1,1)/\sqrt2$ y $(1,-1)/\sqrt2$.</p>
+                <p>El primer componente explica $7/(7+1)=87.5\%$ de la varianza. Proyectar sobre él reduce de dos dimensiones a una conservando casi toda la información. La segunda dirección, aunque ortogonal, solo aporta el 12.5%.</p>
+              </div>
+            </div>
+
+            <h3>Varianza explicada y elección de componentes</h3>
+            <div class="formula">
+              <span class="formula-label">Proporción acumulada</span>
+              $$r_k=\frac{\sum_{j=1}^{k}\lambda_j}{\sum_{j=1}^{d}\lambda_j}$$
+              <span class="formula-caption">Se suele elegir $k$ para alcanzar 90–95 % de varianza, o mirar el codo del scree plot. En visualización, $k=2$ o $3$ por razones obvias.</span>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">pca.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from sklearn.datasets import load_iris
+
+X, y = load_iris(return_X_y=True)
+X_std = StandardScaler().fit_transform(X)  # PCA es sensible a la escala
+
+pca = PCA().fit(X_std)
+print("varianza explicada:", np.round(pca.explained_variance_ratio_, 3))
+print("acumulada:", np.round(np.cumsum(pca.explained_variance_ratio_), 3))
+
+Z = PCA(n_components=2).fit_transform(X_std)
+plt.scatter(Z[:, 0], Z[:, 1], c=y, cmap="viridis", s=18)
+plt.xlabel("PC1"); plt.ylabel("PC2")
+plt.title("Iris proyectado en dos componentes")
+plt.show()</code></pre></div>
+
+            <h3>Qué hace y qué no hace PCA</h3>
+            <div class="two-col">
+              <div><h4>Hace</h4><ul><li>Elimina correlación entre componentes.</li><li>Reduce ruido de baja varianza si se descartan componentes menores.</li><li>Facilita visualización y compresión.</li><li>Puede acelerar modelos posteriores.</li></ul></div>
+              <div><h4>No hace</h4><ul><li>No selecciona variables originales: cada componente es una mezcla.</li><li>No garantiza mejorar la precisión predictiva.</li><li>No captura estructuras no lineales.</li><li>No es invariante a la escala: estandariza si las unidades difieren.</li></ul></div>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">Fuga de información</span>
+              Ajusta PCA solo con el conjunto de entrenamiento dentro de la validación cruzada. Si calculas los componentes con todos los datos y luego divides, el test influye en la transformación y la estimación se vuelve optimista.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 5.5 · Varianza y reconstrucción</summary>
+            <div class="answer">
+              <p>Con el dataset Iris estandarizado, ¿cuántos componentes necesitas para superar el 95% de varianza? Reconstruye los datos con esa cantidad y calcula el error cuadrático medio de reconstrucción. Compáralo con usar solo dos componentes.</p>
+              <p><strong>Orientación:</strong> Iris suele necesitar 2–3 componentes para superar el 95%. El error de reconstrucción disminuye al añadir componentes; con dos se conserva la mayor parte de la estructura, pero se pierde parte de la información de las variables menos representadas.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m5-l6" data-title="t-SNE y UMAP">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 5.6</div>
+              <h2>t-SNE y UMAP: visualizar estructura</h2>
+              <div class="lesson-meta"><span>16 min</span><span class="sep"></span><span>No lineal</span><span class="sep"></span><span>Precauciones</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m5-l6"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">PCA es lineal. t-SNE y UMAP capturan estructura local no lineal y producen visualizaciones sorprendentes. También son las técnicas más malinterpretadas del curso: están diseñadas para mirar, no para medir distancias globales.</p>
+
+            <h3>t-SNE en una frase</h3>
+            <p>t-SNE convierte distancias entre puntos en probabilidades de vecindad en el espacio original y busca una configuración 2D/3D cuyas probabilidades de vecindad se parezcan lo más posible, minimizando la divergencia KL.</p>
+            <div class="formula">
+              <span class="formula-label">Divergencia KL entre distribuciones de vecindad</span>
+              $$C=\sum_{i}\sum_{j}p_{j|i}\log\frac{p_{j|i}}{q_{j|i}}$$
+              <span class="formula-caption">$p$ se construye con una gaussiana cuya anchura depende de la perplejidad; $q$ usa una distribución t de cola pesada en el espacio 2D.</span>
+            </div>
+            <p>La <strong>perplejidad</strong> controla el número efectivo de vecinos. Valores típicos: 5–50. Perplejidad baja enfatiza estructura local; alta, estructura más global, pero no garantiza distancias globales correctas.</p>
+
+            <h3>Qué no concluir de un t-SNE</h3>
+            <ul>
+              <li><strong>El tamaño de los grupos no significa nada:</strong> t-SNE expande grupos densos y comprime otros.</li>
+              <li><strong>Las distancias entre grupos no son interpretables:</strong> dos clusters lejanos pueden ser similares en el espacio original.</li>
+              <li><strong>La forma y orientación son arbitrarias:</strong> cambian con la semilla.</li>
+              <li><strong>No es una reducción para alimentar un modelo:</strong> su objetivo es visual; para eso usa PCA o un autoencoder.</li>
+            </ul>
+
+            <h3>UMAP</h3>
+            <p>UMAP construye un grafo de vecinos y lo proyecta preservando tanto estructura local como algo de global. Suele ser más rápido y más estable que t-SNE, y puede transformar puntos nuevos si se entrena con esa capacidad. Aun así, sigue siendo una visualización: no demuestres conclusiones solo con el mapa.</p>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">tsne_umap.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.datasets import load_digits
+from sklearn.preprocessing import StandardScaler
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
+
+X, y = load_digits(return_X_y=True)
+X = StandardScaler().fit_transform(X)
+
+Z = TSNE(n_components=2, perplexity=30, init="pca",
+         learning_rate="auto", random_state=42).fit_transform(X)
+
+plt.figure(figsize=(7, 6))
+plt.scatter(Z[:, 0], Z[:, 1], c=y, cmap="tab10", s=12)
+plt.title("t-SNE de dígitos (perplejidad 30)")
+plt.axis("off")
+plt.show()
+
+# UMAP requiere: pip install umap-learn
+# import umap
+# Z2 = umap.UMAP(n_neighbors=15, min_dist=0.1, random_state=42).fit_transform(X)</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">Protocolo de visualización</span>
+              Prueba al menos tres semillas y dos perplejidades. Si la estructura que te interesa aparece y desaparece, probablemente sea un artefacto. Complementa siempre con métricas cuantitativas y con la interpretación de las variables originales.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 5.6 · t-SNE no es un mapa</summary>
+            <div class="answer">
+              <p>Ejecuta t-SNE sobre dígitos con perplejidad 5, 30 y 100. Describe qué estructura se conserva y qué cambia. Luego selecciona dos puntos que parezcan lejanos y calcula su distancia euclidiana original. ¿Se corresponde con la distancia visual?</p>
+              <p><strong>Orientación:</strong> con perplejidad baja se fragmentan grupos; con alta se mezclan vecindades. Las distancias visuales no son proporcionales a las originales: t-SNE preserva vecindad local, no geometría global.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m5-l7" data-title="Detección de anomalías">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 5.7</div>
+              <h2>Detección de anomalías</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Métodos</span><span class="sep"></span><span>Código</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m5-l7"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Una anomalía es un ejemplo que se desvía del patrón esperado. El reto es que «normal» es difícil de definir y las anomalías son raras por construcción: hay pocos ejemplos para aprender.</p>
+
+            <h3>Enfoques según las etiquetas disponibles</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Situación</th><th>Enfoque</th><th>Ejemplo</th></tr></thead>
+                <tbody>
+                  <tr><td>Solo datos normales</td><td>Modelar la normalidad y medir desviación</td><td>Autoencoder, Gaussian model, Isolation Forest</td></tr>
+                  <tr><td>Datos normales y algunas anomalías etiquetadas</td><td>Clasificación con clases muy desbalanceadas</td><td>Fraude con histórico etiquetado</td></tr>
+                  <tr><td>Sin etiquetas</td><td>Detección no supervisada y revisión humana</td><td>Intrusiones, fallos de sensores</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Métodos estadísticos</h3>
+            <p>El <strong>z-score</strong> marca valores alejados de la media en unidades de desviación estándar. Es simple, pero asume una distribución aproximadamente normal y es sensible a outliers que contaminan la media.</p>
+            <div class="formula">
+              <span class="formula-label">z-score y rango intercuartílico</span>
+              $$z_i=\frac{x_i-\bar{x}}{s}, \qquad \text{IQR}=Q_3-Q_1, \qquad \text{atípico si } x<Q_1-1.5\,\text{IQR}\ \text{ o }\ x>Q_3+1.5\,\text{IQR}$$
+              <span class="formula-caption">El criterio IQR es más robusto que la media y la desviación, pero solo mira cada variable por separado.</span>
+            </div>
+
+            <h3>Isolation Forest</h3>
+            <p>Construye árboles que aíslan puntos mediante cortes aleatorios. Las anomalías, al estar en regiones poco densas, se aíslan con menos cortes. El score se basa en la profundidad media del punto en los árboles.</p>
+
+            <h3>Local Outlier Factor</h3>
+            <p>Compara la densidad local de un punto con la de sus vecinos. Un punto es anómalo si su densidad es mucho menor que la de su entorno, incluso si su distancia absoluta no es grande. Funciona bien con densidades heterogéneas, pero no está pensado para predecir puntos nuevos sin reajuste.</p>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">anomalias.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+from sklearn.ensemble import IsolationForest
+from sklearn.neighbors import LocalOutlierFactor
+from sklearn.preprocessing import StandardScaler
+
+# X: matriz de features; se asume que las anomalías son raras
+X_std = StandardScaler().fit_transform(X)
+
+iso = IsolationForest(contamination=0.02, random_state=42)
+etiquetas_iso = iso.fit_predict(X_std)       # -1 = anomalía
+scores_iso = iso.decision_function(X_std)    # menor = más anómalo
+
+lof = LocalOutlierFactor(n_neighbors=20, contamination=0.02)
+etiquetas_lof = lof.fit_predict(X_std)
+
+print("Isolation Forest:", np.bincount(etiquetas_iso == -1))
+print("LOF:", np.bincount(etiquetas_lof == -1))
+print("Top 5 scores:", np.argsort(scores_iso)[:5])</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">El parámetro contamination no es magia</span>
+              <code>contamination</code> fija la proporción esperada de anomalías. Si no la conoces, no la inventes: usa el score continuo, ordena los casos y revisa manualmente los primeros. La etiqueta binaria es una decisión operativa, no una verdad del modelo.
+            </div>
+
+            <h3>Evaluar detección de anomalías</h3>
+            <p>La exactitud es inútil con clases extremadamente desbalanceadas. Usa precisión en el top-k, recall a una tasa de alertas fija, curva precision–recall y coste de negocio (falso positivo vs. falso negativo). Además, valida con datos de un periodo distinto para detectar drift.</p>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 5.7 · Anomalías en sensores</summary>
+            <div class="answer">
+              <p>Tienes lecturas horarias de temperatura y presión de una máquina. Propón un detector no supervisado y un protocolo de validación. ¿Cómo elegirías el umbral de alerta?</p>
+              <p><strong>Orientación:</strong> estandarizar, ajustar Isolation Forest o un autoencoder con datos de funcionamiento normal, ordenar por score y elegir el umbral según la capacidad del equipo de mantenimiento para revisar alertas. Validar con incidentes históricos y medir precisión en el top-k, no exactitud global.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m5-l8" data-title="Autoencoders y representaciones">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 5.8</div>
+              <h2>Autoencoders y representaciones</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Deep learning</span><span class="sep"></span><span>Cierre del módulo</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m5-l8"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un autoencoder aprende a comprimir una entrada en un espacio latente y reconstruirla. Si solo se entrena con datos normales, aprende a reconstruir lo normal; cuando llega algo distinto, el error de reconstrucción sube. Esa es la base de su uso para anomalías y representaciones.</p>
+
+            <h3>Arquitectura</h3>
+            <div class="formula">
+              <span class="formula-label">Encoder, decoder y pérdida</span>
+              $$\mathbf{z}=f_\theta(\mathbf{x}), \qquad \hat{\mathbf{x}}=g_\phi(\mathbf{z}), \qquad L(\theta,\phi)=\frac{1}{n}\sum_{i=1}^{n}\|\mathbf{x}_i-\hat{\mathbf{x}}_i\|^2$$
+              <span class="formula-caption">El cuello de botella $\mathbf{z}$ tiene menos dimensiones que $\mathbf{x}$ (o está regularizado), lo que fuerza a conservar solo la información relevante.</span>
+            </div>
+
+            <h3>Tipos y usos</h3>
+            <ul>
+              <li><strong>Autoencoder bajo el cuello de botella:</strong> compresión para reducción de dimensionalidad o denoising.</li>
+              <li><strong>Denoising autoencoder:</strong> se corrompe la entrada y se pide reconstruir la original; aprende representaciones robustas.</li>
+              <li><strong>Variational autoencoder (VAE):</strong> modela una distribución latente y permite generar muestras nuevas.</li>
+              <li><strong>Autoencoder para anomalías:</strong> se entrena solo con datos normales y se usa el error de reconstrucción como score.</li>
+            </ul>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">autoencoder.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+import torch.nn as nn
+
+class Autoencoder(nn.Module):
+    def __init__(self, n_features, latent=8):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Linear(n_features, 32), nn.ReLU(),
+            nn.Linear(32, latent)
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(latent, 32), nn.ReLU(),
+            nn.Linear(32, n_features)
+        )
+
+    def forward(self, x):
+        z = self.encoder(x)
+        return self.decoder(z), z
+
+modelo = Autoencoder(n_features=X.shape[1], latent=8)
+opt = torch.optim.Adam(modelo.parameters(), lr=1e-3)
+loss_fn = nn.MSELoss()
+
+for epoch in range(100):
+    opt.zero_grad()
+    reconstruccion, _ = modelo(X_train_tensor)
+    loss = loss_fn(reconstruccion, X_train_tensor)
+    loss.backward()
+    opt.step()
+
+# Score de anomalía = error de reconstrucción por ejemplo
+with torch.no_grad():
+    reconstruccion, _ = modelo(X_test_tensor)
+    score = ((X_test_tensor - reconstruccion) ** 2).mean(dim=1)</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">Relación con PCA</span>
+              Un autoencoder lineal con activación identidad y pérdida cuadrática aprende un subespacio equivalente al de PCA. La diferencia es que las capas no lineales permiten representar variedades curvas que PCA no captura.
+            </div>
+
+            <h3>Riesgos prácticos</h3>
+            <ul>
+              <li>Si entrenas con datos que ya contienen anomalías, el modelo aprenderá a reconstruirlas y perderá sensibilidad.</li>
+              <li>El error de reconstrucción no es una probabilidad: hay que calibrar el umbral con validación.</li>
+              <li>Con datos de alta dimensión y pocos ejemplos, el autoencoder puede memorizar; usa regularización y aumenta datos.</li>
+            </ul>
+
+            <div class="quiz-mount" data-quiz="5"></div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 5.8 · Cierre del módulo</summary>
+            <div class="answer">
+              <p>Diseña un pipeline completo para segmentar clientes y detectar comportamiento atípico: (1) limpieza y escalado, (2) clustering, (3) reducción de dimensión para visualizar, (4) detección de anomalías, (5) validación con negocio. Indica qué decisión tomarías en cada paso y qué métrica usarías.</p>
+              <p><strong>Orientación:</strong> estandarizar, comparar K-Means con DBSCAN y elegir por estabilidad e interpretabilidad; usar PCA para visualizar y autoencoder o Isolation Forest para anomalías; validar los segmentos con diferencias reales en retención o ticket, y las anomalías con revisión manual y coste operativo.</p>
+            </div>
+          </details>
+        </article>

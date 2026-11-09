@@ -1,0 +1,777 @@
+<article class="lesson" id="l-m8-l1" data-title="El pipeline de NLP y la tokenización">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 8.1</div>
+              <h2>El pipeline de NLP y la tokenización</h2>
+              <div class="lesson-meta"><span>18 min</span><span class="sep"></span><span>Pipeline</span><span class="sep"></span><span>Texto → números</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m8-l1"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un modelo no ve palabras: ve números. Todo sistema de NLP es una cadena de decisiones que transforma texto crudo en tensores. La calidad de esa cadena determina el techo del modelo mucho más de lo que suele admitirse.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Describir las etapas de un pipeline de NLP y qué decide cada una.</div>
+              <div>Comparar tokenización por palabras, caracteres y subpalabras.</div>
+              <div>Explicar por qué BPE y WordPiece dominan los modelos modernos.</div>
+              <div>Detectar errores de normalización que destruyen información útil.</div>
+            </div>
+
+            <h3>El pipeline completo</h3>
+            <div class="figure">
+              <div class="figure-frame">
+                <svg class="svg-diagram" viewBox="0 0 560 150" role="img" aria-label="Pipeline de NLP">
+                  <g font-size="10.5" text-anchor="middle">
+                    <rect x="10" y="46" width="92" height="44" rx="7" fill="#e9edfb" stroke="#3355c8" />
+                    <text x="56" y="64" fill="#2743a6">Texto crudo</text><text x="56" y="79" fill="#5f6c7b">HTML, ruido</text>
+                    <rect x="122" y="46" width="92" height="44" rx="7" fill="#e2f4ef" stroke="#0e7c6b" />
+                    <text x="168" y="64" fill="#0e7c6b">Normalizar</text><text x="168" y="79" fill="#5f6c7b">unicode, case</text>
+                    <rect x="234" y="46" width="92" height="44" rx="7" fill="#fbf1dc" stroke="#a86a12" />
+                    <text x="280" y="64" fill="#a86a12">Tokenizar</text><text x="280" y="79" fill="#5f6c7b">palabras/subwords</text>
+                    <rect x="346" y="46" width="92" height="44" rx="7" fill="#f1e9fb" stroke="#6b3fa0" />
+                    <text x="392" y="64" fill="#6b3fa0">Vectorizar</text><text x="392" y="79" fill="#5f6c7b">IDs o embeddings</text>
+                    <rect x="458" y="46" width="92" height="44" rx="7" fill="#fdecea" stroke="#b42318" />
+                    <text x="504" y="64" fill="#b42318">Modelo</text><text x="504" y="79" fill="#5f6c7b">clasificar/generar</text>
+                  </g>
+                  <g stroke="#85909d" stroke-width="1.3" marker-end="url(#arrowNLP)">
+                    <path d="M102 68 H122" /><path d="M214 68 H234" /><path d="M326 68 H346" /><path d="M438 68 H458" />
+                  </g>
+                  <defs><marker id="arrowNLP" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6" fill="#85909d" /></marker></defs>
+                  <text x="280" y="126" font-size="10" text-anchor="middle" fill="#5f6c7b">Cada etapa puede perder información; documenta y justifica cada decisión.</text>
+                </svg>
+                <figcaption>Las decisiones de normalización y tokenización forman parte del modelo: si cambian, el modelo deja de ser comparable.</figcaption>
+              </div>
+            </div>
+
+            <h3>Tokenización: la decisión fundamental</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Unidad</th><th>Ventaja</th><th>Problema</th></tr></thead>
+                <tbody>
+                  <tr><td>Palabra</td><td>Interpretable y compacta</td><td>Vocabulario enorme, palabras fuera de vocabulario (OOV)</td></tr>
+                  <tr><td>Carácter</td><td>Vocabulario pequeño, sin OOV</td><td>Secuencias largas y costo alto</td></tr>
+                  <tr><td>Subpalabra (BPE, WordPiece)</td><td>Equilibrio: cubre morfología y limita vocabulario</td><td>Tokens menos legibles para humanos</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p>La tokenización por subpalabras resuelve el problema de las palabras raras: «aprendizaje» puede dividirse en <code>aprend</code> + <code>izaje</code>. Así el modelo comparte estadística entre variantes morfológicas y puede representar palabras que nunca vio, porque están compuestas por piezas conocidas.</p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Por qué el vocabulario explota</h4></div>
+              <div class="example-body">
+                <p>Un corpus técnico en español puede contener 500 000 formas distintas si se incluyen flexiones, errores y nombres propios. Un vocabulario de palabras de ese tamaño hace que la matriz de embeddings sea enorme y que la mayoría de términos aparezca una sola vez. Con 32 000 subpalabras, cualquier texto se representa con piezas reutilizadas.</p>
+                <p><strong>Consecuencia práctica:</strong> reutilizar el tokenizador de un modelo preentrenado no es un detalle: el modelo aprendió embeddings para esos IDs concretos. Cambiar el tokenizador invalida los pesos.</p>
+              </div>
+            </div>
+
+            <h3>Código: tokenizar de tres formas</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">tokenizar.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import re
+from collections import Counter
+
+texto = "El aprendizaje automático no es magia; es estadística bien aplicada."
+
+# 1) Tokenización por palabras con regex (mejor que split)
+palabras = re.findall(r"\b\w+\b", texto.lower())
+print(palabras)
+
+# 2) Por caracteres
+print(list(texto[:30]))
+
+# 3) Subpalabras con un tokenizador real (requiere transformers)
+from transformers import AutoTokenizer
+
+tok = AutoTokenizer.from_pretrained("dccuchile/bert-base-spanish-wwm-cased")
+ids = tok(texto)["input_ids"]
+print(ids)
+print(tok.convert_ids_to_tokens(ids))
+
+# Ver el vocabulario: cuántas piezas empiezan con "##" (continuación)
+vocab = tok.get_vocab()
+print("tamaño del vocabulario:", len(vocab))
+print("piezas de continuación:", sum(1 for k in vocab if k.startswith("##")))</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Normalizar de más también destruye señal</span>
+              Pasar todo a minúsculas y quitar tildes mejora la cobertura en modelos clásicos, pero en análisis de sentimiento o detección de sarcasmo puede eliminar información. En modelos preentrenados, usa exactamente la normalización con la que fueron entrenados. Nunca normalices a mano antes de pasar por el tokenizador oficial.
+            </div>
+
+            <h3>Limpieza: qué quitar y qué conservar</h3>
+            <ul>
+              <li><strong>HTML y entidades:</strong> eliminar etiquetas, conservar el texto.</li>
+              <li><strong>URLs y correos:</strong> sustituir por un token especial o eliminarlos según la tarea.</li>
+              <li><strong>Emojis:</strong> pueden ser señal fuerte de sentimiento; no los borres por defecto.</li>
+              <li><strong>Stopwords:</strong> rara vez conviene eliminarlas en modelos modernos; sí puede ayudar en TF-IDF.</li>
+              <li><strong>Duplicados:</strong> pueden inflar la evaluación si aparecen en train y test.</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">Regla de oro</span>
+              La limpieza debe decidirse con el problema, no por costumbre. Si dudas, mide: entrena dos versiones del pipeline y compara con validación. Cada transformación que no aporta es una fuente de error y de deuda técnica.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 8.1 · Diseñar el pipeline</summary>
+            <div class="answer">
+              <p>Vas a clasificar reseñas de productos en positivas y negativas. Define el pipeline: qué limpiarías, qué tokenizador usarías, qué harías con emojis, negaciones y errores ortográficos. Justifica cada decisión con un experimento que podrías ejecutar.</p>
+              <p><strong>Orientación:</strong> conservar emojis y negaciones (aportan sentimiento), corregir errores solo si tienes una herramienta fiable, usar un tokenizador preentrenado en español y comparar contra una versión con limpieza agresiva. La decisión debe basarse en F1 de validación, no en intuición.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m8-l2" data-title="Bolsa de palabras y TF-IDF">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 8.2</div>
+              <h2>Bolsa de palabras y TF-IDF</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Representación dispersa</span><span class="sep"></span><span>Baseline fuerte</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m8-l2"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Antes de los embeddings y los Transformers, el texto se representaba contando palabras. Estas representaciones ignoran el orden, pero siguen siendo baselines difíciles de superar en muchos problemas con pocos datos. Entenderlas es entender qué información captura y qué pierde un modelo de lenguaje.</p>
+
+            <h3>Bolsa de palabras</h3>
+            <p>Se construye un vocabulario con los términos del corpus y cada documento se representa como un vector de conteos. El orden y la gramática desaparecen: «el perro muerde al hombre» y «el hombre muerde al perro» producen el mismo vector.</p>
+            <div class="formula">
+              <span class="formula-label">Vector de conteos</span>
+              $$\mathbf{x}_d=(c_{d1},c_{d2},\dots,c_{dV}), \qquad c_{dj}=\text{número de veces que el término } j \text{ aparece en el documento } d$$
+              <span class="formula-caption">$V$ es el tamaño del vocabulario. La matriz documento–término es dispersa: casi todas las entradas son cero.</span>
+            </div>
+
+            <h3>TF-IDF</h3>
+            <p>Un término frecuente en un documento pero raro en el corpus es discriminativo. TF-IDF combina ambas señales:</p>
+            <div class="formula">
+              <span class="formula-label">Frecuencia de término e inversa de frecuencia de documento</span>
+              $$\text{tf}(t,d)=\frac{f_{t,d}}{\sum_{t'}f_{t',d}}, \qquad \text{idf}(t)=\log\frac{N}{1+\text{df}(t)}+1, \qquad w_{t,d}=\text{tf}(t,d)\cdot\text{idf}(t)$$
+              <span class="formula-caption">$N$: número de documentos; $\text{df}(t)$: documentos que contienen $t$. Scikit-learn usa $1+\text{df}$ y suavizado para evitar divisiones por cero y términos con idf 0.</span>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>TF-IDF con tres documentos</h4></div>
+              <div class="example-body">
+                <p>Documentos: D1 = «gato duerme», D2 = «perro duerme», D3 = «gato come». $N=3$.</p>
+                <p>«duerme» aparece en 2 documentos: $\text{idf}=1+\log(3/3)=1$. «gato» aparece en 2: mismo idf. «come» aparece en 1: $\text{idf}=1+\log(3/2)\approx1.405$.</p>
+                <p>En D3, «come» recibe más peso que «gato» porque es más raro en el corpus. En D1, «gato» y «duerme» pesan igual, pero «gato» aparece en 2 de 3 documentos y aun así no se penaliza mucho: con corpus pequeños, el IDF es poco estable. Usa corpus representativos.</p>
+              </div>
+            </div>
+
+            <div class="callout info">
+              <span class="callout-title">Normalización de vectores</span>
+              Scikit-learn normaliza cada vector a norma 1 por defecto. Así la similitud coseno entre documentos no depende de la longitud del texto. Si comparas documentos de tamaños muy distintos, mantén esa normalización.
+            </div>
+
+            <h3>Implementación y baseline</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">tfidf_baseline.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+
+# X_texto: lista de documentos; y: etiquetas
+X_train, X_test, y_train, y_test = train_test_split(
+    X_texto, y, test_size=0.2, stratify=y, random_state=42
+)
+
+modelo = make_pipeline(
+    TfidfVectorizer(
+        ngram_range=(1, 2),      # unigramas y bigramas
+        min_df=3,                # ignora términos muy raros
+        max_df=0.9,              # ignora términos casi universales
+        sublinear_tf=True,       # aplica 1 + log(tf)
+        strip_accents="unicode",
+        lowercase=True
+    ),
+    LogisticRegression(max_iter=2000, class_weight="balanced")
+)
+
+modelo.fit(X_train, y_train)
+y_pred = modelo.predict(X_test)
+print(classification_report(y_test, y_pred))
+
+# Términos más importantes para la clase positiva
+vectorizador = modelo.named_steps["tfidfvectorizer"]
+clf = modelo.named_steps["logisticregression"]
+import numpy as np
+vocab = np.array(vectorizador.get_feature_names_out())
+pesos = clf.coef_[0]
+for i in np.argsort(pesos)[-12:][::-1]:
+    print(f"{vocab[i]:>20s}  {pesos[i]:+.3f}")</code></pre></div>
+
+            <h3>Qué captura y qué pierde</h3>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">Captura</span><h4>Señal léxica</h4><p>Presencia de términos discriminativos, n-gramas simples, estilo y vocabulario del dominio. Con suficientes datos es una baseline sólida y rapidísima.</p></div>
+              <div class="algo-card"><span class="tag">Pierde</span><h4>Orden y composición</h4><p>Negaciones, ironía, dependencias largas y significado composicional. Los bigramas mitigan parte del problema, pero no lo resuelven.</p></div>
+              <div class="algo-card"><span class="tag">Ventaja</span><h4>Interpretabilidad</h4><p>Puedes inspeccionar los pesos por término. Útil para depurar y para explicar decisiones a personas no técnicas.</p></div>
+              <div class="algo-card"><span class="tag">Riesgo</span><h4>Sesgo por vocabulario</h4><p>El modelo puede aprender atajos del corpus: nombres propios, marcadores de fuente o palabras correlacionadas con la etiqueta sin relación causal.</p></div>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">Ajusta el vectorizador solo con train</span>
+              El vocabulario y el IDF se aprenden de los datos. Si los calculas con todo el corpus antes de dividir, el test filtra información y la métrica se vuelve optimista. Dentro de un <code>Pipeline</code>, esta separación ocurre automáticamente en cada fold de validación.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 8.2 · TF-IDF vs. conteos</summary>
+            <div class="answer">
+              <p>Compara un clasificador con <code>CountVectorizer</code> y otro con <code>TfidfVectorizer</code> sobre el mismo dataset y partición. Prueba con y sin bigramas, y con <code>min_df</code> 1, 3 y 10. Reporta F1 macro y explica las diferencias.</p>
+              <p><strong>Orientación:</strong> TF-IDF suele ayudar cuando hay documentos de longitudes muy distintas o términos muy frecuentes. Los bigramas capturan negaciones locales («no bueno») pero multiplican la dimensionalidad. <code>min_df</code> alto reduce ruido y sobreajuste, pero puede eliminar señal si el corpus es pequeño.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m8-l3" data-title="Embeddings y Word2Vec">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 8.3</div>
+              <h2>Embeddings y Word2Vec</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Espacios vectoriales</span><span class="sep"></span><span>Similitud</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m8-l3"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un embedding representa cada palabra con un vector denso de decenas o cientos de dimensiones, aprendido de modo que palabras con contextos similares queden cerca. Es la transición entre contar palabras y modelar significado.</p>
+
+            <h3>La hipótesis distribucional</h3>
+            <p>«Conocerás una palabra por las compañías que mantiene». Word2Vec aprende vectores prediciendo el contexto: si dos palabras aparecen en contextos parecidos, sus vectores se acercan. No hay definiciones ni diccionarios; solo regularidades de uso.</p>
+
+            <div class="formula">
+              <span class="formula-label">Skip-gram: predecir el contexto</span>
+              $$P(w_O \mid w_I)=\frac{\exp(\mathbf{v}_{w_O}^\top \mathbf{u}_{w_I})}{\sum_{w=1}^{V}\exp(\mathbf{v}_{w}^\top \mathbf{u}_{w_I})}, \qquad \mathcal{L}=-\sum_{(w_I,w_O)\in \mathcal{D}}\log P(w_O\mid w_I)$$
+              <span class="formula-caption">$\mathbf{u}$ es el vector de la palabra central y $\mathbf{v}$ el de la palabra de contexto. El denominador es caro; se aproxima con negative sampling.</span>
+            </div>
+
+            <h3>Negative sampling en una frase</h3>
+            <p>En lugar de normalizar sobre todo el vocabulario, se entrena un clasificador binario: pares reales (palabra, contexto) deben puntuar alto y pares falsos (palabra, contexto aleatorio) deben puntuar bajo. Con 5–20 negativos por positivo se obtienen embeddings útiles con una fracción del costo.</p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Similitud coseno e interpretación geométrica</h4></div>
+              <div class="example-body">
+                <p>Si $\mathbf{v}_{\text{rey}}=(0.8,0.2,0.1)$ y $\mathbf{v}_{\text{reina}}=(0.75,0.25,0.05)$, su similitud coseno es alta. La dirección captura el «significado» y la magnitud puede reflejar frecuencia de uso.</p>
+                <p>La analogía clásica $\mathbf{v}_{\text{rey}}-\mathbf{v}_{\text{hombre}}+\mathbf{v}_{\text{mujer}}\approx\mathbf{v}_{\text{reina}}$ funciona en algunos espacios, pero no es una propiedad universal. Depende del corpus, del tamaño y del entrenamiento. No la presentes como evidencia de que el modelo «entiende» género.</p>
+              </div>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">word2vec.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from gensim.models import Word2Vec
+from gensim.utils import simple_preprocess
+
+# corpus: lista de documentos (strings)
+frases = [simple_preprocess(doc, deacc=False, min_len=2) for doc in corpus]
+
+modelo = Word2Vec(
+    sentences=frases,
+    vector_size=100,
+    window=5,
+    min_count=5,
+    workers=4,
+    sg=1,               # skip-gram; sg=0 usa CBOW
+    negative=10,
+    epochs=10,
+    seed=42
+)
+
+print(modelo.wv.most_similar("aprendizaje", topn=8))
+print(modelo.wv.similarity("modelo", "algoritmo"))
+
+# Guardar solo los vectores (más ligero que el modelo completo)
+modelo.wv.save("vectores.kv")
+
+# Cargar con KeyedVectors
+from gensim.models import KeyedVectors
+kv = KeyedVectors.load("vectores.kv")
+print(kv["datos"].shape)</code></pre></div>
+
+            <h3>Limitaciones que conviene nombrar</h3>
+            <ul>
+              <li><strong>Un vector por palabra:</strong> «banco» tiene el mismo vector en «banco financiero» y «banco del parque». Los embeddings contextuales resuelven esto.</li>
+              <li><strong>Sesgos del corpus:</strong> si el corpus asocia ciertas profesiones con un género, el espacio reproduce y amplifica esa asociación.</li>
+              <li><strong>Vocabulario fijo:</strong> las palabras nuevas quedan fuera. Los modelos basados en subpalabras mitigan el problema.</li>
+              <li><strong>No son interpretables dimensión a dimensión:</strong> cada eje no tiene un significado limpio; solo las relaciones geométricas son útiles.</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">Embeddings preentrenados</span>
+              Entrenar Word2Vec desde cero requiere un corpus grande. En la práctica se usan vectores preentrenados (FastText, GloVe, word2vec de Google News) o, mejor aún, representaciones contextuales de un Transformer. Para clasificación con pocos datos, un modelo preentrenado suele ganar.
+            </div>
+
+            <h3>De palabra a documento</h3>
+            <p>Para clasificar un documento con embeddings de palabras se suele promediar los vectores (ponderados por TF-IDF) o usar una RNN/Transformer. El promedio es simple y sorprendentemente competitivo en tareas de tema, pero pierde orden y composición. En tareas de sentimiento con negaciones, esa pérdida importa.</p>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 8.3 · Evaluar un espacio de embeddings</summary>
+            <div class="answer">
+              <p>Entrena Word2Vec con ventanas 2, 5 y 10 sobre el mismo corpus. Inspecciona los vecinos de cinco palabras y calcula la similitud entre pares que tú consideres relacionados. ¿Qué ventana produce vecinos más coherentes? ¿Cómo lo medirías sin depender solo de tu intuición?</p>
+              <p><strong>Orientación:</strong> ventanas pequeñas capturan relaciones sintácticas y funcionales; ventanas grandes capturan tema. Para evaluar, usa un conjunto de pares con juicio humano (word similarity) o evalúa los embeddings como features en una tarea downstream con validación. Reporta ambos.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m8-l4" data-title="Redes recurrentes para texto">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 8.4</div>
+              <h2>Redes recurrentes para texto</h2>
+              <div class="lesson-meta"><span>18 min</span><span class="sep"></span><span>Secuencias</span><span class="sep"></span><span>LSTM/GRU</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m8-l4"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Una red recurrente procesa el texto palabra por palabra, actualizando un estado que resume lo leído. Fue la arquitectura dominante en NLP hasta 2017 y todavía es útil para secuencias cortas y modelos ligeros.</p>
+
+            <h3>Por qué recurrencia</h3>
+            <p>Una red densa sobre una bolsa de palabras no distingue «no me gustó» de «me gustó, no». La recurrencia introduce orden: el estado en el paso $t$ depende del estado en $t-1$ y del token actual.</p>
+            <div class="formula">
+              <span class="formula-label">RNN simple y salida</span>
+              $$\mathbf{h}_t=\tanh(W_{xh}\mathbf{x}_t+W_{hh}\mathbf{h}_{t-1}+\mathbf{b}_h), \qquad \mathbf{y}=\text{softmax}(W_{hy}\mathbf{h}_T+\mathbf{b}_y)$$
+              <span class="formula-caption">Para clasificación se usa el último estado (o un pooling sobre todos). Para generación se usa cada estado para predecir el siguiente token.</span>
+            </div>
+
+            <h3>El problema del gradiente que se desvanece</h3>
+            <p>Al retropropagar a través de $T$ pasos se multiplican $T$ jacobianos. Si sus normas son menores que 1, el gradiente se vuelve exponencialmente pequeño; si son mayores, explota. LSTM y GRU introducen compuertas y una ruta de memoria que mitiga el problema.</p>
+
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Arquitectura</th><th>Idea</th><th>Uso típico</th></tr></thead>
+                <tbody>
+                  <tr><td>RNN simple</td><td>Estado oculto recurrente</td><td>Bases pedagógicas, secuencias cortas</td></tr>
+                  <tr><td>LSTM</td><td>Celda de memoria con compuertas de olvido, entrada y salida</td><td>Series temporales, texto con dependencias largas</td></tr>
+                  <tr><td>GRU</td><td>Dos compuertas, menos parámetros</td><td>Alternativa eficiente a LSTM</td></tr>
+                  <tr><td>BiLSTM</td><td>Dos direcciones concatenadas</td><td>Etiquetado de secuencias, NER</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">clasificador_lstm.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
+
+class ClasificadorTexto(nn.Module):
+    def __init__(self, vocab_size, emb_dim=128, hidden=128, n_classes=2, pad_idx=0):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, emb_dim, padding_idx=pad_idx)
+        self.lstm = nn.LSTM(
+            emb_dim, hidden, batch_first=True, bidirectional=True, dropout=0.2
+        )
+        self.dropout = nn.Dropout(0.3)
+        self.fc = nn.Linear(hidden * 2, n_classes)
+
+    def forward(self, x, lengths):
+        emb = self.embedding(x)
+        packed = nn.utils.rnn.pack_padded_sequence(
+            emb, lengths.cpu(), batch_first=True, enforce_sorted=False
+        )
+        packed_out, (h, _) = self.lstm(packed)
+        # h: (2, batch, hidden) -> concatenar direcciones
+        h = torch.cat([h[0], h[1]], dim=1)
+        return self.fc(self.dropout(h))
+
+modelo = ClasificadorTexto(vocab_size=30000)
+criterio = nn.CrossEntropyLoss()
+optimizador = torch.optim.AdamW(modelo.parameters(), lr=1e-3)</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Padding y longitudes</span>
+              Si rellenas todas las secuencias al mismo largo, el modelo debe ignorar el padding con <code>pack_padded_sequence</code> (o una máscara). De lo contrario, el estado final se contamina con tokens artificiales y el rendimiento cae sin dar errores.
+            </div>
+
+            <h3>Cuándo usar una RNN hoy</h3>
+            <ul>
+              <li>Secuencias cortas y recursos limitados (dispositivos, latencia estricta).</li>
+              <li>Tareas de etiquetado token a token con dependencias locales (NER, POS).</li>
+              <li>Series temporales con patrones secuenciales claros y datasets pequeños.</li>
+              <li>Como baseline antes de probar un Transformer.</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">La comparación honesta</span>
+              Un Transformer preentrenado pequeño suele superar a una LSTM entrenada desde cero en clasificación de texto, incluso con pocos datos. La LSTM tiene sentido cuando no puedes usar modelos grandes o cuando el coste de inferencia es crítico.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 8.4 · RNN vs. bolsa de palabras</summary>
+            <div class="answer">
+              <p>Compara una LSTM con un clasificador TF-IDF + regresión logística en un dataset de reseñas. Usa la misma partición y reporta F1. Analiza en qué casos la LSTM gana y en qué casos no.</p>
+              <p><strong>Orientación:</strong> con datasets pequeños o medianos, TF-IDF suele ser competitivo y mucho más rápido. La LSTM puede ganar cuando el orden y las negaciones son decisivas y hay suficientes ejemplos. Documenta el coste computacional junto con la métrica.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m8-l5" data-title="Atención y Transformers aplicados a texto">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 8.5</div>
+              <h2>Atención y Transformers aplicados a texto</h2>
+              <div class="lesson-meta"><span>24 min</span><span class="sep"></span><span>Self-attention</span><span class="sep"></span><span>Contexto</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m8-l5"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">La atención permite que cada token consulte a todos los demás y construya una representación dependiente del contexto. Es la pieza que hizo posible que una misma palabra tenga vectores distintos según la frase, y la base de BERT, GPT y los LLM actuales.</p>
+
+            <h3>La intuición antes de la fórmula</h3>
+            <p>En «El banco estaba junto al río», la palabra «banco» debe mirar a «río» para resolverse como orilla. En «Fui al banco a pedir un crédito», debe mirar a «crédito». La self-attention calcula, para cada token, cuánto debe pesar cada otro token al construir su nueva representación.</p>
+
+            <div class="formula">
+              <span class="formula-label">Scaled dot-product attention</span>
+              $$Q=XW_Q,\quad K=XW_K,\quad V=XW_V, \qquad \text{Attention}(Q,K,V)=\text{softmax}\left(\frac{QK^\top}{\sqrt{d_k}}\right)V$$
+              <span class="formula-caption">$QK^\top$ mide compatibilidad entre consultas y claves. La escala $1/\sqrt{d_k}$ evita que los productos crezcan y saturen el softmax. El resultado es una mezcla ponderada de valores.</span>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Atención con tres tokens</h4></div>
+              <div class="example-body">
+                <p>Supón que para el token «banco» los puntajes de compatibilidad con «río», «crédito» y «el» son 3, 1 y 0. Al aplicar softmax con $d_k=1$: $e^3\approx20.1$, $e^1\approx2.72$, $e^0=1$. La suma es 23.8, así que los pesos son 0.844, 0.114 y 0.042.</p>
+                <p>La representación de «banco» será $0.844\,\mathbf{v}_{\text{río}}+0.114\,\mathbf{v}_{\text{crédito}}+0.042\,\mathbf{v}_{\text{el}}$. El contexto domina la interpretación. Con múltiples cabezas, otras cabezas pueden capturar relaciones distintas, como sujeto–verbo o correferencia.</p>
+              </div>
+            </div>
+
+            <h3>Por qué reemplazó a la recurrencia</h3>
+            <ul>
+              <li><strong>Paralelización:</strong> todos los tokens se procesan a la vez, no secuencialmente.</li>
+              <li><strong>Dependencias largas:</strong> cualquier par de posiciones se conecta en un paso, sin recorrer toda la secuencia.</li>
+              <li><strong>Escalabilidad:</strong> permite entrenar con grandes corpus y modelos de miles de millones de parámetros.</li>
+              <li><strong>Costo:</strong> la atención es $O(n^2d)$; para secuencias muy largas hay variantes eficientes.</li>
+            </ul>
+
+            <h3>Encoder, decoder y máscaras</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Tipo</th><th>Attention</th><th>Ejemplos</th><th>Tareas</th></tr></thead>
+                <tbody>
+                  <tr><td>Encoder</td><td>Bidireccional</td><td>BERT, RoBERTa</td><td>Clasificación, NER, QA extractiva</td></tr>
+                  <tr><td>Decoder</td><td>Causal (mira solo el pasado)</td><td>GPT, LLaMA</td><td>Generación, completar texto</td></tr>
+                  <tr><td>Encoder–decoder</td><td>Cruzada + causal</td><td>T5, BART</td><td>Traducción, resumen</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout info">
+              <span class="callout-title">La máscara causal</span>
+              En un decoder, cada token solo puede atender a los anteriores. Sin máscara, el modelo vería el futuro durante el entrenamiento y aprendería a copiar la respuesta, arruinando la generación. La máscara es una matriz triangular superior con $-\infty$ antes del softmax.
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">atencion.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+import torch.nn.functional as F
+
+def atencion(Q, K, V, mask=None):
+    d_k = Q.size(-1)
+    scores = Q @ K.transpose(-2, -1) / d_k ** 0.5
+    if mask is not None:
+        scores = scores.masked_fill(mask == 0, float("-inf"))
+    pesos = F.softmax(scores, dim=-1)
+    return pesos @ V, pesos
+
+# batch=2, tokens=4, dimensión=8
+Q = torch.randn(2, 4, 8)
+K = torch.randn(2, 4, 8)
+V = torch.randn(2, 4, 8)
+salida, pesos = atencion(Q, K, V)
+print(salida.shape, pesos.shape)   # (2,4,8) y (2,4,4)
+
+# Máscara causal para generación
+n = 4
+causal = torch.tril(torch.ones(n, n)).bool()
+_, pesos_causal = atencion(Q, K, V, mask=causal)
+print(pesos_causal[0].round(decimals=2))  # triangular: cada fila solo mira hasta su posición</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Los pesos de atención no son explicaciones</span>
+              Es tentador interpretar los mapas de atención como «lo que el modelo mira». Diversos estudios muestran que pesos altos no implican causalidad ni importancia. Úsalos como herramienta exploratoria, no como prueba de por qué el modelo tomó una decisión.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 8.5 · Atención paso a paso</summary>
+            <div class="answer">
+              <p>Con una secuencia de cuatro tokens y dimensión $d_k=4$, calcula a mano (o con NumPy) la matriz de atención para una máscara causal. Comprueba que la primera fila concentra todo el peso en el primer token y que la última puede mirar a todos.</p>
+              <p><strong>Orientación:</strong> con la máscara triangular, la fila $i$ solo tiene entradas válidas en columnas $j\le i$; tras softmax, los pesos suman 1. La última fila es la única con cuatro valores positivos. Verifica también que sin escala $1/\sqrt{d_k}$ los pesos se vuelven casi one-hot cuando las dimensiones crecen.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m8-l6" data-title="BERT, modelos de lenguaje y fine-tuning">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 8.6</div>
+              <h2>BERT, modelos de lenguaje y fine-tuning</h2>
+              <div class="lesson-meta"><span>24 min</span><span class="sep"></span><span>Preentrenamiento</span><span class="sep"></span><span>Hugging Face</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m8-l6"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">El preentrenamiento cambió las reglas: en lugar de entrenar desde cero con tus pocos datos, partes de un modelo que ya aprendió lenguaje en un corpus enorme y lo adaptas a tu tarea. Es la práctica estándar en NLP aplicado.</p>
+
+            <h3>Preentrenamiento y ajuste</h3>
+            <div class="figure">
+              <div class="figure-frame">
+                <svg class="svg-diagram" viewBox="0 0 560 170" role="img" aria-label="Preentrenamiento y fine-tuning">
+                  <g font-size="10.5" text-anchor="middle">
+                    <rect x="20" y="40" width="150" height="58" rx="8" fill="#e9edfb" stroke="#3355c8" />
+                    <text x="95" y="62" fill="#2743a6">Preentrenamiento</text>
+                    <text x="95" y="78" fill="#5f6c7b">corpus masivo</text>
+                    <text x="95" y="92" fill="#5f6c7b">aprender lenguaje</text>
+                    <rect x="205" y="40" width="150" height="58" rx="8" fill="#e2f4ef" stroke="#0e7c6b" />
+                    <text x="280" y="62" fill="#0e7c6b">Fine-tuning</text>
+                    <text x="280" y="78" fill="#5f6c7b">tus datos etiquetados</text>
+                    <text x="280" y="92" fill="#5f6c7b">adaptar a la tarea</text>
+                    <rect x="390" y="40" width="150" height="58" rx="8" fill="#fbf1dc" stroke="#a86a12" />
+                    <text x="465" y="62" fill="#a86a12">Despliegue</text>
+                    <text x="465" y="78" fill="#5f6c7b">inferencia</text>
+                    <text x="465" y="92" fill="#5f6c7b">monitoreo</text>
+                  </g>
+                  <g stroke="#85909d" stroke-width="1.3" marker-end="url(#arrowBERT)">
+                    <path d="M170 69 H205" /><path d="M355 69 H390" />
+                  </g>
+                  <defs><marker id="arrowBERT" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6" fill="#85909d" /></marker></defs>
+                  <text x="280" y="136" font-size="10" fill="#5f6c7b" text-anchor="middle">El modelo preentrenado aporta representaciones; tus datos aportan la decisión específica.</text>
+                </svg>
+                <figcaption>El fine-tuning reutiliza representaciones generales y aprende una cabeza (o ajusta todo el modelo) para la tarea concreta.</figcaption>
+              </div>
+            </div>
+
+            <h3>Objetivos de preentrenamiento</h3>
+            <ul>
+              <li><strong>Masked Language Modeling (BERT):</strong> se enmascara un 15 % de tokens y el modelo debe predecirlos usando ambos contextos. Fuerza representaciones bidireccionales.</li>
+              <li><strong>Next Sentence Prediction:</strong> se predice si dos frases son consecutivas. Hoy se considera poco útil y muchos modelos lo omiten.</li>
+              <li><strong>Autoregresivo (GPT):</strong> predecir el siguiente token. Permite generar y escalar a modelos enormes.</li>
+              <li><strong>SentencePiece / BPE:</strong> tokenización por subpalabras que hace posible un vocabulario manejable y multilingüe.</li>
+            </ul>
+
+            <h3>Fine-tuning con Hugging Face</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">finetuning.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from datasets import load_dataset
+from transformers import (
+    AutoTokenizer, AutoModelForSequenceClassification,
+    TrainingArguments, Trainer
+)
+import numpy as np
+from sklearn.metrics import f1_score
+
+# 1) Datos: dos columnas de texto y una etiqueta entera
+dataset = load_dataset("csv", data_files={"train": "train.csv", "test": "test.csv"})
+etiquetas = dataset["train"].features["label"].names
+
+# 2) Tokenizador del modelo base
+modelo_base = "dccuchile/bert-base-spanish-wwm-cased"
+tok = AutoTokenizer.from_pretrained(modelo_base)
+
+def tokenizar(batch):
+    return tok(batch["texto"], truncation=True, padding="max_length", max_length=128)
+
+dataset = dataset.map(tokenizar, batched=True)
+
+# 3) Modelo con cabeza de clasificación
+modelo = AutoModelForSequenceClassification.from_pretrained(
+    modelo_base, num_labels=len(etiquetas)
+)
+
+def metricas(eval_pred):
+    logits, labels = eval_pred
+    preds = np.argmax(logits, axis=-1)
+    return {"f1_macro": f1_score(labels, preds, average="macro")}
+
+args = TrainingArguments(
+    output_dir="modelo_sentimiento",
+    eval_strategy="epoch",
+    save_strategy="epoch",
+    learning_rate=2e-5,
+    per_device_train_batch_size=16,
+    num_train_epochs=3,
+    weight_decay=0.01,
+    load_best_model_at_end=True,
+    metric_for_best_model="f1_macro",
+    logging_steps=50,
+    seed=42
+)
+
+trainer = Trainer(
+    model=modelo,
+    args=args,
+    train_dataset=dataset["train"],
+    eval_dataset=dataset["test"],
+    compute_metrics=metricas
+)
+
+trainer.train()
+trainer.save_model("modelo_final")
+tok.save_pretrained("modelo_final")</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">El fine-tuning no perdona la fuga de datos</span>
+              Si el mismo usuario, documento o plantilla aparece en train y test, el F1 será irreal. Agrupa por entidad antes de dividir. En datasets construidos por plantillas, verifica que las variantes no compartan casi todo el texto.
+            </div>
+
+            <h3>Elegir un modelo base</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Situación</th><th>Opción razonable</th><th>Motivo</th></tr></thead>
+                <tbody>
+                  <tr><td>Español, pocos datos</td><td>BERT/RoBERTa en español</td><td>Tokenizador y vocabulario adecuados</td></tr>
+                  <tr><td>Multilingüe</td><td>XLM-R</td><td>Cubre muchos idiomas con un solo modelo</td></tr>
+                  <tr><td>Recursos muy limitados</td><td>DistilBERT, MiniLM</td><td>Menor latencia y tamaño</td></tr>
+                  <tr><td>Generación</td><td>Modelos causales (GPT, LLaMA)</td><td>Entrenados para predecir el siguiente token</td></tr>
+                  <tr><td>Tareas de texto largas</td><td>Longformer, BigBird</td><td>Atención eficiente para secuencias largas</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout info">
+              <span class="callout-title">¿Fine-tuning o prompting?</span>
+              Con cientos o miles de ejemplos etiquetados, el fine-tuning suele dar mejor rendimiento y menor coste por consulta. Con pocos ejemplos o tareas muy variadas, un LLM con prompting puede ser suficiente para prototipar. La decisión depende de datos, latencia, privacidad y coste.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 8.6 · Diseñar un fine-tuning</summary>
+            <div class="answer">
+              <p>Tienes 4 000 reseñas en español etiquetadas en cinco categorías y quieres desplegar el modelo en una API con latencia menor a 100 ms. Diseña el experimento: modelo base, longitud máxima, métrica, validación y criterio para elegir entre DistilBERT y BERT-base.</p>
+              <p><strong>Orientación:</strong> usar validación estratificada y agrupada por producto si hay duplicados; comparar F1 macro y latencia; ajustar max_length al percentil 95 de longitudes para no truncar información; elegir el modelo más pequeño que no pierda más de 1–2 puntos de F1; medir latencia en el hardware de despliegue, no solo en el notebook.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m8-l7" data-title="Evaluación y errores en NLP">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 8.7</div>
+              <h2>Evaluación y errores en NLP</h2>
+              <div class="lesson-meta"><span>18 min</span><span class="sep"></span><span>Métricas</span><span class="sep"></span><span>Análisis de errores</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m8-l7"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">En NLP, una métrica alta puede esconder un modelo que aprendió el dataset en lugar del idioma. Evaluar bien exige mirar los datos, segmentar por subgrupos y analizar errores concretos.</p>
+
+            <h3>Métricas por tarea</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Tarea</th><th>Métricas habituales</th><th>Cuidado con</th></tr></thead>
+                <tbody>
+                  <tr><td>Clasificación de texto</td><td>F1 macro, precisión/recall por clase, AUC</td><td>Desbalance y clases minoritarias</td></tr>
+                  <tr><td>Etiquetado de secuencias (NER)</td><td>F1 a nivel de entidad (no de token)</td><td>Fronteras parciales y esquemas BIO</td></tr>
+                  <tr><td>Generación / resumen</td><td>ROUGE, BLEU, BERTScore, evaluación humana</td><td>Métricas n-grama no capturan fidelidad</td></tr>
+                  <tr><td>Traducción</td><td>BLEU, chrF, COMET</td><td>Corpus y dominio de referencia</td></tr>
+                  <tr><td>QA extractiva</td><td>Exact Match, F1 por solapamiento</td><td>Respuestas equivalentes con otra forma</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Por qué F1 macro y no accuracy</h4></div>
+              <div class="example-body">
+                <p>Un dataset de soporte técnico tiene 90 % consultas de «cuenta», 8 % de «pagos» y 2 % de «seguridad». Un modelo que predice siempre «cuenta» obtiene 90 % de accuracy, pero F1 macro es aproximadamente $(1+0+0)/3=0.33$. La clase crítica de seguridad nunca se detecta.</p>
+                <p>F1 macro promedia por clase, así que una clase minoritaria con mal rendimiento pesa igual que la mayoritaria. Si el coste de fallar seguridad es alto, además conviene reportar recall de esa clase por separado.</p>
+              </div>
+            </div>
+
+            <h3>Análisis de errores sistemático</h3>
+            <ol>
+              <li>Muestrea 100–200 errores de validación, estratificados por clase y confianza.</li>
+              <li>Etiqueta el tipo de error: ambigüedad, etiqueta incorrecta, falta de contexto, sesgo, truncamiento, dominio.</li>
+              <li>Cuantifica las categorías y prioriza las que más impactan.</li>
+              <li>Convierte los hallazgos en acciones: más datos, mejor esquema, cambios de preprocessing o de modelo.</li>
+            </ol>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">analisis_errores.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+import pandas as pd
+from sklearn.metrics import classification_report, confusion_matrix
+
+probs = modelo.predict_proba(X_test)
+preds = probs.argmax(axis=1)
+confianza = probs.max(axis=1)
+
+print(classification_report(y_test, preds, digits=3))
+print(pd.DataFrame(
+    confusion_matrix(y_test, preds),
+    index=[f"real_{c}" for c in clases],
+    columns=[f"pred_{c}" for c in clases]
+))
+
+# Errores con alta confianza: los más peligrosos
+errores = pd.DataFrame({
+    "texto": X_test,
+    "real": y_test,
+    "pred": preds,
+    "confianza": confianza
+})
+errores = errores[errores.real != errores.pred].sort_values("confianza", ascending=False)
+print(errores.head(25).to_string())
+
+# Rendimiento por longitud del texto (posible truncamiento)
+longitudes = [len(t.split()) for t in X_test]
+bins = pd.qcut(longitudes, q=4, labels=["corto", "medio", "largo", "muy largo"])
+print(pd.crosstab(bins, y_test == preds, normalize="index"))</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">El test set no es infinito</span>
+              Si evalúas decenas de variantes sobre el mismo test y eliges la mejor, estás sobreajustando el test aunque no entrenes con él. Reserva un conjunto final que solo mires una vez, o usa validación cruzada para las decisiones.
+            </div>
+
+            <h3>Sesgos y subgrupos</h3>
+            <p>Un modelo puede tener buen rendimiento global y fallar sistemáticamente en ciertos dialectos, géneros o dominios. Reporta métricas por subgrupo cuando tengas la información; si no la tienes, al menos analiza errores por fuente y por longitud. La equidad no se deduce de una métrica agregada.</p>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 8.7 · Plan de evaluación</summary>
+            <div class="answer">
+              <p>Diseña la evaluación de un modelo que clasifica tickets de soporte en cinco categorías. Incluye métrica principal, métricas por clase, análisis de errores y qué subgrupos analizarías. ¿Qué harías si una clase tiene recall 0.4 y el resto supera 0.85?</p>
+              <p><strong>Orientación:</strong> F1 macro como principal, recall por clase y matriz de confusión; revisar errores de la clase débil, comprobar si está mal definida o si hay pocos ejemplos; considerar oversampling, ajuste de umbral por clase o reetiquetado. No ocultes la clase débil en el promedio.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m8-l8" data-title="Ética, sesgos y límites de los modelos de lenguaje">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 8.8</div>
+              <h2>Ética, sesgos y límites de los modelos de lenguaje</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Riesgos</span><span class="sep"></span><span>Cierre del módulo</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m8-l8"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un modelo de lenguaje no «sabe»: predice texto plausible. Esa diferencia es crucial cuando se usa para decisiones que afectan personas. Este cierre no es una lista de prohibiciones, sino un marco para usar estas herramientas con responsabilidad.</p>
+
+            <h3>Riesgos que aparecen en producción</h3>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">Alucinación</span><h4>Afirmar sin fundamento</h4><p>El modelo genera texto coherente que puede ser falso. En dominios médicos, legales o financieros, toda salida debe verificarse con una fuente.</p></div>
+              <div class="algo-card"><span class="tag">Sesgo</span><h4>Reproducir desigualdades</h4><p>El corpus contiene estereotipos. El modelo puede asignar atributos por género, origen o dialecto, tanto en clasificación como en generación.</p></div>
+              <div class="algo-card"><span class="tag">Privacidad</span><h4>Memorizar datos</h4><p>Los modelos grandes pueden reproducir fragmentos de entrenamiento. No introduzcas datos personales en servicios externos sin garantías contractuales.</p></div>
+              <div class="algo-card"><span class="tag">Uso dual</span><h4>Automatizar abuso</h4><p>La misma capacidad que genera resúmenes puede generar desinformación a escala. El diseño debe incluir límites y trazabilidad.</p></div>
+            </div>
+
+            <h3>Un protocolo mínimo de uso responsable</h3>
+            <ol>
+              <li><strong>Define el propósito y el daño posible:</strong> ¿qué decisión toma una persona a partir de la salida?</li>
+              <li><strong>Verifica con fuentes:</strong> en tareas factuales, exige citas o recuperación de documentos (RAG).</li>
+              <li><strong>Mide por subgrupos:</strong> no aceptes una métrica agregada como prueba de equidad.</li>
+              <li><strong>Documenta límites:</strong> idioma, dominio, longitud, tipo de texto y fecha de corte del modelo.</li>
+              <li><strong>Mantén supervisión humana:</strong> en decisiones de alto impacto, el modelo propone y una persona decide.</li>
+              <li><strong>Registra y audita:</strong> entradas, salidas, versiones y cambios. Sin trazabilidad no hay rendición de cuentas.</li>
+            </ol>
+
+            <div class="callout warn">
+              <span class="callout-title">No confundas fluidez con verdad</span>
+              La coherencia gramatical es independiente de la corrección factual. Un modelo puede escribir un párrafo impecable sobre un artículo que no existe. En evaluación, separa siempre fidelidad (¿lo que dice está respaldado?) de fluidez (¿se lee bien?).
+            </div>
+
+            <h3>RAG: conectar el modelo con documentos</h3>
+            <p>Una forma práctica de reducir alucinaciones es <strong>Retrieval-Augmented Generation</strong>: dado un documento o pregunta, se recuperan fragmentos relevantes de una base de conocimiento y se le pide al modelo responder solo con esa evidencia. La recuperación se evalúa por separado (recall de fragmentos) y la generación por fidelidad a las fuentes.</p>
+            <div class="code-block"><div class="code-head"><span class="lang">Pseudocódigo</span><span class="file">rag.txt</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-text">1. Indexar documentos: dividir en fragmentos, calcular embeddings, guardar en un índice vectorial.
+2. Recuperar: embedder la pregunta y buscar los k fragmentos más similares.
+3. Construir el prompt: instrucción + fragmentos + pregunta + "si no está en el contexto, di que no lo sabes".
+4. Generar y citar: pedir que cada afirmación incluya el fragmento de origen.
+5. Evaluar: recall@k de recuperación, fidelidad de la respuesta y tasa de abstenciones correctas.</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">Cierre del módulo</span>
+              Has recorrido desde la tokenización hasta los modelos de lenguaje. La idea que deberías retener: cada representación captura algo y pierde algo. Elige la más simple que resuelva tu problema, mide con datos representativos y documenta los límites. La sofisticación no sustituye a un buen conjunto de evaluación.
+            </div>
+
+            <div class="quiz-mount" data-quiz="8"></div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 8.8 · Auditoría de un sistema de texto</summary>
+            <div class="answer">
+              <p>Un banco quiere usar un LLM para resumir reclamaciones de clientes y priorizarlas. Enumera cinco riesgos concretos y una mitigación para cada uno. ¿Qué métricas exigirías antes de ponerlo en producción?</p>
+              <p><strong>Orientación:</strong> alucinación en el resumen (verificación con el texto original y muestreo humano), sesgo por tipo de cliente (métricas por subgrupo), privacidad (anonimización y contrato), deriva del lenguaje (monitoreo de distribuciones), automatización excesiva (decisión final humana). Métricas: fidelidad, recall de reclamaciones críticas, tasa de abstención, latencia y coste.</p>
+            </div>
+          </details>
+        </article>

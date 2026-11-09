@@ -1,0 +1,936 @@
+<article class="lesson" id="l-m2-l1" data-title="Entorno, sintaxis y tipos de datos">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 2.1</div>
+              <h2>Entorno, sintaxis y tipos de datos</h2>
+              <div class="lesson-meta"><span>18 min</span><span class="sep"></span><span>Python básico</span><span class="sep"></span><span>Primer programa</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m2-l1"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Python es un lenguaje interpretado, de tipado dinámico y con una sintaxis legible. Para ML no necesitas dominarlo entero: necesitas escribir funciones claras, manipular colecciones y usar bien las bibliotecas.</p>
+
+            <h3>¿Dónde ejecutar el código?</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Entorno</th><th>Ventajas</th><th>Cuándo usarlo</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Google Colab</strong></td><td>Gratis, GPU/TPU, cero instalación</td><td>Aprender, prototipos, notebooks compartidos</td></tr>
+                  <tr><td><strong>Jupyter Notebook</strong></td><td>Local, flexible, ideal para EDA</td><td>Análisis exploratorio y experimentos</td></tr>
+                  <tr><td><strong>VS Code + Python</strong></td><td>Depuración, refactor, Git</td><td>Proyectos y código de producción</td></tr>
+                  <tr><td><strong>Scripts .py</strong></td><td>Reproducibles, versionables</td><td>Pipelines, entrenamiento, APIs</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Recomendación: usa <strong>Colab</strong> para estudiar y <strong>VS Code + entorno virtual</strong> para proyectos. Instala las bibliotecas con <span class="inline-code">pip install numpy pandas matplotlib seaborn scikit-learn</span>.</p>
+
+            <h3>Variables y tipos</h3>
+            <p>En Python no declaras el tipo: se infiere del valor. Los tipos fundamentales son <span class="inline-code">int</span>, <span class="inline-code">float</span>, <span class="inline-code">str</span>, <span class="inline-code">bool</span> y <span class="inline-code">None</span>.</p>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">tipos.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">nombre = "Ada"          # str
+edad = 36               # int
+altura = 1.68           # float
+es_cientifica = True    # bool
+sin_valor = None        # NoneType
+
+print(type(edad))                 # <class 'int'>
+print(f"{nombre} tiene {edad} años")   # f-string
+
+# Conversión de tipos (casting)
+print(int("42") + 8)      # 50
+print(float("3.14") * 2)  # 6.28
+print(str(2026) + "!")    # "2026!"
+
+# Operadores
+print(7 / 2)    # 3.5  (división real)
+print(7 // 2)   # 3    (división entera)
+print(7 % 2)    # 1    (módulo)
+print(2 ** 10)  # 1024 (potencia)</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">División entera y módulo</span>
+              En ML, <span class="inline-code">//</span> y <span class="inline-code">%</span> aparecen al crear batches, dividir índices o comprobar si un número es par. Confundir <span class="inline-code">/</span> con <span class="inline-code">//</span> produce errores sutiles: <span class="inline-code">7/2</span> es 3.5, no 3.
+            </div>
+
+            <h3>Strings y formato</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">strings.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">texto = "Machine Learning"
+print(texto.lower())          # machine learning
+print(texto.replace(" ", "_"))# Machine_Learning
+print(texto.split())          # ['Machine', 'Learning']
+print(texto[0:7])             # Machine
+print(len(texto))             # 16
+
+# Formato de métricas
+accuracy = 0.9234
+print(f"Accuracy: {accuracy:.2%}")       # Accuracy: 92.34%
+print(f"Error:    {1 - accuracy:.4f}")   # Error:    0.0766</code></pre></div>
+            <p>Para NLP, las operaciones con strings son el pan de cada día: limpieza, tokenización, normalización. En el Módulo 8 las retomaremos.</p>
+
+            <h3>Entrada y salida</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">entrada.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python"># En un notebook o script interactivo
+# nombre = input("¿Cómo te llamas? ")
+# print(f"Hola, {nombre}")
+
+# Para ML, la salida estructurada es más útil que los prints sueltos
+resultados = {"modelo": "Random Forest", "f1": 0.87, "auc": 0.91}
+for clave, valor in resultados.items():
+    print(f"{clave:>16}: {valor}")</code></pre></div>
+
+            <h3>Aplicación: registrar un experimento</h3>
+            <p>Un buen hábito desde el primer día: guardar cada experimento con sus hiperparámetros y métricas. No confíes en la memoria ni en nombres de archivo como <span class="inline-code">final_v2_bueno.ipynb</span>.</p>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">experimento.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from datetime import datetime
+
+experimento = {
+    "fecha": datetime.now().isoformat(timespec="seconds"),
+    "modelo": "logistic_regression",
+    "lr": 0.01,
+    "epochs": 100,
+    "accuracy": 0.912,
+    "notas": "features estandarizadas",
+}
+print(experimento)
+# En producción: MLflow, Weights & Biases o un CSV versionado</code></pre></div>
+
+            <div class="callout tip">
+              <span class="callout-title">Zen de Python</span>
+              «Explícito mejor que implícito; simple mejor que complejo; legible cuenta». Ejecuta <span class="inline-code">import this</span> para leer los 19 principios. El código de ML se lee mucho más de lo que se escribe.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicios 2.1</summary>
+            <div class="answer">
+              <ol>
+                <li>¿Qué imprime <span class="inline-code">print(10 // 3, 10 % 3)</span>? <span class="inline-code">3 1</span>.</li>
+                <li>Convierte la temperatura 98.6 °F a Celsius con la fórmula $C=(F-32)\times5/9$. Resultado: 37.0.</li>
+                <li>Escribe un f-string que muestre una pérdida de 0.03456 con 3 decimales: <span class="inline-code">f"loss={0.03456:.3f}"</span>.</li>
+                <li>¿Por qué <span class="inline-code">"3" + 4</span> falla? Porque no se pueden concatenar <span class="inline-code">str</span> e <span class="inline-code">int</span> sin conversión explícita.</li>
+              </ol>
+            </div>
+          </div>
+        </article>
+
+        <!-- 2.2 -->
+        <article class="lesson" id="l-m2-l2" data-title="Condicionales, ciclos y comprensiones">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 2.2</div>
+              <h2>Condicionales, ciclos y comprensiones</h2>
+              <div class="lesson-meta"><span>16 min</span><span class="sep"></span><span>Control de flujo</span><span class="sep"></span><span>Python idiomático</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m2-l2"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <h3>Condicionales</h3>
+            <p>Python usa indentación (4 espacios) para delimitar bloques. No hay llaves. Las comparaciones se encadenan de forma natural: <span class="inline-code">0 &lt;= y &lt;= 1</span>.</p>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">condicionales.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">def clasificar_imc(peso, altura):
+    imc = peso / altura ** 2
+    if imc < 18.5:
+        categoria = "bajo peso"
+    elif imc < 25:
+        categoria = "normal"
+    elif imc < 30:
+        categoria = "sobrepeso"
+    else:
+        categoria = "obesidad"
+    return round(imc, 1), categoria
+
+print(clasificar_imc(70, 1.75))   # (22.9, 'normal')
+
+# Operador ternario
+estado = "aprobado" if 0.85 >= 0.7 else "reprobado"
+print(estado)
+
+# Operadores lógicos
+es_adulto = True
+tiene_dni = False
+print(es_adulto and tiene_dni)   # False
+print(es_adulto or tiene_dni)    # True
+print(not tiene_dni)             # True</code></pre></div>
+
+            <h3>Ciclos</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">ciclos.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python"># for sobre un rango
+for epoca in range(1, 4):          # 1, 2, 3
+    perdida = 1.0 / epoca
+    print(f"época {epoca}: loss={perdida:.3f}")
+
+# for sobre una colección
+modelos = ["lineal", "árbol", "knn"]
+for i, modelo in enumerate(modelos, start=1):
+    print(i, modelo)
+
+# while con criterio de parada
+x, paso = 4.0, 0
+while abs(x) > 1e-3 and paso < 100:
+    x = x - 0.2 * 2 * x
+    paso += 1
+print(f"convergió en {paso} pasos: x={x:.6f}")
+
+# break / continue
+for valor in [1, -2, 3, -4, 5]:
+    if valor < 0:
+        continue          # salta negativos
+    if valor > 4:
+        break             # corta el ciclo
+    print(valor)</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Cuidado con mutar mientras iteras</span>
+              No elimines elementos de una lista mientras la recorres. Crea una nueva lista o itera sobre una copia. Este error causa bugs difíciles de reproducir en el preprocesamiento de datos.
+            </div>
+
+            <h3>Comprensiones de listas</h3>
+            <p>Son la forma idiomática de transformar o filtrar colecciones. Más legibles y rápidas que un <span class="inline-code">for</span> con <span class="inline-code">append</span>.</p>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">comprensiones.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">numeros = [1, 2, 3, 4, 5, 6]
+
+cuadrados = [x ** 2 for x in numeros]
+pares = [x for x in numeros if x % 2 == 0]
+pares_al_cuadrado = [x ** 2 for x in numeros if x % 2 == 0]
+
+print(cuadrados)          # [1, 4, 9, 16, 25, 36]
+print(pares)              # [2, 4, 6]
+print(pares_al_cuadrado)  # [4, 16, 36]
+
+# Diccionario por comprensión
+longitudes = {palabra: len(palabra) for palabra in ["gato", "perro", "elefante"]}
+print(longitudes)
+
+# Con condición al final (ternario dentro de la comprensión)
+etiquetas = ["positivo" if x > 0 else "negativo" for x in [3, -1, 0]]
+print(etiquetas)          # ['positivo', 'negativo', 'negativo']</code></pre></div>
+
+            <h3>Aplicación: normalización de una lista</h3>
+            <div class="formula">
+              $$x_i' = \frac{x_i-\min(x)}{\max(x)-\min(x)}$$
+            </div>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">minmax.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">datos = [10, 20, 30, 40, 50]
+minimo, maximo = min(datos), max(datos)
+
+normalizados = [(x - minimo) / (maximo - minimo) for x in datos]
+print(normalizados)   # [0.0, 0.25, 0.5, 0.75, 1.0]
+
+# Con NumPy es aún más directo (lo veremos en 2.4)
+# (datos - datos.min()) / (datos.max() - datos.min())</code></pre></div>
+
+            <div class="callout tip">
+              <span class="callout-title">Regla de estilo</span>
+              Si una comprensión ocupa más de dos líneas o anida tres <span class="inline-code">for</span>, usa un bucle normal. La legibilidad gana a la brevedad.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicios 2.2</summary>
+            <div class="answer">
+              <ol>
+                <li>Crea una lista con los múltiplos de 3 entre 1 y 30: <span class="inline-code">[x for x in range(1,31) if x % 3 == 0]</span>.</li>
+                <li>Cuenta cuántos números de una lista son mayores que la media.</li>
+                <li>Simula 10 épocas de un ciclo que imprime la pérdida $1/t$ y se detiene si baja de 0.15. ¿En qué época se detiene? En $t=7$ (1/7≈0.143).</li>
+                <li>Convierte una lista de temperaturas en Fahrenheit a Celsius con una comprensión.</li>
+              </ol>
+            </div>
+          </div>
+        </article>
+
+        <!-- 2.3 -->
+        <article class="lesson" id="l-m2-l3" data-title="Funciones, estructuras de datos y POO">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 2.3</div>
+              <h2>Funciones, estructuras de datos y POO</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Python intermedio</span><span class="sep"></span><span>Buenas prácticas</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m2-l3"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <h3>Funciones</h3>
+            <div class="formula">
+              <span class="formula-label">Anatomía</span>
+              $$\texttt{def nombre(parametros): }\;\text{cuerpo}\; \texttt{return valor}$$
+            </div>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">funciones.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">def mse(y_real, y_pred):
+    """Error cuadrático medio. Ambas listas deben tener igual longitud."""
+    if len(y_real) != len(y_pred):
+        raise ValueError("Las listas deben tener la misma longitud")
+    errores = [(real - pred) ** 2 for real, pred in zip(y_real, y_pred)]
+    return sum(errores) / len(errores)
+
+print(mse([3, -0.5, 2, 7], [2.5, 0.0, 2, 8]))   # 0.375
+
+# Argumentos con valor por defecto y por nombre
+def entrenar(X, y, lr=0.01, epochs=100, verbose=False):
+    """Firma típica de una función de entrenamiento."""
+    historial = []
+    for epoca in range(epochs):
+        loss = 1 / (epoca + 1)          # simulación
+        historial.append(loss)
+        if verbose and epoca % 20 == 0:
+            print(f"época {epoca}: {loss:.4f}")
+    return historial
+
+h = entrenar([], [], lr=0.1, epochs=50)
+
+# *args y **kwargs
+def resumen(*metricas, **opciones):
+    print("métricas:", metricas)
+    print("opciones:", opciones)
+
+resumen(0.9, 0.8, 0.85, modelo="rf", seed=42)</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Nunca uses listas como valor por defecto</span>
+              <span class="inline-code">def f(x, acc=[])</span> comparte la misma lista entre llamadas y acumula resultados inesperados. Usa <span class="inline-code">None</span> y créala dentro: <span class="inline-code">if acc is None: acc = []</span>.
+            </div>
+
+            <h3>Listas, tuplas, diccionarios y conjuntos</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Estructura</th><th>Mutable</th><th>Ordenada</th><th>Uso típico</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="inline-code">list</span></td><td>Sí</td><td>Sí</td><td>Secuencias de ejemplos, batches</td></tr>
+                  <tr><td><span class="inline-code">tuple</span></td><td>No</td><td>Sí</td><td>Pares (x, y), claves compuestas</td></tr>
+                  <tr><td><span class="inline-code">dict</span></td><td>Sí</td><td>Sí (desde 3.7)</td><td>Hiperparámetros, métricas, JSON</td></tr>
+                  <tr><td><span class="inline-code">set</span></td><td>Sí</td><td>No</td><td>Vocabulario, eliminación de duplicados</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">estructuras.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python"># Listas
+edades = [23, 45, 31]
+edades.append(29)
+print(edades[-1], edades[1:3])     # 29 [45, 31]
+
+# Tuplas: inmutables, útiles para datos fijos
+punto = (2.5, -1.0)
+x, y = punto                        # desempaquetado
+
+# Diccionarios
+modelo = {"tipo": "random_forest", "n_estimators": 200, "max_depth": 8}
+print(modelo["tipo"])
+modelo["random_state"] = 42
+for clave, valor in modelo.items():
+    print(f"{clave}: {valor}")
+
+# Conjuntos
+vocabulario = set(["gato", "perro", "gato", "ave"])
+print(vocabulario)                  # {'gato', 'perro', 'ave'}
+print("gato" in vocabulario)        # True
+
+# Operaciones de conjuntos
+A = {1, 2, 3}
+B = {3, 4}
+print(A | B)   # unión
+print(A & B)   # intersección
+print(A - B)   # diferencia</code></pre></div>
+
+            <h3>Programación orientada a objetos</h3>
+            <p>En ML, las clases sirven para encapsular estado y comportamiento: un modelo con sus pesos, un dataset con sus transformaciones, un pipeline con sus pasos. Scikit-learn usa esta interfaz: <span class="inline-code">fit</span>, <span class="inline-code">predict</span>, <span class="inline-code">score</span>.</p>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">poo.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">class StandardScaler:
+    """Estandarización: (x - media) / desviación estándar."""
+
+    def __init__(self):
+        self.media_ = None
+        self.sd_ = None
+
+    def fit(self, X):
+        n = len(X)
+        self.media_ = sum(X) / n
+        varianza = sum((x - self.media_) ** 2 for x in X) / n
+        self.sd_ = varianza ** 0.5
+        return self
+
+    def transform(self, X):
+        if self.media_ is None:
+            raise RuntimeError("Llama a fit() antes de transform()")
+        return [(x - self.media_) / self.sd_ for x in X]
+
+    def fit_transform(self, X):
+        return self.fit(X).transform(X)
+
+scaler = StandardScaler()
+datos = [10, 12, 14, 16, 18]
+print(scaler.fit_transform(datos))
+print("media aprendida:", scaler.media_)   # 14.0</code></pre></div>
+            <p>El guion bajo final en <span class="inline-code">media_</span> es una convención de Scikit-learn para atributos <em>aprendidos</em> durante <span class="inline-code">fit</span>. Distinguirlos de los hiperparámetros evita fugas de información.</p>
+
+            <div class="callout tip">
+              <span class="callout-title">Principio de responsabilidad única</span>
+              Una función debe hacer una cosa. Una clase debe tener una razón para cambiar. En un pipeline, separa carga de datos, preprocesamiento, entrenamiento y evaluación. Facilita probar y reemplazar piezas.
+            </div>
+
+            <h3>Módulos y organización de un proyecto</h3>
+            <pre><code class="language-bash">proyecto/
+├── data/
+│   ├── raw/            # datos originales (nunca modificar)
+│   └── processed/      # datos limpios
+├── notebooks/          # exploración
+├── src/
+│   ├── data.py         # carga y limpieza
+│   ├── features.py     # ingeniería de características
+│   ├── train.py        # entrenamiento
+│   └── evaluate.py     # métricas
+├── models/             # artefactos serializados
+├── tests/
+├── requirements.txt
+└── README.md</code></pre></div>
+
+            <h3>Ejemplo integrador: clase de regresión lineal simple</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">regresion_oo.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">class RegresionLinealSimple:
+    def __init__(self, lr=0.01, epochs=1000):
+        self.lr = lr
+        self.epochs = epochs
+        self.w = 0.0
+        self.b = 0.0
+        self.historial = []
+
+    def fit(self, X, y):
+        n = len(X)
+        for _ in range(self.epochs):
+            y_pred = [self.w * x + self.b for x in X]
+            error = [yp - yr for yp, yr in zip(y_pred, y)]
+            dw = 2 / n * sum(e * x for e, x in zip(error, X))
+            db = 2 / n * sum(error)
+            self.w -= self.lr * dw
+            self.b -= self.lr * db
+            mse = sum(e ** 2 for e in error) / n
+            self.historial.append(mse)
+        return self
+
+    def predict(self, X):
+        return [self.w * x + self.b for x in X]
+
+X = [1, 2, 3, 4]
+y = [2, 4, 5, 4]
+modelo = RegresionLinealSimple(lr=0.01, epochs=2000).fit(X, y)
+print(f"y = {modelo.w:.3f}x + {modelo.b:.3f}")
+print("predicciones:", [round(p, 2) for p in modelo.predict(X)])</code></pre></div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicios 2.3</summary>
+            <div class="answer">
+              <ol>
+                <li>Escribe una función <span class="inline-code">accuracy(y_true, y_pred)</span> que devuelva la proporción de aciertos. Prueba con <span class="inline-code">[1,0,1,1]</span> y <span class="inline-code">[1,0,0,1]</span>: 0.75.</li>
+                <li>Implementa una clase <span class="inline-code">MinMaxScaler</span> con <span class="inline-code">fit</span> y <span class="inline-code">transform</span>.</li>
+                <li>¿Por qué una tupla puede ser clave de diccionario y una lista no? Porque las claves deben ser hashables e inmutables.</li>
+                <li>Refactoriza un script de 100 líneas en tres funciones: cargar, entrenar, evaluar.</li>
+              </ol>
+            </div>
+          </div>
+        </article>
+
+        <!-- 2.4 -->
+        <article class="lesson" id="l-m2-l4" data-title="NumPy: cálculo vectorizado">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 2.4</div>
+              <h2>NumPy: cálculo vectorizado</h2>
+              <div class="lesson-meta"><span>24 min</span><span class="sep"></span><span>Biblioteca esencial</span><span class="sep"></span><span>Broadcasting</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m2-l4"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead"><strong>NumPy</strong> es la base de todo el ecosistema científico de Python. Introduce el objeto <span class="inline-code">ndarray</span>: un arreglo multidimensional homogéneo, almacenado de forma contigua y operado en C. La vectorización elimina bucles lentos de Python.</p>
+
+            <h3>Creación de arreglos</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">numpy_basico.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+
+a = np.array([1, 2, 3])                 # 1D
+b = np.array([[1, 2, 3], [4, 5, 6]])    # 2D (2 filas, 3 columnas)
+print(b.shape)                          # (2, 3)
+print(b.dtype)                          # int64
+
+print(np.zeros((2, 3)))                 # matriz de ceros
+print(np.ones(5))                       # vector de unos
+print(np.arange(0, 10, 2))              # [0 2 4 6 8]
+print(np.linspace(0, 1, 5))             # 5 puntos entre 0 y 1
+print(np.eye(3))                        # identidad 3x3
+
+rng = np.random.default_rng(42)         # generador moderno
+print(rng.normal(0, 1, size=5))         # 5 normales
+print(rng.integers(0, 10, size=(2, 3)))</code></pre></div>
+
+            <h3>Indexado y slicing</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">numpy_index.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">X = np.arange(12).reshape(3, 4)
+# [[ 0  1  2  3]
+#  [ 4  5  6  7]
+#  [ 8  9 10 11]]
+
+print(X[0, 0])        # 0
+print(X[1, :])        # fila 1: [4 5 6 7]
+print(X[:, 2])        # columna 2: [2 6 10]
+print(X[0:2, 1:3])    # submatriz
+
+# Indexado booleano
+print(X[X > 6])       # [7 8 9 10 11]
+filas = X[:, 0] > 4
+print(X[filas])       # filas donde la primera columna > 4
+
+# Modificación
+X[0, 0] = 99
+print(X[0])</code></pre></div>
+
+            <h3>Operaciones vectorizadas y broadcasting</h3>
+            <p>Las operaciones se aplican elemento a elemento sin bucles explícitos. El <strong>broadcasting</strong> permite combinar formas compatibles expandiendo dimensiones de tamaño 1.</p>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">numpy_ops.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">a = np.array([1, 2, 3])
+b = np.array([10, 20, 30])
+
+print(a + b)          # [11 22 33]
+print(a * b)          # [10 40 90]
+print(a ** 2)         # [1 4 9]
+print(np.sqrt(a))     # [1. 1.414 1.732]
+
+# Broadcasting: matriz (3,1) + vector (3,)
+columna = np.array([[1], [2], [3]])
+fila = np.array([10, 20, 30])
+print(columna + fila)
+# [[11 21 31]
+#  [12 22 32]
+#  [13 23 33]]
+
+# Normalización por columnas
+X = np.array([[1., 2.], [3., 4.], [5., 6.]])
+media = X.mean(axis=0)        # [3. 4.]
+sd = X.std(axis=0)            # [1.633 1.633]
+print((X - media) / sd)
+
+# Producto matricial
+W = np.array([[1., 2.], [3., 4.]])
+print(X @ W)                  # producto matricial
+print(X.T @ X)                # matriz de Gram</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">axis</span>
+              <span class="inline-code">axis=0</span> opera a lo largo de las filas (colapsa filas → resultado por columna); <span class="inline-code">axis=1</span> colapsa columnas. Es la fuente número uno de confusión. Verifica con <span class="inline-code">shape</span>.
+            </div>
+
+            <h3>Agregaciones y estadística</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">numpy_stats.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">X = rng.normal(50, 10, size=(100, 3))
+
+print("media:", X.mean(axis=0))
+print("desv :", X.std(axis=0))
+print("min  :", X.min(axis=0))
+print("max  :", X.max(axis=0))
+print("argmax por columna:", X.argmax(axis=0))
+
+print(np.percentile(X, [25, 50, 75], axis=0))
+print("correlación:\n", np.corrcoef(X, rowvar=False))
+
+# Álgebra lineal
+A = np.array([[2., 1.], [1., 3.]])
+print("det:", np.linalg.det(A))
+print("inv:\n", np.linalg.inv(A))
+print("eig:", np.linalg.eigvalsh(A))
+print("norma:", np.linalg.norm([3, 4]))   # 5.0</code></pre></div>
+
+            <h3>Por qué la vectorización importa</h3>
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span> Bucle vs. vector</div>
+              <div class="example-body">
+                <p>Calcular el cuadrado de un millón de números con un bucle de Python tarda del orden de 50–100 ms; con NumPy, del orden de 1–3 ms. La diferencia no es solo velocidad: el código es más corto y menos propenso a errores.</p>
+                <p>En entrenamiento de modelos, esto se multiplica por miles de iteraciones y millones de parámetros. La vectorización es una necesidad, no un lujo.</p>
+              </div>
+            </div>
+
+            <h3>Aplicación: regresión lineal con NumPy</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">regresion_numpy.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+
+# Datos: x = [1,2,3,4], y = [2,4,5,4]
+X = np.array([1., 2., 3., 4.])
+y = np.array([2., 4., 5., 4.])
+
+# Añadimos columna de unos para el intercepto
+Xb = np.column_stack([np.ones_like(X), X])
+w = np.linalg.solve(Xb.T @ Xb, Xb.T @ y)
+print("b0, b1 =", w)                 # [2.0 0.7]
+
+y_pred = Xb @ w
+residuos = y - y_pred
+sse = (residuos ** 2).sum()
+sst = ((y - y.mean()) ** 2).sum()
+r2 = 1 - sse / sst
+print("R² =", r2)                    # 0.5158
+
+# Descenso del gradiente vectorizado
+w_gd = np.zeros(2)
+lr = 0.05
+for _ in range(2000):
+    grad = 2 / len(X) * Xb.T @ (Xb @ w_gd - y)
+    w_gd -= lr * grad
+print("gradiente:", w_gd)            # ≈ [2.0 0.7]</code></pre></div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicios 2.4</summary>
+            <div class="answer">
+              <ol>
+                <li>Crea una matriz 4×4 con valores 0..15 y extrae la submatriz de las filas 1–2 y columnas 2–3.</li>
+                <li>Genera 1000 números normales con media 5 y desviación 2; calcula media y desviación muestral.</li>
+                <li>Estandariza una matriz por columnas usando broadcasting; verifica que cada columna tenga media ≈0 y sd ≈1.</li>
+                <li>Calcula la norma L2 de cada fila de una matriz sin usar bucles: <span class="inline-code">np.linalg.norm(X, axis=1)</span>.</li>
+              </ol>
+            </div>
+          </div>
+        </article>
+
+        <!-- 2.5 -->
+        <article class="lesson" id="l-m2-l5" data-title="Pandas: datos tabulares">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 2.5</div>
+              <h2>Pandas: datos tabulares</h2>
+              <div class="lesson-meta"><span>26 min</span><span class="sep"></span><span>Análisis de datos</span><span class="sep"></span><span>EDA</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m2-l5"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead"><strong>Pandas</strong> introduce dos estructuras: <span class="inline-code">Series</span> (columna etiquetada) y <span class="inline-code">DataFrame</span> (tabla con índice y columnas). Es la herramienta estándar para cargar, limpiar, explorar y transformar datos.</p>
+
+            <h3>Cargar y explorar</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">pandas_basico.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import pandas as pd
+
+# df = pd.read_csv("datos.csv")
+# Para el ejemplo, creamos un DataFrame
+df = pd.DataFrame({
+    "edad": [25, 32, 47, 51, 29, 38, 41, 60],
+    "ingreso": [25_000, 42_000, 58_000, 61_000, 33_000, 47_000, 52_000, 70_000],
+    "ciudad": ["Lima", "Lima", "Arequipa", "Cusco", "Lima", "Arequipa", "Cusco", "Lima"],
+    "compro": [0, 1, 1, 1, 0, 1, 1, 0],
+})
+
+print(df.head(3))
+print(df.shape)          # (8, 4)
+print(df.dtypes)
+print(df.info())
+print(df.describe())     # estadísticas de columnas numéricas
+print(df["ciudad"].value_counts())
+print(df.isna().sum())   # valores faltantes por columna</code></pre></div>
+
+            <h3>Selección y filtrado</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">pandas_seleccion.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python"># Por etiqueta (loc) y por posición (iloc)
+print(df.loc[0, "edad"])            # 25
+print(df.iloc[0, 0])                # 25
+print(df.loc[2:4, ["edad", "ciudad"]])
+
+# Filtrar con condiciones
+mayores = df[df["edad"] >= 40]
+print(mayores)
+
+# Varias condiciones: & (and), | (or), ~ (not). Paréntesis obligatorios.
+filtro = (df["ciudad"] == "Lima") & (df["compro"] == 1)
+print(df[filtro])
+
+# Crear una columna
+df["ingreso_miles"] = df["ingreso"] / 1000
+df["grupo_edad"] = pd.cut(df["edad"], bins=[0, 30, 45, 100],
+                          labels=["joven", "adulto", "mayor"])
+print(df.head())</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">SettingWithCopyWarning</span>
+              Si filtras y luego modificas, Pandas puede operar sobre una copia y no sobre el original. Usa <span class="inline-code">.copy()</span> al filtrar si vas a modificar: <span class="inline-code">sub = df[df.edad &gt; 40].copy()</span>.
+            </div>
+
+            <h3>Agrupación y agregación</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">pandas_groupby.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python"># Media de ingreso por ciudad
+print(df.groupby("ciudad")["ingreso"].mean())
+
+# Varias agregaciones
+resumen = df.groupby("ciudad").agg(
+    n=("edad", "size"),
+    edad_media=("edad", "mean"),
+    ingreso_medio=("ingreso", "mean"),
+    tasa_compra=("compro", "mean"),
+).reset_index()
+print(resumen)
+
+# Tabla cruzada
+print(pd.crosstab(df["ciudad"], df["compro"], normalize="index"))
+
+# Ordenar
+print(df.sort_values("ingreso", ascending=False).head(3))</code></pre></div>
+
+            <h3>Valores faltantes y duplicados</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">pandas_limpieza.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">df2 = df.copy()
+df2.loc[1, "ingreso"] = None
+df2.loc[3, "ciudad"] = None
+
+print(df2.isna().sum())
+print(df2.dropna().shape)                         # elimina filas incompletas
+print(df2["ingreso"].fillna(df2["ingreso"].median()))
+print(df2["ciudad"].fillna("Desconocida"))
+
+# Duplicados
+df2 = pd.concat([df2, df2.iloc[[0]]], ignore_index=True)
+print(df2.duplicated().sum())
+df2 = df2.drop_duplicates()
+
+# Renombrar y convertir tipos
+df2 = df2.rename(columns={"ingreso": "salario"})
+df2["compro"] = df2["compro"].astype(bool)</code></pre></div>
+
+            <h3>Unir tablas</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">pandas_merge.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">clientes = pd.DataFrame({
+    "id": [1, 2, 3],
+    "nombre": ["Ana", "Luis", "Eva"],
+})
+compras = pd.DataFrame({
+    "id": [1, 1, 3, 4],
+    "monto": [100, 250, 80, 500],
+})
+
+# inner: solo ids presentes en ambas
+print(clientes.merge(compras, on="id", how="inner"))
+
+# left: conserva todos los clientes
+print(clientes.merge(compras, on="id", how="left"))</code></pre></div>
+
+            <h3>Aplicación: EDA mínimo de un dataset</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">eda.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">def resumen_eda(df):
+    print("Forma:", df.shape)
+    print("\nTipos:\n", df.dtypes.value_counts())
+    faltantes = df.isna().mean().sort_values(ascending=False)
+    print("\n% faltantes:\n", (faltantes * 100).round(1).head())
+    print("\nDuplicados:", df.duplicated().sum())
+    numericas = df.select_dtypes("number")
+    print("\nResumen numérico:\n", numericas.describe().T)
+    if len(numericas.columns) > 1:
+        print("\nCorrelaciones:\n", numericas.corr().round(2))
+
+resumen_eda(df)</code></pre></div>
+            <div class="callout tip">
+              <span class="callout-title">Antes de modelar</span>
+              Pregunta siempre: ¿qué representa cada fila? ¿hay una fila por paciente, por transacción o por día? ¿el dataset contiene el futuro? ¿las etiquetas se generaron antes o después de las features? Estas preguntas evitan fugas de información, el error más costoso en ML.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicios 2.5</summary>
+            <div class="answer">
+              <ol>
+                <li>Carga el dataset <em>Titanic</em> desde una URL pública y muestra las 5 primeras filas, la tasa de supervivencia por sexo y el porcentaje de nulos por columna.</li>
+                <li>Crea una columna <span class="inline-code">es_mayor</span> que valga True si la edad es ≥18.</li>
+                <li>Agrupa por clase y calcula la tarifa media y la supervivencia media.</li>
+                <li>Detecta y elimina duplicados; documenta cuántos había.</li>
+              </ol>
+            </div>
+          </div>
+        </article>
+
+        <!-- 2.6 -->
+        <article class="lesson" id="l-m2-l6" data-title="Matplotlib y Seaborn">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 2.6</div>
+              <h2>Matplotlib y Seaborn</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Visualización</span><span class="sep"></span><span>Comunicar hallazgos</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m2-l6"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un gráfico bien hecho revela patrones que una tabla oculta. Matplotlib da control total; Seaborn simplifica los gráficos estadísticos. La regla es simple: elige el gráfico según la pregunta, no según lo que se ve bonito.</p>
+
+            <h3>Matplotlib: figura y ejes</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">matplotlib_basico.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(0, 10, 100)
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+axes[0].plot(x, np.sin(x), label="sin(x)", color="#3355c8")
+axes[0].plot(x, np.cos(x), label="cos(x)", color="#0e7c6b", linestyle="--")
+axes[0].set_title("Funciones trigonométricas")
+axes[0].set_xlabel("x"); axes[0].set_ylabel("f(x)")
+axes[0].legend(); axes[0].grid(alpha=.3)
+
+axes[1].scatter(x, np.sin(x) + np.random.default_rng(0).normal(0, .15, 100),
+                s=12, alpha=.6)
+axes[1].set_title("Dispersión con ruido")
+axes[1].grid(alpha=.3)
+
+fig.tight_layout()
+plt.show()
+# plt.savefig("figura.png", dpi=200, bbox_inches="tight")</code></pre></div>
+
+            <h3>Qué gráfico para qué pregunta</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Pregunta</th><th>Gráfico</th><th>Función</th></tr></thead>
+                <tbody>
+                  <tr><td>¿Cómo se distribuye una variable?</td><td>Histograma / KDE</td><td><span class="inline-code">histplot</span></td></tr>
+                  <tr><td>¿Hay relación entre dos variables?</td><td>Dispersión</td><td><span class="inline-code">scatterplot</span></td></tr>
+                  <tr><td>¿Cómo cambia una métrica en el tiempo?</td><td>Línea</td><td><span class="inline-code">lineplot</span></td></tr>
+                  <tr><td>¿Hay diferencias entre grupos?</td><td>Boxplot / violin</td><td><span class="inline-code">boxplot</span>, <span class="inline-code">violinplot</span></td></tr>
+                  <tr><td>¿Cómo se relacionan muchas variables?</td><td>Matriz de correlación</td><td><span class="inline-code">heatmap</span></td></tr>
+                  <tr><td>¿Cómo se distribuye una clase?</td><td>Barras</td><td><span class="inline-code">countplot</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Seaborn</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">seaborn_demo.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+
+sns.set_theme(style="whitegrid", palette="deep")
+
+# Dataset de ejemplo incluido en Seaborn
+iris = sns.load_dataset("iris")
+
+fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+
+sns.histplot(data=iris, x="sepal_length", hue="species",
+             kde=True, ax=axes[0])
+axes[0].set_title("Distribución por especie")
+
+sns.scatterplot(data=iris, x="sepal_length", y="petal_length",
+                hue="species", ax=axes[1])
+axes[1].set_title("Relación entre medidas")
+
+sns.boxplot(data=iris, x="species", y="petal_width", ax=axes[2])
+axes[2].set_title("Petal width por especie")
+axes[2].tick_params(axis="x", rotation=15)
+
+fig.tight_layout(); plt.show()
+
+# Matriz de correlación
+plt.figure(figsize=(6, 4))
+sns.heatmap(iris.select_dtypes("number").corr(),
+            annot=True, fmt=".2f", cmap="vlag", center=0,
+            square=True, cbar_kws={"shrink": .8})
+plt.title("Correlaciones")
+plt.show()</code></pre></div>
+
+            <h3>Curvas de aprendizaje</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">curvas.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">epocas = np.arange(1, 51)
+train_loss = 0.9 * np.exp(-epocas / 12) + 0.08
+val_loss = 0.9 * np.exp(-epocas / 12) + 0.08 + 0.12 * (epocas / 50) ** 2
+
+plt.figure(figsize=(7, 4))
+plt.plot(epocas, train_loss, label="entrenamiento", color="#3355c8")
+plt.plot(epocas, val_loss, label="validación", color="#b42318")
+plt.axvline(epocas[np.argmin(val_loss)], color="gray", linestyle=":", label="mejor época")
+plt.xlabel("época"); plt.ylabel("pérdida"); plt.legend(); plt.grid(alpha=.3)
+plt.title("Diagnóstico de overfitting")
+plt.show()</code></pre></div>
+            <p>Si la pérdida de entrenamiento sigue bajando mientras la de validación sube, el modelo está memorizando. Si ambas son altas, hay underfitting. Estas dos curvas son el diagnóstico más rápido y útil de un entrenamiento.</p>
+
+            <div class="callout warn">
+              <span class="callout-title">Buenas prácticas de visualización</span>
+              Etiqueta siempre los ejes y las unidades; usa escalas logarítmicas cuando los valores abarcan varios órdenes de magnitud; no cortes el eje Y para exagerar diferencias; incluye intervalos de confianza cuando compares grupos; y no uses gráficos 3D si un 2D comunica mejor.
+            </div>
+
+            <h3>Estilo consistente para el curso</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">estilo.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">PALETA = ["#3355c8", "#0e7c6b", "#a86a12", "#6b3fa0", "#b42318"]
+
+plt.rcParams.update({
+    "figure.dpi": 120,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "axes.grid": True,
+    "grid.alpha": 0.25,
+    "axes.titlesize": 12,
+    "axes.labelsize": 10,
+    "font.family": "sans-serif",
+})</code></pre></div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicios 2.6</summary>
+            <div class="answer">
+              <ol>
+                <li>Grafica la distribución de la edad en el Titanic separando por supervivencia.</li>
+                <li>Haz un scatter de precio vs. superficie en un dataset de viviendas y colorea por número de habitaciones.</li>
+                <li>Grafica la curva de pérdida de tu modelo y marca la época de mejor validación.</li>
+                <li>Crítica este gráfico: barras sin eje Y, colores arcoíris y título «Resultados». Propón una versión mejorada con unidades, escala y una conclusión en el título.</li>
+              </ol>
+            </div>
+          </div>
+        </article>
+
+        <!-- 2.7 -->
+        <article class="lesson" id="l-m2-l7" data-title="Jupyter, Colab y buenas prácticas">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 2.7</div>
+              <h2>Jupyter, Colab y buenas prácticas</h2>
+              <div class="lesson-meta"><span>16 min</span><span class="sep"></span><span>Flujo de trabajo</span><span class="sep"></span><span>Reproducibilidad</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m2-l7"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un notebook es un laboratorio; un script es una fábrica. Saber cuándo usar cada uno y cómo mantener ambos reproducibles es una habilidad profesional.</p>
+
+            <h3>Anatomía de un notebook</h3>
+            <ul>
+              <li><strong>Celdas de código:</strong> se ejecutan individualmente; el estado vive en el kernel.</li>
+              <li><strong>Celdas Markdown:</strong> documentación, ecuaciones LaTeX, imágenes y conclusiones.</li>
+              <li><strong>Kernel:</strong> proceso que mantiene variables en memoria. Reiniciar y ejecutar todo es la prueba de reproducibilidad.</li>
+              <li><strong>Outputs:</strong> pueden quedar obsoletos si ejecutas celdas fuera de orden. No confíes en un notebook con celdas saltadas.</li>
+            </ul>
+
+            <h3>Google Colab: inicio rápido</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">colab_setup.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python"># Verificar GPU (Entorno de ejecución → Cambiar tipo de entorno)
+!nvidia-smi
+
+# Instalar bibliotecas (en Colab ya vienen muchas)
+!pip -q install scikit-learn xgboost
+
+# Montar Google Drive (opcional)
+# from google.colab import drive
+# drive.mount("/content/drive")
+
+# Descargar un dataset público
+# !wget -q https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data</code></pre></div>
+
+            <h3>Semillas y reproducibilidad</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">reproducibilidad.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import random
+import numpy as np
+import os
+
+SEED = 42
+
+def fijar_semillas(seed=SEED):
+    random.seed(seed)
+    np.random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    # Para frameworks de deep learning:
+    # import torch
+    # torch.manual_seed(seed)
+    # torch.cuda.manual_seed_all(seed)
+
+fijar_semillas()
+
+# Aun así, algunas operaciones en GPU no son deterministas.
+# Documenta la versión de las librerías y el hardware.
+import sklearn, pandas, numpy
+print("numpy", numpy.__version__)
+print("pandas", pandas.__version__)
+print("sklearn", sklearn.__version__)</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">La semilla no garantiza reproducibilidad total</span>
+              Fijar la semilla ayuda, pero el orden de operaciones en GPU, las versiones de las librerías y el hardware pueden cambiar los resultados. Registra siempre versiones y configuración. Un resultado sin contexto no es ciencia.
+            </div>
+
+            <h3>Del notebook al script</h3>
+            <ol>
+              <li>Explora en el notebook: gráficos, hipótesis, pruebas rápidas.</li>
+              <li>Cuando una celda funciona, muévela a una función en <span class="inline-code">src/</span>.</li>
+              <li>Escribe pruebas para las transformaciones críticas.</li>
+              <li>Orquesta el pipeline con un script o un <span class="inline-code">Makefile</span>.</li>
+              <li>Versiona datos y modelos con DVC o Git LFS si son grandes.</li>
+              <li>Documenta cómo reproducir: <span class="inline-code">python train.py --config config.yaml</span>.</li>
+            </ol>
+
+            <h3>Checklist de un proyecto limpio</h3>
+            <ul class="checklist">
+              <li>Semilla fijada y documentada.</li>
+              <li>Entorno reproducible (<span class="inline-code">requirements.txt</span> o <span class="inline-code">environment.yml</span>).</li>
+              <li>Datos crudos intactos; transformaciones en código.</li>
+              <li>Train/validación/test separados antes de cualquier preprocesamiento que aprenda parámetros.</li>
+              <li>Métricas reportadas con media y dispersión entre folds.</li>
+              <li>Ningún dato del test usado para elegir hiperparámetros.</li>
+              <li>Conclusiones separadas de los resultados.</li>
+              <li>Limitaciones y sesgos conocidos documentados.</li>
+            </ul>
+
+            <div class="callout tip">
+              <span class="callout-title">Consejo de estudio</span>
+              No copies y pegues código sin ejecutarlo. Escribe variantes, rompe cosas, lee los errores. La intuición en programación se construye depurando, no leyendo. Dedica al menos el doble de tiempo a practicar que a mirar.
+            </div>
+          </div>
+          <div class="quiz-mount" data-quiz="2"></div>
+        </article>

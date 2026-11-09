@@ -1,0 +1,826 @@
+<article class="lesson" id="l-m9-l1" data-title="Cómo ve una máquina: imágenes como tensores">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 9.1</div>
+              <h2>Cómo ve una máquina: imágenes como tensores</h2>
+              <div class="lesson-meta"><span>16 min</span><span class="sep"></span><span>Representación</span><span class="sep"></span><span>Canales y color</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m9-l1"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Para una persona, una foto es un gato. Para un modelo, es un tensor de números. Entender qué representa cada dimensión —alto, ancho, canales— y qué se pierde al redimensionar es el primer paso de la visión artificial.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Interpretar una imagen como tensor $H\times W\times C$.</div>
+              <div>Explicar qué hacen la normalización y el redimensionado.</div>
+              <div>Reconocer el coste computacional de una imagen de alta resolución.</div>
+              <div>Evitar errores clásicos de canales y rango de valores.</div>
+            </div>
+
+            <h3>El tensor de imagen</h3>
+            <div class="formula">
+              <span class="formula-label">Dimensiones y rango</span>
+              $$X\in\mathbb{R}^{H\times W\times C}, \qquad X_{ijc}\in[0,1]\ \text{(float)} \quad\text{o}\quad \{0,\dots,255\}\ \text{(uint8)}$$
+              <span class="formula-caption">$H$ alto, $W$ ancho, $C$ canales. RGB tiene 3 canales; escala de grises, 1. En PyTorch el orden es $C\times H\times W$; en TensorFlow/Keras suele ser $H\times W\times C$.</span>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Cuántos números hay en una foto</h4></div>
+              <div class="example-body">
+                <p>Una imagen de 224×224 en color tiene $224\cdot224\cdot3=150\,528$ valores. Una capa densa con 1 000 neuronas sobre esa entrada tendría $150\,528\,000$ pesos: demasiado para un problema pequeño y sin estructura espacial.</p>
+                <p>Una imagen de 4K (3840×2160×3) tiene casi 25 millones de valores. Una CNN con stride reduce rápidamente la resolución espacial; por eso las arquitecturas modernas trabajan a 224–512 píxeles y no a resolución completa.</p>
+              </div>
+            </div>
+
+            <h3>Normalización y aumento de tamaño</h3>
+            <p>Los modelos preentrenados esperan la misma normalización con la que fueron entrenados. ImageNet usa media y desviación por canal:</p>
+            <div class="formula">
+              <span class="formula-label">Normalización por canal</span>
+              $$\hat X_c=\frac{X_c-\mu_c}{\sigma_c}, \qquad \mu=(0.485,0.456,0.406), \quad \sigma=(0.229,0.224,0.225)$$
+              <span class="formula-caption">Estos valores son promedios sobre ImageNet en RGB con valores en [0,1]. Si usas otra normalización, el modelo preentrenado rinde peor aunque no dé error.</span>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">Rango de valores</span>
+              Pasar una imagen con valores 0–255 a un modelo que espera 0–1 no lanza una excepción: produce predicciones basura. Verifica siempre <code>X.min()</code>, <code>X.max()</code> y el tipo antes de inferir.
+            </div>
+
+            <h3>Lectura y preprocesado en Python</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">imagen.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from PIL import Image
+import numpy as np
+import torch
+from torchvision import transforms
+
+img = Image.open("foto.jpg").convert("RGB")
+print(img.size)                      # (ancho, alto)
+arr = np.asarray(img)
+print(arr.shape, arr.dtype, arr.min(), arr.max())   # (H, W, 3) uint8
+
+# Pipeline estándar para un modelo preentrenado
+preprocesar = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),                       # HWC uint8 -> CHW float [0,1]
+    transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    )
+])
+
+tensor = preprocesar(img)
+print(tensor.shape, tensor.dtype, tensor.min().item(), tensor.max().item())
+
+# Añadir dimensión de batch: (3,224,224) -> (1,3,224,224)
+batch = tensor.unsqueeze(0)
+print(batch.shape)</code></pre></div>
+
+            <h3>Resolución, detalle y coste</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Resolución</th><th>Píxeles por canal</th><th>Uso típico</th><th>Compromiso</th></tr></thead>
+                <tbody>
+                  <tr><td>28×28</td><td>784</td><td>Dígitos, Fashion-MNIST</td><td>Muy rápido, poco detalle</td></tr>
+                  <tr><td>224×224</td><td>50 176</td><td>Clasificación con modelos preentrenados</td><td>Estándar de facto</td></tr>
+                  <tr><td>512×512</td><td>262 144</td><td>Detección, segmentación</td><td>Más detalle, más memoria</td></tr>
+                  <tr><td>1024×1024</td><td>1 048 576</td><td>Imágenes médicas, satélite</td><td>Requiere recortes o arquitecturas eficientes</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout info">
+              <span class="callout-title">Recortes (tiles)</span>
+              Para imágenes grandes se divide en parches con solapamiento, se predice cada uno y se combinan. Es habitual en patología, teledetección y microscopía. El solapamiento evita artefactos en los bordes de cada parche.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 9.1 · Inspeccionar una imagen</summary>
+            <div class="answer">
+              <p>Carga una imagen, imprime forma, tipo y rango. Convierte a grises, redimensiona a 224×224 y normaliza. Comprueba que la media y desviación por canal tras normalizar son aproximadamente 0 y 1. ¿Qué ocurre si olvidas dividir entre 255?</p>
+              <p><strong>Orientación:</strong> sin dividir entre 255, los valores quedan en 0–255 y la normalización produce números grandes; las activaciones saturan y el modelo preentrenado falla. Verifica siempre el contrato de entrada del modelo.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m9-l2" data-title="Convolución, padding, stride y pooling">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 9.2</div>
+              <h2>Convolución, padding, stride y pooling</h2>
+              <div class="lesson-meta"><span>24 min</span><span class="sep"></span><span>Operación central</span><span class="sep"></span><span>Simulador</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m9-l2"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">La convolución es la operación que da a las CNN su eficiencia. Un filtro pequeño se comparte en todas las posiciones de la imagen, detectando el mismo patrón en cualquier lugar. Esa restricción —pesos compartidos y conectividad local— es una suposición sobre el mundo, no una limitación.</p>
+
+            <h3>La operación paso a paso</h3>
+            <p>El kernel se coloca sobre una ventana de la imagen, se multiplica elemento a elemento y se suma. El resultado es un valor del mapa de activación. El kernel se desplaza y se repite.</p>
+            <div class="formula">
+              <span class="formula-label">Convolución 2D discreta</span>
+              $$(I*K)(i,j)=\sum_{m=0}^{k-1}\sum_{n=0}^{k-1} I(i+m,\,j+n)\,K(m,n)$$
+              <span class="formula-caption">En deep learning, los valores de $K$ se aprenden. En visión clásica se diseñaban a mano: Sobel para bordes, Laplaciano para cambios de intensidad, media para suavizar.</span>
+            </div>
+
+            <div class="sim" data-sim="conv">
+              <div class="sim-head">
+                <div class="sim-icon">⊞</div>
+                <div><h4>Simulador · Convolución 3×3</h4><p>Cambia el kernel y observa el mapa de activación que produce sobre una imagen sintética.</p></div>
+              </div>
+              <div class="sim-body">
+                <div class="sim-canvas-wrap"><canvas id="convCanvas" width="560" height="360" aria-label="Simulador de convolución"></canvas></div>
+                <div class="sim-controls">
+                  <div class="ctrl">
+                    <label for="convKernel">Kernel</label>
+                    <select id="convKernel">
+                      <option value="edge">Bordes (Laplaciano)</option>
+                      <option value="sobel">Sobel vertical</option>
+                      <option value="blur">Desenfoque</option>
+                      <option value="sharpen">Realce</option>
+                      <option value="emboss">Relieve</option>
+                    </select>
+                  </div>
+                  <div class="ctrl"><label><input type="checkbox" id="convAbs"> Mostrar valor absoluto</label></div>
+                  <div class="sim-readout"><div id="convStats">—</div></div>
+                  <div class="sim-hint">Los bordes aparecen donde el kernel detecta cambios bruscos. Un kernel de desenfoque produce valores suaves y pierde detalle.</div>
+                </div>
+              </div>
+            </div>
+
+            <h3>Padding y stride</h3>
+            <ul>
+              <li><strong>Padding:</strong> añade un borde de ceros (u otro valor) para controlar el tamaño de salida. <code>same</code> conserva el tamaño; <code>valid</code> lo reduce.</li>
+              <li><strong>Stride:</strong> paso del kernel. Stride 2 reduce a la mitad la resolución espacial.</li>
+              <li><strong>Dilatación:</strong> separa los elementos del kernel para ampliar el campo receptivo sin más parámetros.</li>
+            </ul>
+            <div class="formula">
+              <span class="formula-label">Tamaño de salida</span>
+              $$H_{\text{out}}=\left\lfloor\frac{H_{\text{in}}+2P-K}{S}\right\rfloor+1, \qquad W_{\text{out}}=\left\lfloor\frac{W_{\text{in}}+2P-K}{S}\right\rfloor+1$$
+              <span class="formula-caption">Con $H_{\text{in}}=32$, $K=3$, $P=1$, $S=1$: salida 32. Con $S=2$: salida 16.</span>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Detectar un borde vertical</h4></div>
+              <div class="example-body">
+                <p>Kernel de Sobel vertical: $\begin{pmatrix}-1&0&1\\-2&0&2\\-1&0&1\end{pmatrix}$. Sobre una región uniforme, la suma de productos es cero. Sobre un borde donde la intensidad salta de 0.2 a 0.9, la suma es aproximadamente $(0.9-0.2)\cdot4=2.8$: un valor alto que marca el borde.</p>
+                <p>Si el borde va en la dirección contraria, el resultado es negativo. Por eso a veces se toma el valor absoluto o se aplica ReLU después de la convolución.</p>
+              </div>
+            </div>
+
+            <h3>Pooling</h3>
+            <p>El max pooling toma el máximo de cada ventana; el average pooling, la media. Reducen la dimensión espacial, disminuyen el coste y aportan cierta invariancia a pequeños desplazamientos. No tienen parámetros.</p>
+            <div class="formula">
+              <span class="formula-label">Max pooling 2×2</span>
+              $$y_{ij}=\max\{x_{2i,2j},\ x_{2i,2j+1},\ x_{2i+1,2j},\ x_{2i+1,2j+1}\}$$
+              <span class="formula-caption">Con stride 2, la salida tiene la mitad de alto y ancho. El máximo conserva la activación más fuerte de cada región.</span>
+            </div>
+
+            <div class="callout info">
+              <span class="callout-title">¿Sigue usándose el pooling?</span>
+              Muchas arquitecturas modernas reemplazan el max pooling por convoluciones con stride o average pooling global. El pooling no desaparece, pero ya no es obligatorio. Su función principal —reducir resolución— se puede lograr de varias formas.
+            </div>
+
+            <h3>Implementación en PyTorch</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">conv_pytorch.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+import torch.nn as nn
+
+# batch=1, canales=3, alto=32, ancho=32
+x = torch.randn(1, 3, 32, 32)
+
+conv = nn.Conv2d(
+    in_channels=3,
+    out_channels=16,
+    kernel_size=3,
+    stride=1,
+    padding=1,          # "same"
+    bias=True
+)
+print(conv(x).shape)     # torch.Size([1, 16, 32, 32])
+
+conv_stride = nn.Conv2d(3, 16, kernel_size=3, stride=2, padding=1)
+print(conv_stride(x).shape)  # torch.Size([1, 16, 16, 16])
+
+pool = nn.MaxPool2d(kernel_size=2, stride=2)
+print(pool(x).shape)     # torch.Size([1, 3, 16, 16])
+
+# Número de parámetros de una convolución
+pesos = 3 * 16 * 3 * 3
+sesgos = 16
+print("parámetros:", pesos + sesgos)   # 448
+
+# Campo receptivo: dos conv 3x3 equivalen a una 5x5
+def campo_receptivo(k, s=1, n=1):
+    return 1 + sum((k - 1) * (s ** i) for i in range(n))
+print(campo_receptivo(3, 1, 2))   # 5
+print(campo_receptivo(3, 1, 3))   # 7</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Padding y bordes</span>
+              El padding de ceros crea un borde artificial. En imágenes médicas o satelitales, los bordes pueden ser importantes: considera <code>reflect</code> o <code>replicate</code>, o recorta los bordes del mapa de salida. No es un detalle cosmético.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 9.2 · Calcular formas</summary>
+            <div class="answer">
+              <p>Una entrada de 128×128×3 pasa por Conv(3×3, 32 filtros, padding 1, stride 1), MaxPool(2), Conv(3×3, 64, padding 1), MaxPool(2), Conv(3×3, 128, padding 1). Calcula la forma final y el número de parámetros de cada convolución.</p>
+              <p><strong>Orientación:</strong> formas: 128→128→64→64→32→32. Parámetros: primera $3\cdot3\cdot3\cdot32+32=896$; segunda $3\cdot3\cdot32\cdot64+64=18\,496$; tercera $3\cdot3\cdot64\cdot128+128=73\,856$. Observa cómo el número de canales multiplica el coste.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m9-l3" data-title="Arquitecturas CNN: de LeNet a ResNet">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 9.3</div>
+              <h2>Arquitecturas CNN: de LeNet a ResNet</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Evolución</span><span class="sep"></span><span>Diseño</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m9-l3"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Las arquitecturas CNN no son una lista de nombres para memorizar: cada una resolvió un problema concreto. Entender qué aportó cada idea te permite leer arquitecturas nuevas y elegir una adecuada para tu restricción de datos y cómputo.</p>
+
+            <h3>La evolución en cinco ideas</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Modelo</th><th>Año</th><th>Aporte clave</th><th>Por qué importó</th></tr></thead>
+                <tbody>
+                  <tr><td>LeNet-5</td><td>1998</td><td>Conv + pooling + densas</td><td>Demostró que la convolución funciona en dígitos</td></tr>
+                  <tr><td>AlexNet</td><td>2012</td><td>ReLU, dropout, GPU, augmentation</td><td>Ganó ImageNet y abrió la era deep learning</td></tr>
+                  <tr><td>VGG</td><td>2014</td><td>Bloques de 3×3 apilados</td><td>Mostró que la profundidad importa y simplificó el diseño</td></tr>
+                  <tr><td>ResNet</td><td>2015</td><td>Conexiones residuales</td><td>Permitió entrenar 100+ capas sin degradación</td></tr>
+                  <tr><td>EfficientNet</td><td>2019</td><td>Escalado compuesto</td><td>Mejor equilibrio precisión/coste</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>El bloque residual</h3>
+            <div class="formula">
+              <span class="formula-label">Residual connection</span>
+              $$\mathbf{y}=\mathcal{F}(\mathbf{x},\{W_i\})+\mathbf{x}$$
+              <span class="formula-caption">La red aprende una corrección $\mathcal{F}$ sobre la identidad. Si una capa no aporta, puede aprender $\mathcal{F}\approx0$ sin destruir la señal. El gradiente fluye directamente por la conexión.</span>
+            </div>
+            <p>Sin conexiones residuales, una red muy profunda sufre degradación: el error de entrenamiento aumenta al añadir capas, aunque no haya overfitting. ResNet demostró que la profundidad podía ser una ventaja si se facilitaba la optimización.</p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Por qué 3×3 apilados son eficientes</h4></div>
+              <div class="example-body">
+                <p>Dos convoluciones 3×3 con $C$ canales tienen $2\cdot9C^2=18C^2$ parámetros y un campo receptivo de 5×5. Una sola convolución 5×5 tiene $25C^2$ parámetros. Además, entre las dos capas hay una no linealidad, lo que aumenta la capacidad expresiva.</p>
+                <p>Tres convoluciones 3×3 cubren 7×7 con $27C^2$ parámetros frente a $49C^2$ de una 7×7. Esa es la lógica de VGG y de muchas arquitecturas posteriores.</p>
+              </div>
+            </div>
+
+            <h3>Diseñar una CNN razonable</h3>
+            <ol>
+              <li>Empieza con un modelo preentrenado si tu dataset no es enorme.</li>
+              <li>Si entrenas desde cero, usa bloques Conv–BN–ReLU y reduce la resolución progresivamente.</li>
+              <li>Duplica canales al reducir resolución para mantener la capacidad.</li>
+              <li>Termina con average pooling global y una capa densa (o directamente una convolución 1×1).</li>
+              <li>Ajusta la profundidad a los datos: demasiada capacidad con pocos ejemplos garantiza overfitting.</li>
+            </ol>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">resnet_mini.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+import torch.nn as nn
+
+class BloqueResidual(nn.Module):
+    def __init__(self, canales):
+        super().__init__()
+        self.conv1 = nn.Conv2d(canales, canales, 3, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(canales)
+        self.conv2 = nn.Conv2d(canales, canales, 3, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(canales)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        identidad = x
+        out = self.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        return self.relu(out + identidad)
+
+class MiniResNet(nn.Module):
+    def __init__(self, n_classes=10):
+        super().__init__()
+        self.stem = nn.Sequential(
+            nn.Conv2d(3, 32, 3, padding=1, bias=False),
+            nn.BatchNorm2d(32), nn.ReLU(inplace=True)
+        )
+        self.bloques = nn.Sequential(
+            BloqueResidual(32),
+            nn.MaxPool2d(2),
+            BloqueResidual(32),
+            nn.MaxPool2d(2),
+            BloqueResidual(32)
+        )
+        self.pool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Linear(32, n_classes)
+
+    def forward(self, x):
+        x = self.bloques(self.stem(x))
+        x = self.pool(x).flatten(1)
+        return self.fc(x)
+
+modelo = MiniResNet()
+print(sum(p.numel() for p in modelo.parameters()), "parámetros")</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">Vision Transformers (ViT)</span>
+              Los ViT dividen la imagen en parches, los tratan como tokens y aplican self-attention. Con datasets pequeños rinden peor que las CNN; con datasets enormes o preentrenamiento a gran escala, compiten o superan. La elección depende de datos y recursos, no de moda.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 9.3 · Leer una arquitectura</summary>
+            <div class="answer">
+              <p>Elige una arquitectura del <code>torchvision.models</code> (por ejemplo, ResNet-18) e imprime su estructura. Identifica el stem, los bloques, el pooling global y la cabeza. Calcula cuántos parámetros tiene la cabeza y cuántos el extractor.</p>
+              <p><strong>Orientación:</strong> en ResNet-18, el extractor concentra casi todos los parámetros y la cabeza es una única capa lineal de 512 a 1 000 clases. Al hacer transfer learning, reemplazas la cabeza y congelas el extractor; por eso el entrenamiento es rápido y requiere pocos datos.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m9-l4" data-title="Entrenamiento de CNN y data augmentation">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 9.4</div>
+              <h2>Entrenamiento de CNN y data augmentation</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Regularización</span><span class="sep"></span><span>Pipeline</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m9-l4"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Entrenar una CNN es un problema de ingeniería además de uno de modelado. El augmentation, la normalización, el balanceo y el control del overfitting importan tanto como la arquitectura. Y no todas las transformaciones son válidas para todos los dominios.</p>
+
+            <h3>Data augmentation: qué es válido</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Transformación</th><th>Útil en</th><th>Peligrosa en</th></tr></thead>
+                <tbody>
+                  <tr><td>Volteo horizontal</td><td>Objetos naturales, escenas</td><td>Texto, dígitos, señales de tráfico asimétricas</td></tr>
+                  <tr><td>Rotación pequeña</td><td>Fotos, microscopía</td><td>Imágenes con orientación semántica (radar, documentos)</td></tr>
+                  <tr><td>Recorte aleatorio</td><td>Objetos grandes</td><td>Objetos pequeños o lesiones localizadas</td></tr>
+                  <tr><td>Cambio de brillo/contraste</td><td>Casi todas las fotos</td><td>Imágenes calibradas cuantitativamente</td></tr>
+                  <tr><td>Mezcla (Mixup/CutMix)</td><td>Clasificación natural</td><td>Datos médicos con etiquetas por región</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">El augmentation debe preservar la etiqueta</span>
+              Si volteas un dígito «6», puede parecer un «9». Si recortas una lesión pequeña, la imagen queda etiquetada como positiva sin evidencia. Antes de aumentar, pregunta: ¿un especialista seguiría asignando la misma etiqueta a esta transformación?
+            </div>
+
+            <h3>Contrato de entrenamiento</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">train_cnn.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
+from torchvision import datasets, transforms, models
+
+train_tf = transforms.Compose([
+    transforms.RandomResizedCrop(224, scale=(0.7, 1.0)),
+    transforms.RandomHorizontalFlip(),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+])
+
+val_tf = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+])
+
+train_ds = datasets.ImageFolder("datos/train", transform=train_tf)
+val_ds = datasets.ImageFolder("datos/val", transform=val_tf)
+
+train_loader = DataLoader(train_ds, batch_size=32, shuffle=True, num_workers=4)
+val_loader = DataLoader(val_ds, batch_size=64, shuffle=False, num_workers=4)
+
+# Transfer learning
+modelo = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+for p in modelo.parameters():
+    p.requires_grad = False
+modelo.fc = nn.Linear(modelo.fc.in_features, len(train_ds.classes))
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+modelo = modelo.to(device)
+
+criterio = nn.CrossEntropyLoss(label_smoothing=0.1)
+optimizador = torch.optim.AdamW(modelo.fc.parameters(), lr=1e-3)
+
+mejor_f1 = 0.0
+for epoch in range(10):
+    modelo.train()
+    for xb, yb in train_loader:
+        xb, yb = xb.to(device), yb.to(device)
+        optimizador.zero_grad()
+        loss = criterio(modelo(xb), yb)
+        loss.backward()
+        optimizador.step()
+
+    # Validación (omitida para brevedad: calcula F1 y guarda el mejor estado)
+    print(f"epoch {epoch} terminada")</code></pre></div>
+
+            <h3>Diagnóstico con curvas</h3>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">Underfitting</span><h4>Train y val altas</h4><p>Más capacidad, mejor augmentation o menos regularización. Revisa que las etiquetas y el preprocesado sean correctos.</p></div>
+              <div class="algo-card"><span class="tag">Overfitting</span><h4>Train baja, val alta</h4><p>Más augmentation, weight decay, dropout, early stopping o transfer learning. También revisa el tamaño del dataset.</p></div>
+              <div class="algo-card"><span class="tag">Inestable</span><h4>Val oscila mucho</h4><p>Learning rate alta, batch pequeño o clase desbalanceada. Prueba warmup, gradient clipping o un batch mayor.</p></div>
+              <div class="algo-card"><span class="tag">No aprende</span><h4>Pérdida plana</h4><p>Preprocesado incorrecto, etiquetas desalineadas, learning rate absurda o capas congeladas por error.</p></div>
+            </div>
+
+            <div class="callout info">
+              <span class="callout-title">Congelar y descongelar</span>
+              Con pocos datos, entrena solo la cabeza unas épocas y luego descongela las últimas capas con una tasa de aprendizaje menor (por ejemplo, 10× menor). El fine-tuning completo desde el inicio puede destruir las representaciones preentrenadas.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 9.4 · Augmentation con criterio</summary>
+            <div class="answer">
+              <p>Diseña el augmentation para (a) clasificar especies de plantas desde fotos de campo, (b) detectar neumonía en radiografías, (c) leer dígitos manuscritos. Justifica qué transformaciones son válidas y cuáles no.</p>
+              <p><strong>Orientación:</strong> (a) recortes, giros, cambios de luz y color son válidos; (b) giros ligeros y cambios de contraste moderados, pero no voltear si cambia la lateralidad anatómica ni recortar lesiones; (c) pequeñas rotaciones y traslaciones, sin voltear horizontalmente porque «6» y «9» se confunden.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m9-l5" data-title="Clasificación de imágenes de principio a fin">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 9.5</div>
+              <h2>Clasificación de imágenes de principio a fin</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Pipeline</span><span class="sep"></span><span>Evaluación</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m9-l5"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un clasificador de imágenes no termina en el modelo: empieza en la definición del problema y termina en una matriz de confusión interpretada. Este es el esqueleto que puedes reutilizar en cualquier proyecto.</p>
+
+            <h3>Las decisiones antes del código</h3>
+            <ol>
+              <li><strong>¿Qué es una clase?</strong> Definir fronteras ambiguas (por ejemplo, «vehículo») produce etiquetas inconsistentes.</li>
+              <li><strong>¿Qué se ve en producción?</strong> Si el modelo se usará con fotos de móvil, entrena con fotos de móvil, no solo con imágenes de estudio.</li>
+              <li><strong>¿Cuál es el coste de cada error?</strong> Decide la métrica antes de entrenar.</li>
+              <li><strong>¿Cómo se agrupan los datos?</strong> Si hay varias fotos del mismo objeto o paciente, agrupa para evitar fuga.</li>
+            </ol>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Accuracy alta, utilidad nula</h4></div>
+              <div class="example-body">
+                <p>Un dataset de inspección industrial tiene 97 % de piezas correctas y 3 % defectuosas. Un modelo que predice siempre «correcta» obtiene 97 % de accuracy y no detecta ningún defecto. El recall de la clase defectuosa es 0.</p>
+                <p>En este caso, la métrica útil es el recall de defectos con una precisión mínima aceptable, o el coste esperado de los errores. La accuracy solo sirve para descartar modelos que ni siquiera superan la clase mayoritaria.</p>
+              </div>
+            </div>
+
+            <h3>Pipeline con transfer learning</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">clasificacion.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+import torch.nn as nn
+from torchvision import models
+
+def crear_modelo(n_clases, congelar=True):
+    modelo = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.DEFAULT)
+    if congelar:
+        for p in modelo.features.parameters():
+            p.requires_grad = False
+    en_features = modelo.classifier[1].in_features
+    modelo.classifier[1] = nn.Linear(en_features, n_clases)
+    return modelo
+
+modelo = crear_modelo(n_clases=5)
+
+# Dos fases: cabeza primero, fine-tuning después
+fase1 = torch.optim.AdamW(modelo.classifier.parameters(), lr=1e-3)
+
+# Tras 3-5 épocas, descongelar el último bloque
+for p in modelo.features[-2:].parameters():
+    p.requires_grad = True
+fase2 = torch.optim.AdamW([
+    {"params": modelo.features[-2:].parameters(), "lr": 1e-5},
+    {"params": modelo.classifier.parameters(), "lr": 1e-4}
+])
+
+# Evaluación: matriz de confusión y métricas por clase
+from sklearn.metrics import confusion_matrix, classification_report
+modelo.eval()
+with torch.no_grad():
+    logits = modelo(X_test_tensor)
+    preds = logits.argmax(dim=1).cpu().numpy()
+
+print(classification_report(y_test, preds, target_names=clases, digits=3))
+print(confusion_matrix(y_test, preds))</code></pre></div>
+
+            <h3>Qué revisar antes de dar por bueno el modelo</h3>
+            <ul>
+              <li><strong>Matriz de confusión:</strong> ¿qué clases se confunden y tiene sentido?</li>
+              <li><strong>Ejemplos de alta confianza incorrectos:</strong> suelen revelar etiquetas erróneas o atajos del dataset.</li>
+              <li><strong>Rendimiento por subgrupo:</strong> iluminación, dispositivo, hospital, demografía si está disponible.</li>
+              <li><strong>Sensibilidad al preprocesado:</strong> recortes, compresión JPEG, cambios de resolución.</li>
+              <li><strong>Calibración:</strong> si usas la probabilidad para decidir, comprueba que esté calibrada.</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">Grad-CAM para inspección</span>
+              Grad-CAM resalta las regiones que más contribuyen a la predicción. No prueba causalidad, pero ayuda a detectar atajos: un modelo que mira el fondo o una marca de agua en lugar del objeto suele delatarse. Úsalo como herramienta de auditoría, no como explicación definitiva.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 9.5 · Del problema a la métrica</summary>
+            <div class="answer">
+              <p>Para cada caso elige la métrica principal y justifica: (a) clasificar 10 especies de aves con clases balanceadas; (b) detectar grietas en hormigón con 2 % de positivos; (c) clasificar variedades de vino con 5 clases y coste similar de error.</p>
+              <p><strong>Orientación:</strong> (a) accuracy o F1 macro, con matriz de confusión; (b) recall de grietas a precisión fija, o coste esperado; (c) accuracy estratificada y F1 macro; en todos, reportar por clase y revisar errores de alta confianza.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m9-l6" data-title="Detección de objetos">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 9.6</div>
+              <h2>Detección de objetos</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Bounding boxes</span><span class="sep"></span><span>IoU y mAP</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m9-l6"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Clasificar una imagen entera responde «¿qué hay?». Detectar responde «¿qué hay y dónde?». Ese «dónde» convierte el problema en uno de regresión estructurada: hay que predecir coordenadas además de clases.</p>
+
+            <h3>Salidas de un detector</h3>
+            <p>Un detector devuelve una lista de detecciones. Cada una tiene una clase, una caja delimitadora $(x_1,y_1,x_2,y_2)$ o $(x_c,y_c,w,h)$, y una puntuación de confianza. El número de objetos no se conoce de antemano.</p>
+
+            <div class="formula">
+              <span class="formula-label">Intersección sobre unión (IoU)</span>
+              $$\text{IoU}(A,B)=\frac{|A\cap B|}{|A\cup B|}$$
+              <span class="formula-caption">Mide el solapamiento entre la caja predicha y la real. IoU = 0 no se tocan; IoU = 1 son idénticas. Un umbral típico para considerar una detección correcta es 0.5.</span>
+            </div>
+
+            <h3>Dos familias de detectores</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Familia</th><th>Idea</th><th>Ejemplos</th><th>Compromiso</th></tr></thead>
+                <tbody>
+                  <tr><td>Dos etapas</td><td>Propone regiones y luego clasifica/refina</td><td>Faster R-CNN, Mask R-CNN</td><td>Más precisas, más lentas</td></tr>
+                  <tr><td>Una etapa</td><td>Predice cajas y clases directamente en una pasada</td><td>YOLO, SSD, RetinaNet</td><td>Más rápidas, precisión competitiva</td></tr>
+                  <tr><td>Transformer</td><td>Consulta objetos con attention</td><td>DETR y variantes</td><td>Diseño más simple, requiere más datos/épocas</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Calcular IoU</h4></div>
+              <div class="example-body">
+                <p>Caja real: $(0,0,10,10)$ con área 100. Caja predicha: $(5,5,15,15)$ con área 100. La intersección es $(5,5,10,10)$ con área 25. La unión es $100+100-25=175$. IoU $=25/175\approx0.143$.</p>
+                <p>Con umbral 0.5, esta detección no se considera correcta aunque la clase sea la correcta. El detector debe localizar mejor. En objetos pequeños, pequeños desplazamientos en píxeles producen caídas grandes de IoU.</p>
+              </div>
+            </div>
+
+            <h3>NMS: eliminar duplicados</h3>
+            <p>Un detector genera muchas cajas alrededor del mismo objeto. <strong>Non-Maximum Suppression</strong> ordena por confianza, conserva la mejor y elimina las que se solapan con ella por encima de un umbral. Sin NMS, la salida sería una lista de cajas casi idénticas.</p>
+
+            <h3>mAP: la métrica estándar</h3>
+            <p>Para cada clase se calcula la curva precisión–recall variando el umbral de confianza, y se obtiene el average precision (AP). La <strong>mean Average Precision</strong> promedia AP sobre clases. COCO reporta mAP con varios umbrales de IoU (0.5:0.95) y para objetos de distintos tamaños.</p>
+
+            <div class="callout warn">
+              <span class="callout-title">No compares mAP entre datasets</span>
+              La mAP depende del conjunto, de las clases, del umbral de IoU y de la definición de «detección correcta». Un 0.45 en COCO y un 0.45 en tu dataset no son comparables. Reporta siempre la configuración.
+            </div>
+
+            <h3>Código: inferencia con un detector preentrenado</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">deteccion.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+from torchvision import models, transforms
+from PIL import Image, ImageDraw
+
+pesos = models.detection.FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT
+modelo = models.detection.fasterrcnn_resnet50_fpn_v2(weights=pesos).eval()
+
+preprocesar = transforms.Compose([transforms.ToTensor()])
+img = Image.open("calle.jpg").convert("RGB")
+tensor = preprocesar(img)
+
+with torch.no_grad():
+    salida = modelo([tensor])[0]
+
+# Filtrar por confianza
+umbral = 0.6
+dibujo = ImageDraw.Draw(img)
+for caja, etiqueta, score in zip(
+    salida["boxes"], salida["labels"], salida["scores"]
+):
+    if score < umbral:
+        continue
+    x1, y1, x2, y2 = caja.tolist()
+    dibujo.rectangle([x1, y1, x2, y2], outline="red", width=3)
+    dibujo.text((x1 + 4, y1 + 4), f"{pesos.meta['categories'][etiqueta]} {score:.2f}")
+
+img.save("detecciones.jpg")</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">Objetos pequeños</span>
+              La detección de objetos pequeños es un problema abierto. Aumentar la resolución de entrada, usar feature pyramids o dividir la imagen en tiles suele ayudar. Mide el rendimiento por tamaño de objeto: un mAP global puede ocultar que los objetos pequeños no se detectan.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 9.6 · Evaluar un detector</summary>
+            <div class="answer">
+              <p>Un detector obtiene 40 detecciones correctas, 10 falsos positivos y 15 objetos reales no detectados para una clase. Calcula precisión y recall a ese umbral. ¿Qué cambiarías si el coste de no detectar es muy alto?</p>
+              <p><strong>Orientación:</strong> precisión $=40/50=0.8$; recall $=40/55\approx0.727$. Si el coste de no detectar es alto, baja el umbral de confianza (sube recall, baja precisión) y revisa la curva PR. Reporta también el rendimiento por tamaño de objeto y por condición de iluminación.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m9-l7" data-title="Segmentación semántica e instancias">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 9.7</div>
+              <h2>Segmentación semántica e instancias</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Píxeles</span><span class="sep"></span><span>U-Net y Mask R-CNN</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m9-l7"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">La segmentación asigna una etiqueta a cada píxel. Es la tarea de visión con mayor resolución de salida y la base de aplicaciones médicas, conducción autónoma y análisis satelital.</p>
+
+            <h3>Tres variantes</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Tipo</th><th>Salida</th><th>Distingue instancias</th><th>Ejemplo</th></tr></thead>
+                <tbody>
+                  <tr><td>Semántica</td><td>Una clase por píxel</td><td>No</td><td>Todos los coches son «coche»</td></tr>
+                  <tr><td>De instancias</td><td>Una máscara por objeto</td><td>Sí</td><td>Coche 1, coche 2, persona 1</td></tr>
+                  <tr><td>Panóptica</td><td>Clases + instancias + fondo</td><td>Sí</td><td>Escena completa etiquetada</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>U-Net: encoder, decoder y conexiones de salto</h3>
+            <p>U-Net fue diseñada para imágenes médicas. El encoder reduce la resolución y extrae contexto; el decoder recupera la resolución espacial. Las conexiones de salto copian características del encoder al decoder para recuperar detalles finos que se pierden al reducir.</p>
+            <div class="formula">
+              <span class="formula-label">Pérdida por píxel</span>
+              $$L=-\frac{1}{N}\sum_{i=1}^{N}\sum_{c=1}^{C}y_{ic}\log\hat y_{ic}$$
+              <span class="formula-caption">Entropía cruzada por píxel. Con clases muy desbalanceadas (lesiones pequeñas), se usa Dice loss o una combinación para evitar que el fondo domine.</span>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Por qué la accuracy por píxel engaña</h4></div>
+              <div class="example-body">
+                <p>Una imagen de 512×512 tiene 262 144 píxeles. Si solo el 1 % corresponde a una lesión, predecir «fondo» en todos los píxeles da 99 % de accuracy y una segmentación inútil. El IoU de la clase lesión sería 0.</p>
+                <p>Métricas habituales: Dice $=2|A\cap B|/(|A|+|B|)$ e IoU por clase. Ambas se calculan sobre la clase de interés y se promedian. Reporta siempre la clase minoritaria.</p>
+              </div>
+            </div>
+
+            <h3>Código: U-Net mínima</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">unet.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+import torch.nn as nn
+
+class Bloque(nn.Module):
+    def __init__(self, entrada, salida):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(entrada, salida, 3, padding=1, bias=False),
+            nn.BatchNorm2d(salida), nn.ReLU(inplace=True),
+            nn.Conv2d(salida, salida, 3, padding=1, bias=False),
+            nn.BatchNorm2d(salida), nn.ReLU(inplace=True)
+        )
+
+    def forward(self, x):
+        return self.conv(x)
+
+class UNet(nn.Module):
+    def __init__(self, n_clases=2):
+        super().__init__()
+        self.enc1 = Bloque(3, 64)
+        self.enc2 = Bloque(64, 128)
+        self.enc3 = Bloque(128, 256)
+        self.pool = nn.MaxPool2d(2)
+        self.up2 = nn.ConvTranspose2d(256, 128, 2, stride=2)
+        self.dec2 = Bloque(256, 128)
+        self.up1 = nn.ConvTranspose2d(128, 64, 2, stride=2)
+        self.dec1 = Bloque(128, 64)
+        self.salida = nn.Conv2d(64, n_clases, 1)
+
+    def forward(self, x):
+        e1 = self.enc1(x)              # 64
+        e2 = self.enc2(self.pool(e1))  # 128, 1/2
+        e3 = self.enc3(self.pool(e2))  # 256, 1/4
+        d2 = self.dec2(torch.cat([self.up2(e3), e2], dim=1))
+        d1 = self.dec1(torch.cat([self.up1(d2), e1], dim=1))
+        return self.salida(d1)
+
+modelo = UNet(n_clases=2)
+print(modelo(torch.randn(1, 3, 256, 256)).shape)   # (1,2,256,256)</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">Segmentación con modelos preentrenados</span>
+              <code>torchvision</code> y <code>segmentation_models_pytorch</code> ofrecen encoders preentrenados (ResNet, EfficientNet) para U-Net y FPN. En datasets pequeños, un encoder preentrenado marca una diferencia enorme frente a entrenar desde cero.
+            </div>
+
+            <h3>Errores frecuentes</h3>
+            <ul>
+              <li>Redimensionar máscaras con interpolación bilineal y crear clases inexistentes: usa nearest neighbor.</li>
+              <li>No alinear máscara e imagen tras augmentation: aplica las mismas transformaciones geométricas a ambas.</li>
+              <li>Evaluar solo en imágenes fáciles: estratifica por dificultad, tamaño de lesión y centro.</li>
+              <li>Ignorar el desbalance: usa Dice/Focal loss y reporta IoU por clase.</li>
+            </ul>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 9.7 · Métricas de segmentación</summary>
+            <div class="answer">
+              <p>Una máscara real tiene 200 píxeles de lesión; la predicción tiene 150, de los cuales 120 coinciden con la real. Calcula precisión, recall, Dice e IoU de la clase lesión.</p>
+              <p><strong>Orientación:</strong> TP=120, FP=30, FN=80. Precisión $=120/150=0.8$; recall $=120/200=0.6$; Dice $=2\cdot120/(150+200)\approx0.686$; IoU $=120/(120+30+80)=0.522$. Reporta los cuatro: cada uno cuenta una historia distinta.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m9-l8" data-title="Transfer learning y despliegue de visión">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 9.8</div>
+              <h2>Transfer learning y despliegue de visión</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Producción</span><span class="sep"></span><span>Cierre del módulo</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m9-l8"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un modelo de visión que solo funciona en tu portátil no es un producto. El despliegue impone restricciones de latencia, memoria, tamaño y robustez que a menudo obligan a cambiar de arquitectura o a optimizar el modelo.</p>
+
+            <h3>Transfer learning: la receta práctica</h3>
+            <ol>
+              <li>Elige un modelo preentrenado en un dominio razonablemente cercano.</li>
+              <li>Reemplaza la cabeza y entrena solo ella con el extractor congelado.</li>
+              <li>Si el rendimiento se estanca y tienes datos, descongela las últimas capas con lr baja.</li>
+              <li>Ajusta la resolución de entrada a la del preentrenamiento o reentrena la cabeza con la nueva resolución.</li>
+              <li>Evalúa con el mismo preprocesado que usarás en producción.</li>
+            </ol>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Congelar no siempre es suficiente</h4></div>
+              <div class="example-body">
+                <p>Si tu dominio es muy distinto (por ejemplo, imágenes térmicas o microscopía de fluorescencia), las primeras capas del modelo preentrenado detectan bordes y texturas genéricas que aún sirven, pero las capas profundas pueden ser irrelevantes. Congelar todo y entrenar solo la cabeza puede quedarse corto. Descongela progresivamente y mide.</p>
+              </div>
+            </div>
+
+            <h3>Optimización para inferencia</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Técnica</th><th>Qué hace</th><th>Coste</th></tr></thead>
+                <tbody>
+                  <tr><td>Cuantización</td><td>Pasa pesos de float32 a int8</td><td>Pequeña pérdida de precisión</td></tr>
+                  <tr><td>Pruning</td><td>Elimina pesos o canales poco importantes</td><td>Requiere reentrenamiento</td></tr>
+                  <tr><td>Destilación</td><td>Entrena un modelo pequeño para imitar uno grande</td><td>Necesita datos y tiempo</td></tr>
+                  <tr><td>ONNX / TensorRT</td><td>Optimiza el grafo para el hardware</td><td>Conversión y validación</td></tr>
+                  <tr><td>Batch inference</td><td>Procesa varias imágenes a la vez</td><td>Más latencia por petición, más throughput</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">exportar_onnx.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+
+modelo.eval()
+ejemplo = torch.randn(1, 3, 224, 224)
+
+torch.onnx.export(
+    modelo,
+    ejemplo,
+    "modelo.onnx",
+    input_names=["imagen"],
+    output_names=["logits"],
+    dynamic_axes={"imagen": {0: "batch"}, "logits": {0: "batch"}},
+    opset_version=17
+)
+
+# Verificar que ONNX produce la misma salida
+import onnxruntime as ort
+import numpy as np
+
+sesion = ort.InferenceSession("modelo.onnx", providers=["CPUExecutionProvider"])
+salida_onnx = sesion.run(None, {"imagen": ejemplo.numpy()})[0]
+with torch.no_grad():
+    salida_torch = modelo(ejemplo).numpy()
+
+print("diferencia máxima:", np.abs(salida_onnx - salida_torch).max())
+
+# Cuantización dinámica (reduce tamaño ~4x)
+modelo_cuantizado = torch.quantization.quantize_dynamic(
+    modelo, {torch.nn.Linear, torch.nn.Conv2d}, dtype=torch.qint8
+)
+torch.save(modelo_cuantizado.state_dict(), "modelo_int8.pt")</code></pre></div>
+
+            <h3>Robustez en producción</h3>
+            <ul>
+              <li><strong>Distribución de entrada:</strong> cámaras, iluminación y compresión cambian. Monitorea estadísticas de entrada y rendimiento en muestras etiquetadas.</li>
+              <li><strong>Casos límite:</strong> imágenes borrosas, oscuras, rotadas o de otro dominio deben tener un comportamiento definido (abstención o alerta).</li>
+              <li><strong>Latencia:</strong> mide en el hardware real, no en el portátil. Incluye preprocesado y postprocesado.</li>
+              <li><strong>Privacidad:</strong> las imágenes pueden contener datos personales. Define retención, anonimización y acceso.</li>
+            </ul>
+
+            <div class="callout warn">
+              <span class="callout-title">El preprocesado es parte del modelo</span>
+              Si entrenaste con <code>Resize(256) + CenterCrop(224)</code> y en producción redimensionas directamente a 224, cambias el encuadre y la escala. El rendimiento cae sin errores visibles. Versiona el pipeline de preprocesado junto con los pesos.
+            </div>
+
+            <div class="quiz-mount" data-quiz="9"></div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 9.8 · Plan de despliegue</summary>
+            <div class="answer">
+              <p>Debes desplegar un clasificador de defectos en una línea de producción con cámara industrial y latencia máxima de 50 ms por pieza. Diseña el plan: modelo, resolución, optimización, umbral y monitoreo. ¿Qué harías si el modelo tarda 120 ms?</p>
+              <p><strong>Orientación:</strong> empezar con un modelo pequeño preentrenado, medir latencia real de extremo a extremo, probar resolución menor y cuantización int8, y considerar destilación. Definir umbral por coste de falso negativo y monitorear la tasa de abstención y la distribución de imágenes.</p>
+            </div>
+          </details>
+        </article>

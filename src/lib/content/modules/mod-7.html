@@ -1,0 +1,811 @@
+<article class="lesson" id="l-m7-l1" data-title="De la neurona artificial a la red">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 7.1</div>
+              <h2>De la neurona artificial a la red</h2>
+              <div class="lesson-meta"><span>18 min</span><span class="sep"></span><span>Intuición</span><span class="sep"></span><span>Activaciones</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m7-l1"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Una red neuronal es una composición de funciones simples y diferenciables. Cada neurona calcula una combinación lineal de sus entradas y aplica una no linealidad. La magia no está en una neurona, sino en apilar muchas y entrenarlas con gradientes.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Explicar qué hace una neurona y por qué necesita sesgo.</div>
+              <div>Comparar ReLU, sigmoide, tanh y softmax.</div>
+              <div>Derivar un forward pass numérico.</div>
+              <div>Entender por qué la profundidad aumenta la capacidad expresiva.</div>
+            </div>
+
+            <h3>La neurona</h3>
+            <div class="formula">
+              <span class="formula-label">Neurona con activación</span>
+              $$z=\sum_{j=1}^{d}w_jx_j+b=\mathbf{w}^\top\mathbf{x}+b, \qquad a=\sigma(z)$$
+              <span class="formula-caption">El sesgo $b$ desplaza la frontera y permite que la neurona se active incluso con entradas cero. Sin sesgo, la frontera siempre pasa por el origen.</span>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Forward pass de una neurona</h4></div>
+              <div class="example-body">
+                <p>Entrada $\mathbf{x}=(2,1)$, pesos $\mathbf{w}=(3,-1)$, sesgo $b=0.5$. Entonces $z=3\cdot2+(-1)\cdot1+0.5=5.5$.</p>
+                <p>Con ReLU, $a=\max(0,5.5)=5.5$. Con sigmoide, $a=1/(1+e^{-5.5})\approx0.996$. Con tanh, $a\approx0.9998$. La misma combinación lineal produce salidas distintas según la activación.</p>
+              </div>
+            </div>
+
+            <h3>Funciones de activación</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Función</th><th>Rango</th><th>Ventaja</th><th>Problema</th></tr></thead>
+                <tbody>
+                  <tr><td>Sigmoide</td><td>(0,1)</td><td>Interpretable como probabilidad</td><td>Satisface y desvanece el gradiente</td></tr>
+                  <tr><td>Tanh</td><td>(−1,1)</td><td>Centrada en cero</td><td>También se satura</td></tr>
+                  <tr><td>ReLU</td><td>[0,∞)</td><td>Barata y con gradiente estable en positivos</td><td>Neuronas muertas si el gradiente se anula</td></tr>
+                  <tr><td>Leaky ReLU</td><td>(−∞,∞)</td><td>Evita neuronas muertas</td><td>Introduce un hiperparámetro</td></tr>
+                  <tr><td>Softmax</td><td>Distribución</td><td>Salida multiclase normalizada</td><td>Solo para clases excluyentes</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout info">
+              <span class="callout-title">¿Por qué no linealidad?</span>
+              Sin activaciones no lineales, apilar capas equivale a una sola transformación lineal: $W_3(W_2(W_1x))=Wx$. La no linealidad es lo que permite aproximar funciones complejas.
+            </div>
+
+            <h3>Del perceptrón al MLP</h3>
+            <p>El perceptrón de Rosenblatt es una neurona con umbral. No puede resolver XOR porque una sola frontera lineal no separa las clases. Un <strong>perceptrón multicapa</strong> con una capa oculta sí puede: combina varias fronteras y las compone.</p>
+            <div class="figure">
+              <div class="figure-frame">
+                <svg class="svg-diagram" viewBox="0 0 560 220" role="img" aria-label="Red neuronal 2-3-1">
+                  <g fill="none" stroke="currentColor" stroke-width="1.3" opacity=".35">
+                    <path d="M80 70 L250 55 M80 70 L250 110 M80 70 L250 165 M80 150 L250 55 M80 150 L250 110 M80 150 L250 165 M250 55 L430 110 M250 110 L430 110 M250 165 L430 110" />
+                  </g>
+                  <g>
+                    <circle cx="80" cy="70" r="22" fill="#e9edfb" stroke="#3355c8" stroke-width="1.5" /><text x="80" y="75" text-anchor="middle" font-size="12" fill="#2743a6">x₁</text>
+                    <circle cx="80" cy="150" r="22" fill="#e9edfb" stroke="#3355c8" stroke-width="1.5" /><text x="80" y="155" text-anchor="middle" font-size="12" fill="#2743a6">x₂</text>
+                    <circle cx="250" cy="55" r="22" fill="#e2f4ef" stroke="#0e7c6b" stroke-width="1.5" /><text x="250" y="60" text-anchor="middle" font-size="12" fill="#0e7c6b">h₁</text>
+                    <circle cx="250" cy="110" r="22" fill="#e2f4ef" stroke="#0e7c6b" stroke-width="1.5" /><text x="250" y="115" text-anchor="middle" font-size="12" fill="#0e7c6b">h₂</text>
+                    <circle cx="250" cy="165" r="22" fill="#e2f4ef" stroke="#0e7c6b" stroke-width="1.5" /><text x="250" y="170" text-anchor="middle" font-size="12" fill="#0e7c6b">h₃</text>
+                    <circle cx="430" cy="110" r="24" fill="#fbf1dc" stroke="#a86a12" stroke-width="1.5" /><text x="430" y="115" text-anchor="middle" font-size="12" fill="#a86a12">ŷ</text>
+                  </g>
+                  <g fill="currentColor" font-size="10" opacity=".65">
+                    <text x="70" y="205">entrada</text><text x="235" y="205">capa oculta</text><text x="413" y="205">salida</text>
+                  </g>
+                </svg>
+                <figcaption>Una red 2–3–1. Cada conexión es un peso; cada neurona suma sus entradas, añade sesgo y aplica activación.</figcaption>
+              </div>
+            </div>
+
+            <h3>Profundidad y composición</h3>
+            <p>Una capa oculta puede aproximar funciones continuas con suficiente anchura (teorema de aproximación universal), pero no dice nada sobre cuántos datos o neuronas hacen falta. La profundidad permite construir representaciones jerárquicas: bordes → texturas → partes → objetos. Esa es la intuición del deep learning.</p>
+
+            <div class="callout warn">
+              <span class="callout-title">Universal no significa práctico</span>
+              El teorema de aproximación universal garantiza existencia, no que el descenso del gradiente encuentre esa solución con los datos disponibles. La arquitectura y la regularización siguen importando.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 7.1 · XOR con una capa oculta</summary>
+            <div class="answer">
+              <p>Diseña a mano una red 2–2–1 con ReLU que calcule XOR para entradas en $\{0,1\}^2$. Pista: usa dos neuronas que detecten $(x_1+x_2\ge1)$ y $(x_1+x_2\ge2)$ y combínalas.</p>
+              <p><strong>Orientación:</strong> una neurona calcula $h_1=\text{ReLU}(x_1+x_2-0.5)$ y otra $h_2=\text{ReLU}(x_1+x_2-1.5)$. La salida puede ser $h_1-2h_2$ con un sesgo adecuado: activa cuando exactamente una entrada es 1. Hay muchas soluciones equivalentes.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m7-l2" data-title="Perceptrón multicapa y forward pass">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 7.2</div>
+              <h2>Perceptrón multicapa y forward pass</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Propagación</span><span class="sep"></span><span>Simulador</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m7-l2"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">El forward pass es la propagación de la entrada a través de las capas hasta la salida. Es una secuencia de multiplicaciones de matrices y activaciones. Entenderlo es prerequisites para entender backpropagation.</p>
+
+            <h3>Formulación matricial</h3>
+            <div class="formula">
+              <span class="formula-label">Dos capas ocultas y salida</span>
+              $$\mathbf{h}^{(1)}=\sigma\left(W^{(1)}\mathbf{x}+\mathbf{b}^{(1)}\right), \qquad \mathbf{h}^{(2)}=\sigma\left(W^{(2)}\mathbf{h}^{(1)}+\mathbf{b}^{(2)}\right), \qquad \hat{\mathbf{y}}=\text{softmax}\left(W^{(3)}\mathbf{h}^{(2)}+\mathbf{b}^{(3)}\right)$$
+              <span class="formula-caption">Cada fila de $W^{(l)}$ es una neurona. En batch, las entradas se apilan por filas y las operaciones se vectorizan.</span>
+            </div>
+
+            <h3>Ejemplo numérico completo</h3>
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Una capa oculta con dos neuronas</h4></div>
+              <div class="example-body">
+                <p>Entrada $\mathbf{x}=(1,2)$. Capa oculta: $W^{(1)}=\begin{pmatrix}1&0\\0&1\end{pmatrix}$, $\mathbf{b}^{(1)}=(0,-1)$. Entonces $\mathbf{z}^{(1)}=(1,1)$ y con ReLU $\mathbf{h}^{(1)}=(1,1)$.</p>
+                <p>Salida: $W^{(2)}=(2,-1)$, $b^{(2)}=0.5$. $z^{(2)}=2\cdot1-1\cdot1+0.5=1.5$. Con sigmoide, $\hat y\approx0.818$. Si la etiqueta es 1, la pérdida de entropía cruzada es $-\log(0.818)\approx0.201$.</p>
+              </div>
+            </div>
+
+            <div class="sim" data-sim="nn">
+              <div class="sim-head">
+                <div class="sim-icon">◉</div>
+                <div><h4>Simulador · Red neuronal 2–h–1</h4><p>Entrena una red pequeña para separar dos medias lunas y observa la frontera de decisión.</p></div>
+              </div>
+              <div class="sim-body">
+                <div class="sim-canvas-wrap"><canvas id="nnCanvas" width="560" height="360" aria-label="Simulador de red neuronal"></canvas></div>
+                <div class="sim-controls">
+                  <div class="ctrl"><label for="nnLr">Tasa de aprendizaje <output id="nnLrOut">0.50</output></label><input type="range" id="nnLr" min="0.05" max="2" step="0.05" value="0.5"></div>
+                  <div class="ctrl"><label for="nnHidden">Neuronas ocultas <output id="nnHiddenOut">8</output></label><input type="range" id="nnHidden" min="2" max="12" step="1" value="8"></div>
+                  <div class="btn-row">
+                    <button class="btn small primary" id="nnTrain" type="button">Entrenar 400 épocas</button>
+                    <button class="btn small" id="nnReset" type="button">Nuevos datos</button>
+                  </div>
+                  <div class="sim-readout">
+                    <div>pérdida = <b id="nnLoss">—</b></div>
+                    <div>accuracy = <b id="nnAcc">—</b></div>
+                  </div>
+                  <div class="sim-hint">Con pocas neuronas la frontera es rígida; con muchas y learning rate alto puede volverse irregular. La pérdida debería bajar.</div>
+                </div>
+              </div>
+            </div>
+
+            <h3>Funciones de pérdida</h3>
+            <div class="formula">
+              <span class="formula-label">Clasificación y regresión</span>
+              $$L_{\text{CE}}=-\frac1n\sum_i\sum_k y_{ik}\log\hat y_{ik}, \qquad L_{\text{MSE}}=\frac1n\sum_i\|\mathbf{y}_i-\hat{\mathbf{y}}_i\|^2$$
+              <span class="formula-caption">Entropía cruzada para clasificación; MSE o MAE para regresión. La elección debe coincidir con la distribución de la salida.</span>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">mlp_numpy.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+
+def relu(z):
+    return np.maximum(0, z)
+
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
+
+def forward(X, params):
+    W1, b1, W2, b2 = params
+    h = relu(X @ W1.T + b1)
+    out = sigmoid(h @ W2.T + b2)
+    return h, out
+
+X = np.array([[1.0, 2.0]])
+params = (
+    np.array([[1.0, 0.0], [0.0, 1.0]]),  # W1
+    np.array([0.0, -1.0]),               # b1
+    np.array([[2.0, -1.0]]),             # W2
+    np.array([0.5])                      # b2
+)
+h, out = forward(X, params)
+print("oculta:", h, "salida:", np.round(out, 3))</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">Inicialización</span>
+              Inicializar todos los pesos a cero rompe la simetría: todas las neuronas aprenden lo mismo. Se usa Xavier/Glorot para activaciones simétricas y He para ReLU.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 7.2 · Forward pass a mano</summary>
+            <div class="answer">
+              <p>Con $\mathbf{x}=(2,-1)$, $W^{(1)}=\begin{pmatrix}1&2\\-1&1\end{pmatrix}$, $\mathbf{b}^{(1)}=(0,1)$, ReLU en la capa oculta y salida lineal $W^{(2)}=(1,1)$, $b^{(2)}=-2$, calcula la predicción.</p>
+              <p><strong>Orientación:</strong> $z^{(1)}=(2\cdot1+(-1)\cdot2,\ 2\cdot(-1)+(-1)\cdot1+1)=(0,-2)$. ReLU da $(0,0)$. La salida es $0+0-2=-2$. Observa que una neurona puede quedar inactiva con esta entrada.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m7-l3" data-title="Backpropagation">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 7.3</div>
+              <h2>Backpropagation</h2>
+              <div class="lesson-meta"><span>26 min</span><span class="sep"></span><span>Gradientes</span><span class="sep"></span><span>Regla de la cadena</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m7-l3"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Backpropagation no es un optimizador: es un algoritmo para calcular gradientes de forma eficiente. Aplica la regla de la cadena capa por capa, reutilizando cálculos intermedios.</p>
+
+            <h3>La regla de la cadena en una red</h3>
+            <p>Para una pérdida $L$ que depende de la salida $\hat y=f(g(x))$, la derivada es $\frac{dL}{dx}=\frac{dL}{df}\frac{df}{dg}\frac{dg}{dx}$. En una red, cada capa aporta un factor. Backpropagation propaga el gradiente desde la salida hacia la entrada.</p>
+
+            <div class="formula">
+              <span class="formula-label">Gradientes para una capa</span>
+              $$\delta^{(l)}=\frac{\partial L}{\partial \mathbf{z}^{(l)}}=\left(W^{(l+1)\top}\delta^{(l+1)}\right)\odot\sigma'(\mathbf{z}^{(l)}), \qquad \frac{\partial L}{\partial W^{(l)}}=\delta^{(l)}\,\mathbf{h}^{(l-1)\top}, \qquad \frac{\partial L}{\partial \mathbf{b}^{(l)}}=\delta^{(l)}$$
+              <span class="formula-caption">$\odot$ es producto elemento a elemento. Para la última capa con softmax y entropía cruzada, $\delta^{(L)}=\hat{\mathbf{y}}-\mathbf{y}$: una expresión notablemente simple.</span>
+            </div>
+
+            <h3>Derivación con un ejemplo mínimo</h3>
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Una neurona, una entrada</h4></div>
+              <div class="example-body">
+                <p>Sea $z=wx+b$, $a=\sigma(z)$ y $L=\frac12(y-a)^2$. Entonces $\frac{\partial L}{\partial a}=a-y$ y $\frac{\partial a}{\partial z}=a(1-a)$. Por la regla de la cadena, $\frac{\partial L}{\partial z}=(a-y)a(1-a)$. Finalmente, $\frac{\partial L}{\partial w}=\frac{\partial L}{\partial z}x$ y $\frac{\partial L}{\partial b}=\frac{\partial L}{\partial z}$.</p>
+                <p>Con $x=2$, $w=0.5$, $b=0$, $y=1$: $z=1$, $a=0.731$, $L\approx0.036$. El gradiente respecto a $w$ es $(0.731-1)\cdot0.731\cdot0.269\cdot2\approx-0.106$. Restarlo con tasa 0.1 aumenta $w$ y reduce la pérdida.</p>
+              </div>
+            </div>
+
+            <h3>Un detalle crucial: el grafo computacional</h3>
+            <p>Los frameworks construyen un grafo de operaciones durante el forward pass. Al llamar a <code>backward()</code>, recorren ese grafo en orden inverso y acumulan gradientes. Por eso es importante no modificar tensores in-place de forma que se rompa el grafo.</p>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">backprop_numpy.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
+
+def train_step(X, y, W, b, lr=0.1):
+    # forward
+    z = X @ W + b
+    a = sigmoid(z)
+    loss = np.mean(-(y * np.log(a + 1e-9) + (1 - y) * np.log(1 - a + 1e-9)))
+
+    # backward (entropía cruzada + sigmoide)
+    dz = (a - y) / len(X)          # dL/dz
+    dW = X.T @ dz                  # dL/dW
+    db = dz.sum(axis=0)            # dL/db
+
+    # update
+    W -= lr * dW
+    b -= lr * db
+    return loss, W, b
+
+rng = np.random.default_rng(0)
+X = rng.normal(size=(200, 3))
+y = (X[:, 0] + X[:, 1] - X[:, 2] > 0).astype(float).reshape(-1, 1)
+W = rng.normal(scale=0.1, size=(3, 1))
+b = np.zeros((1, 1))
+
+for epoch in range(500):
+    loss, W, b = train_step(X, y, W, b)
+print("loss final:", round(loss, 4), "W:", np.round(W.ravel(), 3))</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Desvanecimiento y explosión</span>
+              En redes profundas, multiplicar muchos jacobianos puede hacer que el gradiente se vuelva diminuto o enorme. Las conexiones residuales, normalización y activaciones adecuadas mitigan el problema.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 7.3 · Gradiente de una capa</summary>
+            <div class="answer">
+              <p>Para $L=\frac12(y-\hat y)^2$, $\hat y=w_2h$, $h=\text{ReLU}(w_1x)$, con $x=2$, $w_1=1$, $w_2=3$, $y=10$: calcula $\partial L/\partial w_2$ y $\partial L/\partial w_1$.</p>
+              <p><strong>Orientación:</strong> $h=2$, $\hat y=6$, error $=-4$. $\partial L/\partial w_2=(6-10)\cdot2=-8$. $\partial L/\partial h=(6-10)\cdot3=-12$; como $w_1x=2&gt;0$, ReLU tiene derivada 1, y $\partial L/\partial w_1=-12\cdot2=-24$.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m7-l4" data-title="Optimizadores y dinámica de entrenamiento">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 7.4</div>
+              <h2>Optimizadores y dinámica de entrenamiento</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>SGD, Adam</span><span class="sep"></span><span>Schedules</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m7-l4"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">El descenso del gradiente puro es simple pero frágil. Los optimizadores modernos adaptan la dirección y la magnitud del paso, y las schedules ajustan la tasa de aprendizaje a lo largo del entrenamiento.</p>
+
+            <h3>SGD con momentum</h3>
+            <div class="formula">
+              <span class="formula-label">Momentum</span>
+              $$\mathbf{v}_t=\beta\mathbf{v}_{t-1}+\nabla L(\theta_{t-1}), \qquad \theta_t=\theta_{t-1}-\eta\mathbf{v}_t$$
+              <span class="formula-caption">Acumula una media móvil del gradiente. Suaviza oscilaciones y acelera en direcciones consistentes, como una bola que gana inercia.</span>
+            </div>
+
+            <h3>RMSProp y Adam</h3>
+            <div class="formula">
+              <span class="formula-label">Adam (versión simplificada)</span>
+              $$m_t=\beta_1m_{t-1}+(1-\beta_1)g_t, \qquad v_t=\beta_2v_{t-1}+(1-\beta_2)g_t^2$$
+              $$\hat m_t=\frac{m_t}{1-\beta_1^t}, \qquad \hat v_t=\frac{v_t}{1-\beta_2^t}, \qquad \theta_t=\theta_{t-1}-\eta\frac{\hat m_t}{\sqrt{\hat v_t}+\epsilon}$$
+              <span class="formula-caption">Combina momento (dirección) y escala adaptativa por parámetro. Los valores por defecto $\beta_1=0.9$, $\beta_2=0.999$, $\epsilon=10^{-8}$ suelen funcionar bien.</span>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Optimizador</th><th>Ventaja</th><th>Cuándo usarlo</th></tr></thead>
+                <tbody>
+                  <tr><td>SGD</td><td>Simple, buena generalización en visión</td><td>Con schedule y momentum bien ajustados</td></tr>
+                  <tr><td>Momentum</td><td>Reduce oscilaciones</td><td>Superficies con valles estrechos</td></tr>
+                  <tr><td>RMSProp</td><td>Escala por parámetro</td><td>Gradientes de magnitudes muy distintas</td></tr>
+                  <tr><td>Adam</td><td>Robusto y rápido por defecto</td><td>NLP, transformers, prototipos</td></tr>
+                  <tr><td>AdamW</td><td>Adam con weight decay correcto</td><td>Transformers y modelos grandes</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Schedules de tasa de aprendizaje</h3>
+            <ul>
+              <li><strong>Step decay:</strong> reduce la tasa cada cierto número de épocas.</li>
+              <li><strong>Cosine annealing:</strong> reduce suavemente siguiendo un coseno.</li>
+              <li><strong>Warmup:</strong> empieza con una tasa muy baja y sube; estabiliza el inicio de transformers.</li>
+              <li><strong>ReduceLROnPlateau:</strong> baja cuando la métrica de validación deja de mejorar.</li>
+            </ul>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">optimizadores.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+
+modelo = torch.nn.Sequential(
+    torch.nn.Linear(20, 64), torch.nn.ReLU(),
+    torch.nn.Linear(64, 1)
+)
+
+optimizador = torch.optim.AdamW(modelo.parameters(), lr=1e-3, weight_decay=1e-2)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizador, T_max=50)
+
+loss_fn = torch.nn.BCEWithLogitsLoss()
+
+for epoch in range(50):
+    modelo.train()
+    for xb, yb in train_loader:
+        optimizador.zero_grad()
+        logits = modelo(xb).squeeze(1)
+        loss = loss_fn(logits, yb)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(modelo.parameters(), 1.0)
+        optimizador.step()
+    scheduler.step()
+    print(f"epoch {epoch}: lr={scheduler.get_last_lr()[0]:.5f}")</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">Batch size y learning rate</span>
+              Aumentar el batch reduce el ruido del gradiente y permite tasas mayores, pero generaliza algo peor en algunos casos. No existe una receta universal: ajusta ambos con validación.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 7.4 · Diagnosticar la curva de pérdida</summary>
+            <div class="answer">
+              <p>La pérdida de entrenamiento baja, pero la de validación sube después de la época 10. ¿Qué está ocurriendo y qué tres acciones probarías?</p>
+              <p><strong>Orientación:</strong> overfitting. Probar early stopping, regularización (dropout/weight decay) y más datos o data augmentation. También revisar si la tasa de aprendizaje es demasiado alta al final.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m7-l5" data-title="Regularización en redes profundas">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 7.5</div>
+              <h2>Regularización en redes profundas</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Dropout</span><span class="sep"></span><span>BatchNorm</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m7-l5"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Las redes tienen millones de parámetros y pueden memorizar. Regularizar es limitar su capacidad efectiva sin perder capacidad expresiva. No hay una técnica mágica: cada una ataca un mecanismo distinto.</p>
+
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">Dropout</span><h4>Desactivar al azar</h4><p>Durante el entrenamiento se apagan neuronas con probabilidad $p$. Evita dependencias y actúa como ensemble implícito. En inferencia se desactiva.</p></div>
+              <div class="algo-card"><span class="tag">Weight decay</span><h4>Penalizar pesos grandes</h4><p>Equivale a L2 en SGD. En Adam se prefiere AdamW, que desacopla el decay del gradiente adaptativo.</p></div>
+              <div class="algo-card"><span class="tag">BatchNorm</span><h4>Normalizar activaciones</h4><p>Centra y escala por lote. Estabiliza y acelera, pero introduce dependencia del batch y puede ser problemático en lotes pequeños.</p></div>
+              <div class="algo-card"><span class="tag">Early stopping</span><h4>Parar a tiempo</h4><p>Detiene el entrenamiento cuando la validación deja de mejorar. Es una de las formas más efectivas y baratas de regularizar.</p></div>
+            </div>
+
+            <div class="formula">
+              <span class="formula-label">Dropout en entrenamiento</span>
+              $$r_j\sim\text{Bernoulli}(1-p), \qquad \tilde h_j=\frac{r_j h_j}{1-p}$$
+              <span class="formula-caption">La división por $1-p$ mantiene la escala esperada de las activaciones entre entrenamiento e inferencia (inverted dropout).</span>
+            </div>
+
+            <h3>Otras técnicas</h3>
+            <ul>
+              <li><strong>Data augmentation:</strong> transformaciones válidas que amplían la variedad de ejemplos.</li>
+              <li><strong>Label smoothing:</strong> suaviza las etiquetas duras y reduce la confianza excesiva.</li>
+              <li><strong>Mixup / CutMix:</strong> combina ejemplos y etiquetas para crear datos virtuales.</li>
+              <li><strong>Stochastic depth:</strong> omite bloques residuales al azar en redes muy profundas.</li>
+              <li><strong>Gradient clipping:</strong> limita la norma del gradiente, útil en RNN y transformers.</li>
+            </ul>
+
+            <div class="callout warn">
+              <span class="callout-title">No regularices a ciegas</span>
+              Si el modelo tiene underfitting, añadir dropout o weight decay empeora el resultado. Primero diagnostica: ¿la pérdida de entrenamiento baja? ¿La brecha con validación es grande?
+            </div>
+
+            <h3>Receta de diagnóstico</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Síntoma</th><th>Causa probable</th><th>Acción</th></tr></thead>
+                <tbody>
+                  <tr><td>Train alta, val alta</td><td>Underfitting o bug</td><td>Más capacidad, mejor arquitectura, revisar datos</td></tr>
+                  <tr><td>Train baja, val alta</td><td>Overfitting</td><td>Regularizar, más datos, early stopping</td></tr>
+                  <tr><td>Ambas estancadas</td><td>Learning rate malo o gradientes nulos</td><td>Ajustar lr, revisar activaciones e inicialización</td></tr>
+                  <tr><td>Pérdida NaN</td><td>Explosión numérica</td><td>Bajar lr, gradient clipping, revisar log(0)</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 7.5 · Elegir regularización</summary>
+            <div class="answer">
+              <p>Una CNN pequeña alcanza 99% en train y 68% en validación con 2 000 imágenes. Propón un plan de mejora ordenado por coste.</p>
+              <p><strong>Orientación:</strong> (1) data augmentation, (2) early stopping y ajuste de lr, (3) weight decay/dropout, (4) transfer learning desde un modelo preentrenado, (5) recolectar más datos. La augmentation suele dar la mayor mejora por coste en visión.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m7-l6" data-title="Redes convolucionales">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 7.6</div>
+              <h2>Redes convolucionales</h2>
+              <div class="lesson-meta"><span>24 min</span><span class="sep"></span><span>Convolución</span><span class="sep"></span><span>Pooling</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m7-l6"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Una capa densa sobre una imagen de 224×224×3 tendría 150 000 pesos por neurona y destruiría la estructura espacial. Una convolución comparte un filtro pequeño en todas las posiciones: menos parámetros, invariancia a traslaciones y detección local de patrones.</p>
+
+            <h3>La operación</h3>
+            <div class="formula">
+              <span class="formula-label">Convolución 2D discreta</span>
+              $$(I*K)(i,j)=\sum_{m}\sum_{n}I(i+m,j+n)K(m,n)$$
+              <span class="formula-caption">El kernel $K$ se desliza por la imagen. En deep learning los valores del kernel se aprenden; en visión clásica se diseñaban a mano (Sobel, Gabor).</span>
+            </div>
+
+            <h3>Hiperparámetros de una capa</h3>
+            <ul>
+              <li><strong>Filtros:</strong> cuántos patrones distintos aprende la capa.</li>
+              <li><strong>Kernel size:</strong> 3×3 es el estándar; apilar dos 3×3 cubre un campo receptivo de 5×5 con menos parámetros.</li>
+              <li><strong>Stride:</strong> paso del kernel. Stride 2 reduce la resolución.</li>
+              <li><strong>Padding:</strong> mantiene el tamaño espacial con <code>same</code> o lo reduce con <code>valid</code>.</li>
+              <li><strong>Canales:</strong> la profundidad de entrada y salida; cada filtro produce un mapa de activación.</li>
+            </ul>
+
+            <div class="formula">
+              <span class="formula-label">Tamaño de salida</span>
+              $$H_{\text{out}}=\left\lfloor\frac{H_{\text{in}}+2P-K}{S}\right\rfloor+1$$
+              <span class="formula-caption">Ejemplo: entrada 32, kernel 3, padding 1, stride 1 → salida 32. Con stride 2 → salida 16.</span>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Campo receptivo</h4></div>
+              <div class="example-body">
+                <p>Dos convoluciones 3×3 seguidas tienen un campo receptivo efectivo de 5×5. Tres convoluciones 3×3 cubren 7×7. Una sola convolución 7×7 tendría $49C^2$ parámetros por canal, mientras que tres capas 3×3 tienen $3\cdot9C^2=27C^2$ y más no linealidad intermedia. Por eso las arquitecturas modernas prefieren kernels pequeños apilados.</p>
+              </div>
+            </div>
+
+            <h3>Pooling y estructura típica</h3>
+            <p>El max pooling resume regiones locales y reduce la dimensión espacial. Una CNN clásica alterna convoluciones, activaciones y pooling, y termina con capas densas para clasificar.</p>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">cnn_pytorch.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+import torch.nn as nn
+
+class CNN(nn.Module):
+    def __init__(self, n_classes=10):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, padding=1), nn.ReLU(),
+            nn.MaxPool2d(2),                       # 32x32 -> 16x16
+            nn.Conv2d(32, 64, kernel_size=3, padding=1), nn.ReLU(),
+            nn.MaxPool2d(2),                       # 16x16 -> 8x8
+            nn.Conv2d(64, 128, kernel_size=3, padding=1), nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1, 1))           # 8x8 -> 1x1
+        )
+        self.classifier = nn.Linear(128, n_classes)
+
+    def forward(self, x):
+        x = self.features(x)
+        x = torch.flatten(x, 1)
+        return self.classifier(x)
+
+modelo = CNN()
+print(sum(p.numel() for p in modelo.parameters()), "parámetros")</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">Inductive bias</span>
+              La convolución asume que los patrones son locales y se repiten en el espacio. Esa suposición es correcta en imágenes y por eso las CNN son tan eficientes. En datos tabulares, esa estructura no existe y las CNN suelen aportar poco.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 7.6 · Calcular dimensiones</summary>
+            <div class="answer">
+              <p>Una entrada de 64×64×3 pasa por: Conv 3×3, 32 filtros, padding 1, stride 1; MaxPool 2×2; Conv 3×3, 64 filtros, padding 1; MaxPool 2×2. ¿Cuál es la forma de salida y cuántos parámetros tiene la primera convolución (incluyendo sesgos)?</p>
+              <p><strong>Orientación:</strong> tras la primera conv: 64×64×32; tras pool: 32×32×32; tras segunda conv: 32×32×64; tras pool: 16×16×64. La primera conv tiene $3\cdot3\cdot3\cdot32+32=896$ parámetros.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m7-l7" data-title="Arquitecturas CNN y transferencia">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 7.7</div>
+              <h2>Arquitecturas CNN y transferencia</h2>
+              <div class="lesson-meta"><span>18 min</span><span class="sep"></span><span>ResNet</span><span class="sep"></span><span>Transfer learning</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m7-l7"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Las arquitecturas modernas no se inventan desde cero: se reutilizan modelos preentrenados en ImageNet y se ajustan a la tarea. Es la forma más práctica de obtener buenos resultados con pocos datos.</p>
+
+            <h3>Evolución en una tabla</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Arquitectura</th><th>Idea clave</th><th>Legado</th></tr></thead>
+                <tbody>
+                  <tr><td>LeNet-5</td><td>Conv + pooling + densas</td><td>Primera CNN exitosa en dígitos</td></tr>
+                  <tr><td>AlexNet</td><td>ReLU, dropout, GPU</td><td>Punto de inflexión de ImageNet 2012</td></tr>
+                  <tr><td>VGG</td><td>Bloques de 3×3 apilados</td><td>Simplicidad y profundidad</td></tr>
+                  <tr><td>ResNet</td><td>Conexiones residuales</td><td>Entrenar cientos de capas</td></tr>
+                  <tr><td>Inception</td><td>Módulos multi-escala</td><td>Eficiencia computacional</td></tr>
+                  <tr><td>EfficientNet</td><td>Escalado compuesto</td><td>Buen equilibrio precisión/coste</td></tr>
+                  <tr><td>ViT</td><td>Transformers sobre parches</td><td>Compiten con CNN a gran escala</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>ResNet: la conexión que lo cambió todo</h3>
+            <div class="formula">
+              <span class="formula-label">Bloque residual</span>
+              $$\mathbf{y}=\mathcal{F}(\mathbf{x})+\mathbf{x}$$
+              <span class="formula-caption">La red aprende el residuo $\mathcal{F}$ en lugar de la transformación completa. La conexión de identidad facilita el flujo del gradiente y permite entrenar redes muy profundas.</span>
+            </div>
+
+            <h3>Transfer learning</h3>
+            <ol>
+              <li>Elige un modelo preentrenado en un dataset grande y similar.</li>
+              <li>Congela el extractor de features y entrena una cabeza nueva para tu tarea.</li>
+              <li>Si tienes suficientes datos, descongela algunas capas y ajusta con una tasa pequeña (fine-tuning).</li>
+              <li>Usa augmentation y early stopping para evitar sobreajustar.</li>
+            </ol>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">transfer.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+import torch.nn as nn
+from torchvision import models
+
+# Modelo preentrenado en ImageNet
+modelo = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+
+# Congelar el extractor
+for param in modelo.parameters():
+    param.requires_grad = False
+
+# Reemplazar la cabeza para nuestro número de clases
+modelo.fc = nn.Linear(modelo.fc.in_features, n_clases)
+
+# Solo la cabeza se entrena al principio
+optimizador = torch.optim.AdamW(modelo.fc.parameters(), lr=1e-3)
+
+# Fine-tuning opcional: descongelar el último bloque
+# for param in modelo.layer4.parameters():
+#     param.requires_grad = True
+# optimizador = torch.optim.AdamW(modelo.parameters(), lr=1e-4)</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">Cuándo el transfer learning no ayuda</span>
+              Si tu dominio es muy distinto (por ejemplo, imágenes médicas de otro tipo de sensor) o el modelo preentrenado es demasiado pequeño, el beneficio puede ser limitado. Aun así, suele ser una baseline mejor que entrenar desde cero con pocos datos.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 7.7 · Diseñar un transfer learning</summary>
+            <div class="answer">
+              <p>Tienes 800 imágenes de 5 tipos de plantas y acceso a ResNet-18 preentrenada. Describe el plan de entrenamiento, qué congelarías y cómo evaluarías.</p>
+              <p><strong>Orientación:</strong> dividir estratificado; congelar el extractor y entrenar la cabeza con AdamW y augmentation; validar con 5-fold; si hay overfitting, aumentar regularización; si el rendimiento se estanca y hay datos, descongelar layer4 con lr baja; reportar matriz de confusión y F1 macro.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m7-l8" data-title="RNN, LSTM y secuencias">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 7.8</div>
+              <h2>RNN, LSTM y secuencias</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Recurrencia</span><span class="sep"></span><span>Memoria</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m7-l8"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">En una secuencia, el orden importa. Una RNN procesa un elemento a la vez y mantiene un estado oculto que resume el pasado. Es la base histórica del modelado de lenguaje, series temporales y audio.</p>
+
+            <div class="formula">
+              <span class="formula-label">Recurrencia simple</span>
+              $$\mathbf{h}_t=\tanh\left(W_{xh}\mathbf{x}_t+W_{hh}\mathbf{h}_{t-1}+\mathbf{b}_h\right), \qquad \mathbf{y}_t=W_{hy}\mathbf{h}_t+\mathbf{b}_y$$
+              <span class="formula-caption">El mismo conjunto de pesos se reutiliza en cada paso. El estado oculto transporta información, pero sufre desvanecimiento del gradiente en secuencias largas.</span>
+            </div>
+
+            <h3>LSTM y GRU</h3>
+            <p>La LSTM introduce una celda de memoria y compuertas que deciden qué recordar, qué olvidar y qué exponer. La GRU simplifica la idea con dos compuertas. Ambas mitigan el problema del gradiente que se desvanece.</p>
+            <div class="formula">
+              <span class="formula-label">Compuertas LSTM</span>
+              $$f_t=\sigma(W_f[\mathbf{h}_{t-1},\mathbf{x}_t]+b_f), \quad i_t=\sigma(W_i[\mathbf{h}_{t-1},\mathbf{x}_t]+b_i), \quad o_t=\sigma(W_o[\mathbf{h}_{t-1},\mathbf{x}_t]+b_o)$$
+              $$c_t=f_t\odot c_{t-1}+i_t\odot\tanh(W_c[\mathbf{h}_{t-1},\mathbf{x}_t]+b_c), \qquad h_t=o_t\odot\tanh(c_t)$$
+              <span class="formula-caption">$f$ olvida, $i$ escribe y $o$ lee. La celda $c_t$ puede conservar información durante muchos pasos.</span>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">lstm.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+import torch.nn as nn
+
+class ClasificadorSecuencia(nn.Module):
+    def __init__(self, vocab, emb=64, hidden=128, clases=2):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab, emb, padding_idx=0)
+        self.lstm = nn.LSTM(emb, hidden, batch_first=True, bidirectional=True)
+        self.dropout = nn.Dropout(0.3)
+        self.fc = nn.Linear(hidden * 2, clases)
+
+    def forward(self, x, lengths=None):
+        e = self.embedding(x)
+        packed = nn.utils.rnn.pack_padded_sequence(
+            e, lengths.cpu(), batch_first=True, enforce_sorted=False
+        )
+        _, (h, _) = self.lstm(packed)
+        h = torch.cat([h[-2], h[-1]], dim=1)  # último estado de ambas direcciones
+        return self.fc(self.dropout(h))</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Recurrencia vs. atención</span>
+              Las RNN procesan secuencialmente y no paralelizan bien. Los Transformers eliminan la recurrencia y usan atención, lo que permite entrenar con secuencias largas en paralelo. Por eso dominan el NLP moderno.
+            </div>
+
+            <h3>Series temporales</h3>
+            <p>En series temporales, la validación debe respetar el tiempo. Además, features como lags, medias móviles y calendario suelen ser más importantes que la arquitectura. Una LSTM no compensa un mal diseño de ventanas o fugas del futuro.</p>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 7.8 · Ventanas y fuga temporal</summary>
+            <div class="answer">
+              <p>Para predecir la demanda de mañana, propones una LSTM con features de los últimos 30 días. ¿Qué harías para evitar fuga de información al normalizar y al construir las ventanas?</p>
+              <p><strong>Orientación:</strong> calcular la normalización solo con el conjunto de entrenamiento (o usar estadísticas móviles causales), construir ventanas que terminen en $t-1$ para predecir $t$, y validar con particiones temporales, nunca con divisiones aleatorias.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m7-l9" data-title="Atención y Transformers">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 7.9</div>
+              <h2>Atención y Transformers</h2>
+              <div class="lesson-meta"><span>24 min</span><span class="sep"></span><span>Self-attention</span><span class="sep"></span><span>Arquitectura</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m7-l9"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">La atención permite que cada token consulte a todos los demás y decida a cuáles prestar atención. El Transformer eliminó la recurrencia y se convirtió en la arquitectura dominante de NLP y, cada vez más, de visión y audio.</p>
+
+            <div class="formula">
+              <span class="formula-label">Scaled dot-product attention</span>
+              $$\text{Attention}(Q,K,V)=\text{softmax}\left(\frac{QK^\top}{\sqrt{d_k}}\right)V$$
+              <span class="formula-caption">$Q$ consultas, $K$ claves, $V$ valores. El producto $QK^\top$ mide compatibilidad; la escala $1/\sqrt{d_k}$ evita saturar el softmax; el resultado es una mezcla ponderada de valores.</span>
+            </div>
+
+            <h3>Multi-head attention</h3>
+            <p>En lugar de una sola atención, se proyectan $Q,K,V$ en $h$ subespacios y se concatenan. Cada cabeza puede especializarse en relaciones distintas: sintaxis, correferencia, posición. La salida se proyecta de nuevo a la dimensión del modelo.</p>
+
+            <h3>El bloque Transformer</h3>
+            <ol>
+              <li>Embedding de tokens + codificación posicional.</li>
+              <li>Multi-head self-attention con conexión residual y LayerNorm.</li>
+              <li>Feed-forward por posición (dos capas lineales con activación).</li>
+              <li>Otra conexión residual + LayerNorm.</li>
+              <li>Se apilan $N$ bloques; la salida se usa para predecir o representar.</li>
+            </ol>
+
+            <div class="figure">
+              <div class="figure-frame">
+                <svg class="svg-diagram" viewBox="0 0 560 230" role="img" aria-label="Bloque Transformer">
+                  <rect x="180" y="20" width="200" height="34" rx="7" fill="#e9edfb" stroke="#3355c8" />
+                  <text x="280" y="42" text-anchor="middle" font-size="11" fill="#2743a6">Entrada + posición</text>
+                  <rect x="180" y="76" width="200" height="34" rx="7" fill="#e2f4ef" stroke="#0e7c6b" />
+                  <text x="280" y="98" text-anchor="middle" font-size="11" fill="#0e7c6b">Multi-Head Attention</text>
+                  <rect x="180" y="132" width="200" height="34" rx="7" fill="#fbf1dc" stroke="#a86a12" />
+                  <text x="280" y="154" text-anchor="middle" font-size="11" fill="#a86a12">Feed-Forward + LayerNorm</text>
+                  <rect x="180" y="188" width="200" height="30" rx="7" fill="#f1e9fb" stroke="#6b3fa0" />
+                  <text x="280" y="208" text-anchor="middle" font-size="11" fill="#6b3fa0">Salida contextual</text>
+                  <g stroke="#85909d" stroke-width="1.4" marker-end="url(#arrow)">
+                    <path d="M280 54 V76" /><path d="M280 110 V132" /><path d="M280 166 V188" />
+                  </g>
+                  <defs><marker id="arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6" fill="#85909d" /></marker></defs>
+                  <path d="M400 93 Q470 93 470 40 Q470 20 400 37" fill="none" stroke="#3355c8" stroke-width="1.2" stroke-dasharray="4 3" />
+                  <text x="486" y="70" font-size="9" fill="#5f6c7b">residual</text>
+                </svg>
+                <figcaption>Bloque Transformer simplificado. Las conexiones residuales permiten apilar decenas de bloques sin que el gradiente se desvanezca.</figcaption>
+              </div>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">transformer.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+import torch.nn as nn
+
+class BloqueTransformer(nn.Module):
+    def __init__(self, d_model=128, n_heads=4, d_ff=256, dropout=0.1):
+        super().__init__()
+        self.attention = nn.MultiheadAttention(d_model, n_heads, dropout=dropout, batch_first=True)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.ff = nn.Sequential(
+            nn.Linear(d_model, d_ff), nn.GELU(), nn.Dropout(dropout),
+            nn.Linear(d_ff, d_model)
+        )
+        self.norm2 = nn.LayerNorm(d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x, mask=None):
+        attn, _ = self.attention(x, x, x, attn_mask=mask, need_weights=False)
+        x = self.norm1(x + self.dropout(attn))
+        x = self.norm2(x + self.dropout(self.ff(x)))
+        return x
+
+modelo = BloqueTransformer()
+entrada = torch.randn(8, 20, 128)  # batch, secuencia, dimensión
+print(modelo(entrada).shape)</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">Complejidad cuadrática</span>
+              La atención compara todos los pares de tokens: $O(n^2d)$. Para secuencias muy largas se usan variantes eficientes, ventanas locales o aproximaciones. Es una de las limitaciones activas de los LLM.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 7.9 · Formas y máscaras</summary>
+            <div class="answer">
+              <p>En un batch de 8 secuencias de longitud 20 con dimensión 128 y 4 cabezas, ¿qué forma tienen $Q,K,V$ dentro de una cabeza? ¿Para qué sirve una máscara causal?</p>
+              <p><strong>Orientación:</strong> cada cabeza proyecta a $d_k=128/4=32$; las formas son $(8,4,20,32)$ o, con batch primero, $(8,20,4,32)$ según implementación. La máscara causal impide que un token vea el futuro durante el entrenamiento autoregresivo.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m7-l10" data-title="Entrenamiento práctico y depuración">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 7.10</div>
+              <h2>Entrenamiento práctico y depuración</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Pipeline</span><span class="sep"></span><span>Cierre</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m7-l10"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Entrenar una red no es solo elegir una arquitectura. Es construir un pipeline reproducible, comprobar que aprende, detectar fugas, controlar el overfitting y comparar contra baselines honestas.</p>
+
+            <h3>Checklist antes de escalar</h3>
+            <ol>
+              <li><strong>Overfit un batch pequeño:</strong> si la red no puede memorizar 10 ejemplos, hay un bug en datos, etiquetas o gradientes.</li>
+              <li><strong>Verifica formas y rangos:</strong> imprime shapes, medias y mínimos/máximos de las entradas.</li>
+              <li><strong>Comprueba la pérdida inicial:</strong> para $K$ clases balanceadas, la entropía inicial ronda $\log K$.</li>
+              <li><strong>Visualiza ejemplos y augmentations:</strong> errores de etiqueta o transformaciones destructivas explican muchos fracasos.</li>
+              <li><strong>Fija semillas y registra versiones:</strong> sin reproducibilidad no puedes comparar experimentos.</li>
+            </ol>
+
+            <div class="callout warn">
+              <span class="callout-title">El bug más común</span>
+              La mayoría de los «modelos que no aprenden» tienen un problema de datos: etiquetas desalineadas, normalización incorrecta, fuga de información o una tasa de aprendizaje absurda. Revisa el pipeline antes de cambiar la arquitectura.
+            </div>
+
+            <h3>Entrenamiento con buenas prácticas</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">train_loop.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import torch
+from torch.utils.data import DataLoader
+
+def evaluar(modelo, loader, loss_fn):
+    modelo.eval()
+    total, correct, perdida = 0, 0, 0.0
+    with torch.no_grad():
+        for xb, yb in loader:
+            xb, yb = xb.to(device), yb.to(device)
+            logits = modelo(xb)
+            perdida += loss_fn(logits, yb).item() * len(xb)
+            correct += (logits.argmax(1) == yb).sum().item()
+            total += len(xb)
+    return perdida / total, correct / total
+
+mejor_val = float("inf")
+paciencia = 5
+espera = 0
+
+for epoch in range(50):
+    modelo.train()
+    for xb, yb in train_loader:
+        xb, yb = xb.to(device), yb.to(device)
+        opt.zero_grad()
+        loss = loss_fn(modelo(xb), yb)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(modelo.parameters(), 1.0)
+        opt.step()
+
+    val_loss, val_acc = evaluar(modelo, val_loader, loss_fn)
+    print(f"epoch {epoch:02d} val_loss={val_loss:.4f} val_acc={val_acc:.3f}")
+
+    if val_loss < mejor_val - 1e-4:
+        mejor_val = val_loss
+        espera = 0
+        torch.save(modelo.state_dict(), "mejor_modelo.pt")
+    else:
+        espera += 1
+        if espera >= paciencia:
+            print("early stopping")
+            break</code></pre></div>
+
+            <div class="quiz-mount" data-quiz="7"></div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 7.10 · Cierre del módulo</summary>
+            <div class="answer">
+              <p>Diseña un experimento para clasificar imágenes médicas con 3 000 ejemplos y 4 clases. Incluye arquitectura, inicialización, augmentations, validación, criterio de parada y qué reportarías. ¿Qué harías si el modelo tiene 99% en train y 55% en validación?</p>
+              <p><strong>Orientación:</strong> transfer learning desde ResNet/EfficientNet, augmentation moderada y validada por un especialista, split estratificado y por paciente, early stopping, F1 macro y matriz de confusión. Ante la brecha, revisar fuga entre pacientes, aumentar regularización, congelar más capas y recolectar más datos.</p>
+            </div>
+          </details>
+        </article>

@@ -1,0 +1,711 @@
+<article class="lesson" id="l-m10-l1" data-title="El ciclo de vida de un modelo en producción">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 10.1</div>
+              <h2>El ciclo de vida de un modelo en producción</h2>
+              <div class="lesson-meta"><span>16 min</span><span class="sep"></span><span>MLOps</span><span class="sep"></span><span>Mapa del sistema</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m10-l1"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un modelo entrenado no es un producto. Es un artefacto que debe integrarse en un sistema, recibir datos, responder en un tiempo razonable, monitorearse y actualizarse cuando el mundo cambia. MLOps es la disciplina que hace que eso sea repetible.</p>
+
+            <div class="objectives">
+              <h4>Al terminar sabrás</h4>
+              <div>Describir las etapas del ciclo de vida de un sistema de ML.</div>
+              <div>Distinguir el modelo del sistema que lo rodea.</div>
+              <div>Identificar los puntos donde fallan la mayoría de los proyectos.</div>
+              <div>Elegir un nivel de madurez adecuado al contexto.</div>
+            </div>
+
+            <h3>El ciclo completo</h3>
+            <div class="figure">
+              <div class="figure-frame">
+                <svg class="svg-diagram" viewBox="0 0 560 210" role="img" aria-label="Ciclo de vida de ML">
+                  <g font-size="10" text-anchor="middle">
+                    <rect x="18" y="30" width="108" height="42" rx="7" fill="#e9edfb" stroke="#3355c8" /><text x="72" y="48" fill="#2743a6">Datos</text><text x="72" y="62" fill="#5f6c7b">ingesta y calidad</text>
+                    <rect x="150" y="30" width="108" height="42" rx="7" fill="#e2f4ef" stroke="#0e7c6b" /><text x="204" y="48" fill="#0e7c6b">Entrenamiento</text><text x="204" y="62" fill="#5f6c7b">experimentos</text>
+                    <rect x="282" y="30" width="108" height="42" rx="7" fill="#fbf1dc" stroke="#a86a12" /><text x="336" y="48" fill="#a86a12">Empaquetado</text><text x="336" y="62" fill="#5f6c7b">artefacto</text>
+                    <rect x="414" y="30" width="108" height="42" rx="7" fill="#f1e9fb" stroke="#6b3fa0" /><text x="468" y="48" fill="#6b3fa0">Despliegue</text><text x="468" y="62" fill="#5f6c7b">API / batch</text>
+                    <rect x="414" y="120" width="108" height="42" rx="7" fill="#fdecea" stroke="#b42318" /><text x="468" y="138" fill="#b42318">Monitoreo</text><text x="468" y="152" fill="#5f6c7b">drift y métricas</text>
+                    <rect x="150" y="120" width="244" height="42" rx="7" fill="#eef0f4" stroke="#85909d" /><text x="272" y="138" fill="#3c4a5c">Decisiones: reentrenar, ajustar, retirar</text><text x="272" y="152" fill="#5f6c7b">el ciclo se cierra con evidencia</text>
+                  </g>
+                  <g stroke="#85909d" stroke-width="1.3" marker-end="url(#arrowMLOps)">
+                    <path d="M126 51 H150" /><path d="M258 51 H282" /><path d="M390 51 H414" />
+                    <path d="M468 72 V120" /><path d="M414 141 H394" /><path d="M150 141 H126" /><path d="M126 141 V72" />
+                  </g>
+                  <defs><marker id="arrowMLOps" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6" fill="#85909d" /></marker></defs>
+                </svg>
+                <figcaption>El modelo es una pieza. El sistema incluye datos, pipeline, artefacto, servicio, monitoreo y personas.</figcaption>
+              </div>
+            </div>
+
+            <h3>El modelo es la parte pequeña</h3>
+            <p>En un sistema real, el código del modelo suele ser una fracción mínima del total. El resto es infraestructura de datos, validación, serving, logging, dashboards y procesos. La deuda técnica de ML viene de las fronteras entre esos componentes:</p>
+            <ul>
+              <li>Cambios en la fuente de datos que rompen el esquema.</li>
+              <li>Preprocesado duplicado entre entrenamiento y serving que se desincroniza.</li>
+              <li>Dependencias no fijadas que cambian el comportamiento al reinstalar.</li>
+              <li>Métricas que no se registran y decisiones que no se pueden auditar.</li>
+              <li>Modelos que se degradan sin que nadie lo note.</li>
+            </ul>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Un fallo silencioso típico</h4></div>
+              <div class="example-body">
+                <p>El modelo se entrenó con la columna <code>ingresos</code> en euros. Un cambio en el ERP hace que ahora llegue en céntimos. La API sigue respondiendo 200 y el esquema sigue siendo numérico, pero todas las predicciones son absurdas. Nadie lo detecta hasta que un usuario se queja semanas después.</p>
+                <p><strong>Prevención:</strong> validar rangos y distribuciones de entrada, no solo tipos; comparar estadísticas de producción con las de entrenamiento; alertar cuando la media de una feature se desvía más de un umbral.</p>
+              </div>
+            </div>
+
+            <h3>Niveles de madurez</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Nivel</th><th>Características</th><th>Cuándo es razonable</th></tr></thead>
+                <tbody>
+                  <tr><td>Manual</td><td>Notebooks, scripts, despliegue a mano</td><td>Prototipo, validación de idea</td></tr>
+                  <tr><td>Reproducible</td><td>Pipeline versionado, entorno fijo, artefacto guardado</td><td>Primer modelo en producción</td></tr>
+                  <tr><td>Automatizado</td><td>CI/CD, tests, reentrenamiento programado</td><td>Producto con usuarios reales</td></tr>
+                  <tr><td>Monitoreado</td><td>Drift, métricas de negocio, alertas, auditoría</td><td>Sistemas críticos o regulados</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout info">
+              <span class="callout-title">No sobredimensiones MLOps</span>
+              Un equipo de dos personas con un modelo semanal no necesita Kubernetes, feature store y orquestación compleja. Empieza con un pipeline reproducible y un endpoint simple; añade complejidad cuando el dolor sea real.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 10.1 · Mapa del sistema</summary>
+            <div class="answer">
+              <p>Elige un modelo que hayas entrenado en este curso y dibuja el sistema completo: fuente de datos, pipeline, artefacto, forma de serving, consumidores, métricas y responsable de cada parte. Marca los tres puntos más frágiles.</p>
+              <p><strong>Orientación:</strong> los puntos frágiles suelen ser la calidad de la fuente, la coherencia del preprocesado y la ausencia de monitoreo. Para cada uno, define una prueba o alerta concreta y un responsable.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m10-l2" data-title="Serialización y pipelines reproducibles">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 10.2</div>
+              <h2>Serialización y pipelines reproducibles</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>joblib</span><span class="sep"></span><span>Pipeline</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m10-l2"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Guardar el modelo no basta. Debes guardar la misma transformación que se aplicó a los datos, las versiones de las librerías y la configuración. Un modelo sin su pipeline es un artefacto incompleto.</p>
+
+            <h3>Qué guardar</h3>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">Modelo</span><h4>Pesos y estructura</h4><p>En Scikit-learn, el objeto completo; en PyTorch, <code>state_dict</code> más la definición de la arquitectura. No dependas de pickles de clases locales.</p></div>
+              <div class="algo-card"><span class="tag">Preprocesado</span><h4>Transformaciones</h4><p>Escaladores, imputadores, encoders y vectorizadores ajustados. Si no viajan con el modelo, el serving reproduce otro pipeline.</p></div>
+              <div class="algo-card"><span class="tag">Metadatos</span><h4>Contexto</h4><p>Versión, fecha, métricas, datos de entrenamiento, hiperparámetros y hash del artefacto. Sin esto no puedes auditar.</p></div>
+              <div class="algo-card"><span class="tag">Entorno</span><h4>Dependencias</h4><p><code>requirements.txt</code> con versiones fijas, imagen Docker o lockfile. Un cambio de versión puede alterar resultados.</p></div>
+            </div>
+
+            <h3>El pipeline como unidad</h3>
+            <div class="formula">
+              <span class="formula-label">Predicción reproducible</span>
+              $$\hat y = f_{\theta}\left(T_{\phi}(\mathbf{x})\right), \qquad \text{artefacto}=(f_\theta, T_\phi, \text{metadatos}, \text{entorno})$$
+              <span class="formula-caption">$T_\phi$ son las transformaciones ajustadas con entrenamiento. Guardar solo $f_\theta$ rompe la reproducibilidad si $T_\phi$ se recalcula en serving.</span>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>El escalador que se perdió</h4></div>
+              <div class="example-body">
+                <p>Entrenaste con features estandarizadas (media 0, desviación 1). En producción, el servicio recibe valores crudos y los pasa directamente al modelo. La predicción no da error, pero está fuera de distribución. Si la media de entrenamiento era 50 y la desviación 10, un valor de 60 debería entrar como 1.0; entra como 60.</p>
+                <p><strong>Solución:</strong> guardar el pipeline completo con <code>joblib</code> o usar un artefacto que incluya el preprocesado. Probar el artefacto con un ejemplo conocido antes de desplegarlo.</p>
+              </div>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">serializar.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import json
+import joblib
+import sklearn
+from datetime import datetime, timezone
+
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
+from sklearn.ensemble import RandomForestClassifier
+
+pipeline = Pipeline([
+    ("imputar", SimpleImputer(strategy="median")),
+    ("escalar", StandardScaler()),
+    ("modelo", RandomForestClassifier(
+        n_estimators=300, max_depth=12, random_state=42, n_jobs=-1
+    ))
+])
+
+pipeline.fit(X_train, y_train)
+
+# Guardar pipeline completo, no solo el estimador final
+joblib.dump(pipeline, "modelo_v1.joblib", compress=3)
+
+metadatos = {
+    "nombre": "churn-classifier",
+    "version": "1.0.0",
+    "fecha": datetime.now(timezone.utc).isoformat(),
+    "sklearn": sklearn.__version__,
+    "features": list(X_train.columns),
+    "metrica_validacion": {"f1": 0.71, "roc_auc": 0.83},
+    "semilla": 42
+}
+with open("modelo_v1.json", "w", encoding="utf-8") as f:
+    json.dump(metadatos, f, indent=2, ensure_ascii=False)
+
+# Verificación: cargar y comparar con el original
+cargado = joblib.load("modelo_v1.joblib")
+assert (cargado.predict(X_test) == pipeline.predict(X_test)).all()
+print("artefacto verificado")</code></pre></div>
+
+            <h3>Buenas prácticas de serialización</h3>
+            <ul>
+              <li><strong>Evita pickle para modelos de terceros no confiables:</strong> puede ejecutar código al cargar. Usa formatos seguros (ONNX, SavedModel) cuando compartas entre equipos.</li>
+              <li><strong>Fija versiones:</strong> un modelo guardado con una versión de Scikit-learn puede no cargar igual en otra.</li>
+              <li><strong>Incluye un test de humo:</strong> un ejemplo de entrada y su salida esperada. Si el artefacto no reproduce esa salida, no se despliega.</li>
+              <li><strong>Registra el hash:</strong> permite verificar que el artefacto desplegado es el que se evaluó.</li>
+            </ul>
+
+            <div class="callout warn">
+              <span class="callout-title">Nunca cargues un pickle de origen desconocido</span>
+              La deserialización de <code>pickle</code> puede ejecutar código arbitrario. Si recibes un modelo de un tercero, verifica su procedencia o usa un formato de solo datos como ONNX. La conveniencia no justifica un riesgo de ejecución remota.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 10.2 · Artefacto completo</summary>
+            <div class="answer">
+              <p>Empaqueta un modelo de clasificación con su pipeline, metadatos y un test de humo. Escribe un script que cargue el artefacto, valide que reproduce una predicción conocida y falle con un mensaje claro si no.</p>
+              <p><strong>Orientación:</strong> guarda el pipeline con joblib, un JSON con versión y features, y un archivo con la entrada/salida de referencia. El script de verificación debe comprobar forma, tipo y valor con tolerancia. Este test se ejecuta en CI antes de publicar la imagen.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m10-l3" data-title="API de inferencia con FastAPI">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 10.3</div>
+              <h2>API de inferencia con FastAPI</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Servicio</span><span class="sep"></span><span>Validación</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m10-l3"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Una API de inferencia convierte un modelo en un servicio. Debe validar la entrada, responder en un tiempo predecible, manejar errores sin caerse y registrar lo suficiente para diagnosticar problemas.</p>
+
+            <h3>Contrato de la API</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Elemento</th><th>Qué definir</th><th>Ejemplo</th></tr></thead>
+                <tbody>
+                  <tr><td>Endpoint</td><td>Ruta y método</td><td><code>POST /predict</code></td></tr>
+                  <tr><td>Entrada</td><td>Esquema, tipos, rangos</td><td>JSON con 8 features numéricas</td></tr>
+                  <tr><td>Salida</td><td>Clase, probabilidad, versión</td><td><code>{"churn": true, "prob": 0.82, "model": "1.0.0"}</code></td></tr>
+                  <tr><td>Errores</td><td>Códigos y mensajes</td><td>422 para entrada inválida, 503 si el modelo no cargó</td></tr>
+                  <tr><td>Salud</td><td>Endpoint de liveness/readiness</td><td><code>GET /health</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file" string="true">main.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from contextlib import asynccontextmanager
+from typing import Literal
+
+import joblib
+import numpy as np
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field, field_validator
+
+MODELO = None
+VERSION = "1.0.0"
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global MODELO
+    MODELO = joblib.load("modelo_v1.joblib")
+    yield
+    MODELO = None
+
+app = FastAPI(title="Churn API", version=VERSION, lifespan=lifespan)
+
+class Cliente(BaseModel):
+    antiguedad_meses: int = Field(ge=0, le=600)
+    gasto_mensual: float = Field(ge=0, le=100000)
+    num_productos: int = Field(ge=1, le=20)
+    reclamos_ultimo_ano: int = Field(ge=0, le=100)
+    tipo_contrato: Literal["mensual", "anual", "bienal"]
+
+    @field_validator("gasto_mensual")
+    @classmethod
+    def gasto_razonable(cls, v: float) -> float:
+        if v > 50000:
+            raise ValueError("gasto fuera del rango soportado por el modelo")
+        return v
+
+class Prediccion(BaseModel):
+    churn: bool
+    probabilidad: float
+    modelo_version: str
+
+def transformar(cliente: Cliente) -> np.ndarray:
+    contrato = {"mensual": 0, "anual": 1, "bienal": 2}[cliente.tipo_contrato]
+    return np.array([[
+        cliente.antiguedad_meses,
+        cliente.gasto_mensual,
+        cliente.num_productos,
+        cliente.reclamos_ultimo_ano,
+        contrato
+    ]], dtype=float)
+
+@app.get("/health")
+def health():
+    return {"status": "ok" if MODELO is not None else "unavailable"}
+
+@app.post("/predict", response_model=Prediccion)
+def predict(cliente: Cliente) -> Prediccion:
+    if MODELO is None:
+        raise HTTPException(status_code=503, detail="modelo no disponible")
+    X = transformar(cliente)
+    prob = float(MODELO.predict_proba(X)[0, 1])
+    return Prediccion(
+        churn=prob >= 0.5,
+        probabilidad=round(prob, 4),
+        modelo_version=VERSION
+    )</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">Validar no es opcional</span>
+              Pydantic valida tipos y rangos. Añade validaciones semánticas: categorías permitidas, coherencia entre campos y valores que el modelo no vio en entrenamiento. Una entrada inválida debe devolver 422, no una predicción silenciosa.
+            </div>
+
+            <h3>Patrones de serving</h3>
+            <ul>
+              <li><strong>Online:</strong> petición individual, baja latencia, respuesta inmediata. Es lo que hace esta API.</li>
+              <li><strong>Batch:</strong> se procesan lotes periódicamente; más eficiente para grandes volúmenes.</li>
+              <li><strong>Streaming:</strong> el modelo consume eventos continuos y emite predicciones.</li>
+              <li><strong>Edge:</strong> el modelo se ejecuta en el dispositivo, sin conexión.</li>
+            </ul>
+
+            <div class="callout warn">
+              <span class="callout-title">Carga del modelo al inicio</span>
+              Cargar el modelo en cada petición multiplica la latencia y el consumo. Cárgalo una vez en el arranque (lifespan) y comparte una instancia de solo lectura. Si el modelo es pesado, usa varios workers con cuidado: cada proceso carga su propia copia en memoria.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 10.3 · Diseñar el contrato</summary>
+            <div class="answer">
+              <p>Diseña el contrato de una API que recibe datos de un sensor y predice si una máquina fallará en las próximas 24 horas. Define esquema de entrada, salida, errores y validaciones. ¿Qué harías si faltan lecturas?</p>
+              <p><strong>Orientación:</strong> entrada con timestamp, features numéricas y ventana temporal; salida con probabilidad, versión y hora; validar rangos físicos y número de lecturas; si faltan datos, devolver 422 con detalle o aplicar una política de imputación documentada. No inventes lecturas en silencio.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m10-l4" data-title="Docker y entornos reproducibles">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 10.4</div>
+              <h2>Docker y entornos reproducibles</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Contenedores</span><span class="sep"></span><span>Imagen</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m10-l4"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">«En mi máquina funciona» es el síntoma de un entorno no reproducible. Docker empaqueta código, dependencias y configuración en una imagen que se ejecuta igual en tu portátil, en CI y en el servidor.</p>
+
+            <h3>Imagen, contenedor y capas</h3>
+            <ul>
+              <li><strong>Imagen:</strong> plantilla inmutable con sistema base, dependencias y código.</li>
+              <li><strong>Contenedor:</strong> instancia en ejecución de una imagen.</li>
+              <li><strong>Capas:</strong> cada instrucción del Dockerfile crea una capa. El orden afecta el caché: pon lo que cambia menos arriba.</li>
+            </ul>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Dockerfile</span><span class="file">Dockerfile</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-bash">FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+# 1) Dependencias primero: se cachean si no cambian
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 2) Código y artefacto después
+COPY src/ ./src/
+COPY artifacts/modelo_v1.joblib ./artifacts/
+
+# 3) Usuario sin privilegios
+RUN useradd --create-home appuser && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]</code></pre></div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Bash</span><span class="file">comandos.sh</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-bash"># Construir la imagen
+docker build -t churn-api:1.0.0 .
+
+# Ejecutar el contenedor
+docker run --rm -p 8000:8000 churn-api:1.0.0
+
+# Probar el endpoint
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"antiguedad_meses": 12, "gasto_mensual": 45.5, "num_productos": 2, "reclamos_ultimo_ano": 1, "tipo_contrato": "mensual"}'
+
+# Ver logs y tamaño
+docker logs <container_id>
+docker images churn-api</code></pre></div>
+
+            <h3>Errores frecuentes en Docker</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Error</th><th>Consecuencia</th><th>Corrección</th></tr></thead>
+                <tbody>
+                  <tr><td>Copiar todo el proyecto antes de instalar</td><td>Caché inútil, builds lentos</td><td>Copiar requirements primero</td></tr>
+                  <tr><td>Usar <code>latest</code> en la imagen base</td><td>Builds no reproducibles</td><td>Fijar versión o digest</td></tr>
+                  <tr><td>Ejecutar como root</td><td>Mayor impacto de una vulnerabilidad</td><td>Crear usuario sin privilegios</td></tr>
+                  <tr><td>Incluir datos y secretos en la imagen</td><td>Fuga irreversible</td><td>Variables de entorno y volúmenes</td></tr>
+                  <tr><td>Imagen de varios GB</td><td>Despliegues lentos</td><td>Base slim, multi-stage build, limpiar caché</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout info">
+              <span class="callout-title">Multi-stage build</span>
+              Para reducir tamaño, compila dependencias en una etapa y copia solo los artefactos necesarios a la imagen final. Es especialmente útil con extensiones nativas o modelos grandes. La imagen final no necesita compiladores ni cachés de pip.
+            </div>
+
+            <h3>Reproducibilidad más allá de Docker</h3>
+            <p>Una imagen fija el entorno, pero también debes fijar los datos y el azar. Registra el hash del dataset, las semillas y la versión del código. Sin eso, dos ejecuciones con la misma imagen pueden producir modelos distintos.</p>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 10.4 · Dockerizar un modelo</summary>
+            <div class="answer">
+              <p>Escribe un Dockerfile para una API que sirve un modelo de Scikit-learn. Incluye healthcheck, usuario no root y dependencias fijas. Construye la imagen, ejecútala y verifica que responde. ¿Qué tamaño tiene y cómo lo reducirías?</p>
+              <p><strong>Orientación:</strong> base <code>python:3.11-slim</code>, copiar requirements antes del código, instalar sin caché, copiar el artefacto, usuario no privilegiado y healthcheck. Para reducir tamaño: multi-stage, eliminar tests y notebooks de la imagen, y usar un modelo comprimido o cuantizado si aplica.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m10-l5" data-title="CI/CD, versionado de datos y modelos">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 10.5</div>
+              <h2>CI/CD, versionado de datos y modelos</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Automatización</span><span class="sep"></span><span>Trazabilidad</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m10-l5"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">La integración continua verifica que el código sigue funcionando; el despliegue continuo lo publica. En ML hay una tercera pieza: los datos y el modelo también necesitan versiones, pruebas y trazabilidad.</p>
+
+            <h3>Qué debe probar un pipeline de ML</h3>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">Datos</span><h4>Calidad y esquema</h4><p>Columnas esperadas, tipos, rangos, nulos, duplicados y distribución. Un test barato detecta la mayoría de los fallos.</p></div>
+              <div class="algo-card"><span class="tag">Código</span><h4>Unidades e integración</h4><p>Funciones de preprocesado, contrato de la API, serialización y carga del artefacto. pytest en cada commit.</p></div>
+              <div class="algo-card"><span class="tag">Modelo</span><h4>Umbral de rendimiento</h4><p>El modelo nuevo no se publica si su métrica de validación cae por debajo de un mínimo o empeora respecto al anterior.</p></div>
+              <div class="algo-card"><span class="tag">Servicio</span><h4>Humo y latencia</h4><p>La imagen arranca, <code>/health</code> responde y una predicción de referencia tarda menos que el presupuesto.</p></div>
+            </div>
+
+            <h3>Versionar datos y modelos</h3>
+            <p>Git versiona código, no datasets grandes. Para datos se usan DVC, LakeFS o almacenamiento con hashes; para modelos, un registro (MLflow, W&B, un bucket con metadatos). Lo importante es poder responder: <em>¿con qué datos, código e hiperparámetros se produjo este artefacto?</em></p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Una regresión que pasó los tests</h4></div>
+              <div class="example-body">
+                <p>Un nuevo modelo tiene F1 0.70 en validación, frente a 0.72 del anterior. El equipo decide publicarlo porque «la diferencia es pequeña». En producción, el recall de la clase crítica cae de 0.65 a 0.48 porque el nuevo modelo se centró en la clase mayoritaria.</p>
+                <p><strong>Lección:</strong> el test de publicación debe incluir métricas por clase y comparación con el modelo en producción, no solo un promedio. La puerta de calidad debe reflejar el coste real.</p>
+              </div>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">YAML</span><span class="file">ci.yml</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-yaml">name: ml-pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Tests unitarios
+        run: pytest -q
+      - name: Validación de datos
+        run: python scripts/validate_data.py --data data/train.csv
+      - name: Test de humo del artefacto
+        run: python scripts/smoke_test.py --model artifacts/modelo_v1.joblib
+      - name: Construir imagen
+        run: docker build -t churn-api:${{ github.sha }} .
+      - name: Escanear imagen
+        run: trivy image --exit-code 1 --severity HIGH,CRITICAL churn-api:${{ github.sha }}</code></pre></div>
+
+            <h3>Estrategias de despliegue</h3>
+            <ul>
+              <li><strong>Recreate:</strong> se reemplaza la versión anterior. Simple, con downtime.</li>
+              <li><strong>Rolling:</strong> se actualizan instancias gradualmente. Sin downtime, pero conviven versiones.</li>
+              <li><strong>Blue-green:</strong> dos entornos idénticos; se cambia el tráfico cuando el nuevo está validado.</li>
+              <li><strong>Canary:</strong> se envía un porcentaje pequeño de tráfico a la nueva versión y se compara con la anterior.</li>
+              <li><strong>Shadow:</strong> la nueva versión recibe tráfico duplicado sin afectar a usuarios; se comparan predicciones.</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">Rollback preparado</span>
+              Todo despliegue debe poder revertirse en minutos. Conserva la imagen y el artefacto anteriores, documenta el procedimiento y prueba el rollback al menos una vez. Un rollback no probado no es un rollback.
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">No versiones secretos en Git</span>
+              Claves de API, contraseñas de bases de datos y credenciales de nube van en un gestor de secretos o variables de entorno cifradas. Si se filtran en un commit, considéralas comprometidas y rótalas; borrar el archivo no basta.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 10.5 · Puerta de calidad</summary>
+            <div class="answer">
+              <p>Define los criterios que debe cumplir un modelo para pasar de staging a producción en un sistema de aprobación de crédito. Incluye métricas globales, por subgrupo, latencia y requisitos de auditoría.</p>
+              <p><strong>Orientación:</strong> AUC y PR globales, recall y precisión por subgrupo, calibración, latencia p95, tasa de abstención, reproducibilidad del artefacto y documentación de limitaciones. Además, revisión humana y registro de la versión que tomó cada decisión.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m10-l6" data-title="Monitoreo, data drift y degradación">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 10.6</div>
+              <h2>Monitoreo, data drift y degradación</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Drift</span><span class="sep"></span><span>Alertas</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m10-l6"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un modelo en producción no es estático. Las entradas cambian, el comportamiento de los usuarios cambia y la relación entre ambos puede cambiar. El monitoreo existe para detectar esa degradación antes de que afecte a las decisiones.</p>
+
+            <h3>Tres tipos de cambio</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Tipo</th><th>Qué cambia</th><th>Ejemplo</th><th>Detección</th></tr></thead>
+                <tbody>
+                  <tr><td>Data drift (covariate shift)</td><td>$P(X)$</td><td>Los usuarios nuevos tienen otra distribución de gasto</td><td>Comparar estadísticas de features</td></tr>
+                  <tr><td>Concept drift</td><td>$P(Y\mid X)$</td><td>Un cambio de política altera qué clientes abandonan</td><td>Rendimiento con etiquetas tardías</td></tr>
+                  <tr><td>Label drift</td><td>$P(Y)$</td><td>Sube la tasa base de fraude</td><td>Monitorear prevalencia</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="formula">
+              <span class="formula-label">Detección de drift por feature</span>
+              $$\text{PSI}=\sum_{b=1}^{B}(p_b-q_b)\ln\frac{p_b}{q_b}, \qquad \text{KS}=\sup_x|F_{\text{prod}}(x)-F_{\text{train}}(x)|$$
+              <span class="formula-caption">PSI compara proporciones por bins; valores < 0.1 suelen considerarse estables, 0.1–0.25 moderados y > 0.25 altos. KS mide la máxima diferencia entre distribuciones acumuladas. Los umbrales dependen del dominio.</span>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Drift sin caída inmediata de métricas</h4></div>
+              <div class="example-body">
+                <p>Una feature «edad» tenía media 35 y ahora tiene media 52 porque la app cambió de público. El modelo sigue prediciendo, pero muchas combinaciones de edad y otras variables quedan fuera de la región donde fue entrenado. Las predicciones pueden ser sistemáticamente peores sin que la API falle.</p>
+                <p><strong>Acción:</strong> alertar por PSI/KS, revisar la distribución conjunta, y si el cambio es permanente, recolectar datos nuevos y reentrenar con validación temporal.</p>
+              </div>
+            </div>
+
+            <h3>Qué monitorear</h3>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">Técnico</span><h4>Salud del servicio</h4><p>Latencia p50/p95/p99, errores 5xx, tasa de timeouts, uso de memoria y CPU. Detecta fallos, no degradación silenciosa.</p></div>
+              <div class="algo-card"><span class="tag">Datos</span><h4>Entradas</h4><p>Nulos, rangos, categorías nuevas, distribución por feature, PSI/KS. Un esquema válido puede ocultar valores absurdos.</p></div>
+              <div class="algo-card"><span class="tag">Modelo</span><h4>Predicciones</h4><p>Distribución de scores, tasa de positivos, calibración. Un cambio brusco en la tasa de alertas es señal de alarma.</p></div>
+              <div class="algo-card"><span class="tag">Negocio</span><h4>Impacto</h4><p>Conversión, fraude detectado, coste por error, satisfacción. Es la métrica que importa, aunque llega con retraso.</p></div>
+            </div>
+
+            <h3>Etiquetas tardías</h3>
+            <p>En muchos problemas la etiqueta real llega semanas después (impago, reingreso, fallo). No puedes esperar para monitorear. Alternativas: usar proxies, muestras etiquetadas manualmente, o comparar la distribución de scores con la esperada. Documenta el retraso y no confundas ausencia de queja con buen rendimiento.</p>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">drift.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+from scipy.stats import ks_2samp
+
+def psi(referencia, produccion, bins=10):
+    """Population Stability Index para una feature numérica."""
+    cortes = np.quantile(referencia, np.linspace(0, 1, bins + 1))
+    cortes[0], cortes[-1] = -np.inf, np.inf
+    p, _ = np.histogram(referencia, bins=cortes)
+    q, _ = np.histogram(produccion, bins=cortes)
+    p = np.clip(p / max(1, p.sum()), 1e-6, None)
+    q = np.clip(q / max(1, q.sum()), 1e-6, None)
+    return float(np.sum((p - q) * np.log(p / q)))
+
+for columna in features:
+    valor_psi = psi(train[columna].dropna(), prod[columna].dropna())
+    ks, p_valor = ks_2samp(train[columna].dropna(), prod[columna].dropna())
+    estado = "ALTO" if valor_psi > 0.25 else "moderado" if valor_psi > 0.1 else "estable"
+    print(f"{columna:>20s} PSI={valor_psi:.3f} KS={ks:.3f} p={p_valor:.4f} -> {estado}")
+
+# Distribución de scores: comparar con referencia
+print("tasa de positivos train:", (score_train >= 0.5).mean())
+print("tasa de positivos prod :", (score_prod >= 0.5).mean())</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Alertas accionables</span>
+              Una alerta que nadie sabe qué hacer es ruido. Cada alerta debe tener dueño, umbral justificado y procedimiento: qué revisar, cómo confirmar y cuándo reentrenar. Si no puedes actuar, no la configures.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 10.6 · Plan de monitoreo</summary>
+            <div class="answer">
+              <p>Diseña el monitoreo de un modelo de predicción de demanda diaria. Define qué métricas técnicas, de datos, de modelo y de negocio registrarías, con qué frecuencia y con qué umbral de alerta. ¿Cómo detectarías un cambio de tendencia sin etiquetas inmediatas?</p>
+              <p><strong>Orientación:</strong> latencia y errores cada minuto; PSI/KS por feature a diario; distribución de predicciones y tasa de valores extremos; error contra ventas reales cuando llegan. Para detectar tendencia sin etiquetas, monitorea residuos proxies, comparación con un modelo naive y desviaciones sostenidas de la distribución de scores.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m10-l7" data-title="Gobernanza, privacidad y auditoría">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 10.7</div>
+              <h2>Gobernanza, privacidad y auditoría</h2>
+              <div class="lesson-meta"><span>18 min</span><span class="sep"></span><span>Riesgo</span><span class="sep"></span><span>Cumplimiento</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m10-l7"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Cuando un modelo influye en crédito, empleo, salud o seguridad, la pregunta no es solo si funciona, sino si podemos explicar, auditar y limitar su uso. La gobernanza es el conjunto de decisiones y controles que hacen eso posible.</p>
+
+            <h3>Preguntas de gobernanza</h3>
+            <ul>
+              <li><strong>Propósito:</strong> ¿para qué está autorizado el modelo y para qué no?</li>
+              <li><strong>Datos:</strong> ¿qué datos se usaron, con qué base legal y durante cuánto tiempo se conservan?</li>
+              <li><strong>Responsabilidad:</strong> ¿quién responde cuando el modelo se equivoca?</li>
+              <li><strong>Explicabilidad:</strong> ¿puede una persona afectada recibir una razón comprensible?</li>
+              <li><strong>Supervisión:</strong> ¿hay revisión humana en decisiones de alto impacto?</li>
+              <li><strong>Auditoría:</strong> ¿se conservan versiones, entradas y salidas para reconstruir decisiones?</li>
+            </ul>
+
+            <h3>Privacidad en la práctica</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Riesgo</th><th>Ejemplo</th><th>Mitigación</th></tr></thead>
+                <tbody>
+                  <tr><td>Reidentificación</td><td>Combinar edad, código postal y compras</td><td>Generalización, k-anonimato, ruido diferencial</td></tr>
+                  <tr><td>Memorización</td><td>Un modelo reproduce datos de entrenamiento</td><td>Regularización, deduplicación, auditoría de extracción</td></tr>
+                  <tr><td>Fuga por logs</td><td>Datos personales en logs de la API</td><td>Minimización, redacción, retención limitada</td></tr>
+                  <tr><td>Acceso excesivo</td><td>Todo el equipo puede leer el dataset</td><td>Roles, cifrado, registro de accesos</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">Minimización de datos</span>
+              No recojas un dato «por si acaso». Cada campo aumenta el riesgo y las obligaciones. Si no se usa en el modelo ni en la auditoría, no debería estar en el dataset. Esto también mejora la calidad: menos columnas, menos ruido.
+            </div>
+
+            <h3>Explicabilidad: qué puedes prometer</h3>
+            <p>La explicabilidad no es un único concepto. Puedes ofrecer:</p>
+            <ul>
+              <li><strong>Explicaciones globales:</strong> qué features importan en promedio (importancia, SHAP agregado).</li>
+              <li><strong>Explicaciones locales:</strong> por qué esta predicción concreta (SHAP, LIME, contrafactuales).</li>
+              <li><strong>Transparencia del proceso:</strong> qué datos, versión y reglas se aplicaron, aunque el modelo sea una caja negra.</li>
+            </ul>
+            <p>Ninguna técnica prueba causalidad. Una explicación SHAP describe la contribución al score del modelo, no el efecto causal de la variable en el mundo. Sé explícito sobre esa diferencia.</p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Un rechazo explicable</h4></div>
+              <div class="example-body">
+                <p>Un modelo de crédito rechaza una solicitud. Una explicación útil no es «el modelo dio 0.31». Es: «su ratio de endeudamiento y el historial de pagos reciente son los factores que más redujeron su puntuación; puede revisar la información si cree que hay un error». Eso es accionable, verificable y respetuoso.</p>
+                <p><strong>Requisito técnico:</strong> registrar la versión del modelo, las features de entrada y las contribuciones en el momento de la decisión. Sin ese registro, la explicación posterior es una reconstrucción incierta.</p>
+              </div>
+            </div>
+
+            <h3>Auditoría mínima</h3>
+            <ol>
+              <li>Identificador único de la decisión.</li>
+              <li>Timestamp y versión del modelo.</li>
+              <li>Entradas relevantes (con la debida protección de datos).</li>
+              <li>Salida y umbral aplicado.</li>
+              <li>Regla o intervención humana, si la hubo.</li>
+              <li>Política de retención y acceso.</li>
+            </ol>
+
+            <div class="callout info">
+              <span class="callout-title">Documentación del modelo</span>
+              Un «model card» resume propósito, datos, métricas por subgrupo, limitaciones y usos prohibidos. No es burocracia: es lo que permite que otra persona evalúe el sistema sin leer todo el código. Inclúyelo como parte del artefacto.
+            </div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 10.7 · Auditoría de un caso</summary>
+            <div class="answer">
+              <p>Un modelo de selección de currículos prioriza candidatos. Enumera los riesgos de gobernanza, qué datos podrían ser problemáticos y qué controles establecerías antes de usarlo. ¿Qué explicarías a un candidato rechazado?</p>
+              <p><strong>Orientación:</strong> riesgo de sesgo por género, origen o institución; datos históricos que reproducen discriminación; falta de explicabilidad; uso indebido del score como decisión automática. Controles: auditoría por subgrupo, revisión humana, exclusión de variables protegidas y proxies, documentación y posibilidad de apelación. Al candidato: factores objetivos y vía de revisión, sin revelar información de terceros.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="lesson" id="l-m10-l8" data-title="Checklist de producción y cierre">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 10.8</div>
+              <h2>Checklist de producción y cierre</h2>
+              <div class="lesson-meta"><span>18 min</span><span class="sep"></span><span>Checklist</span><span class="sep"></span><span>Cierre del módulo</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m10-l8"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Este es el cierre operativo del curso. Antes de decir que un modelo está «listo para producción», recorre esta lista. No es una formalidad: cada punto corresponde a un fallo que ocurre con frecuencia.</p>
+
+            <h3>Antes de desplegar</h3>
+            <div class="checklist">
+              <div><span class="box">□</span><div><b>Problema y métrica definidos.</b> La métrica principal está alineada con el coste real y existe una baseline.</div></div>
+              <div><span class="box">□</span><div><b>Datos versionados y documentados.</b> Se conoce la fuente, la fecha, la licencia y el hash del dataset de entrenamiento.</div></div>
+              <div><span class="box">□</span><div><b>Pipeline reproducible.</b> Preprocesado y modelo viajan juntos; las versiones están fijadas; un test de humo reproduce una predicción conocida.</div></div>
+              <div><span class="box">□</span><div><b>Evaluación honesta.</b> Test independiente, sin fuga, con métricas por subgrupo y comparación con la versión anterior.</div></div>
+              <div><span class="box">□</span><div><b>Contrato de entrada validado.</b> Tipos, rangos y categorías; errores claros en lugar de predicciones silenciosas.</div></div>
+              <div><span class="box">□</span><div><b>Latencia y capacidad medidas.</b> En el hardware real, con el preprocesado incluido, bajo carga razonable.</div></div>
+              <div><span class="box">□</span><div><b>Seguridad y privacidad revisadas.</b> Sin secretos en la imagen, usuario no root, datos minimizados y acceso restringido.</div></div>
+              <div><span class="box">□</span><div><b>Rollback probado.</b> Existe una versión anterior funcional y un procedimiento documentado para volver.</div></div>
+            </div>
+
+            <h3>Después de desplegar</h3>
+            <div class="checklist">
+              <div><span class="box">□</span><div><b>Monitoreo técnico activo.</b> Latencia, errores y saturación con alertas que alguien atiende.</div></div>
+              <div><span class="box">□</span><div><b>Monitoreo de datos activo.</b> Nulos, rangos, categorías nuevas y drift por feature.</div></div>
+              <div><span class="box">□</span><div><b>Monitoreo de modelo y negocio.</b> Distribución de scores, tasa de positivos y métricas de impacto cuando llegan las etiquetas.</div></div>
+              <div><span class="box">□</span><div><b>Registro de decisiones.</b> Versión, entrada, salida y revisión humana cuando aplica.</div></div>
+              <div><span class="box">□</span><div><b>Plan de reentrenamiento.</b> Disparadores claros: drift sostenido, caída de métrica, cambio de política o nuevos datos.</div></div>
+              <div><span class="box">□</span><div><b>Documentación viva.</b> Model card, limitaciones conocidas y contactos de responsabilidad.</div></div>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">El modelo no es el sistema</span>
+              Puedes tener un F1 excelente y un sistema frágil. La calidad de un producto de ML se mide por la combinación de modelo, datos, servicio, monitoreo y personas. Un modelo mediocre con buen monitoreo suele ser más útil que uno brillante sin observabilidad.
+            </div>
+
+            <h3>Errores que deberías evitar</h3>
+            <ul>
+              <li>Desplegar sin un test de humo del artefacto.</li>
+              <li>Confiar en que el preprocesado de producción coincide con el de entrenamiento.</li>
+              <li>Monitorear solo latencia y errores HTTP.</li>
+              <li>No versionar datos ni semillas.</li>
+              <li>Ignorar la deriva porque «el modelo funcionaba en el test».</li>
+              <li>Automatizar decisiones de alto impacto sin revisión humana.</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">Cierre del módulo</span>
+              Has recorrido el camino desde un notebook hasta un servicio observable. La idea central: la reproducibilidad y el monitoreo no son extras, son parte del modelo. Si no puedes reconstruir cómo se generó una predicción y detectar cuándo deja de ser válida, no tienes un sistema de ML: tienes una demostración.
+            </div>
+
+            <div class="quiz-mount" data-quiz="10"></div>
+          </div>
+          <details class="exercise">
+            <summary>Ejercicio 10.8 · Auditoría final</summary>
+            <div class="answer">
+              <p>Toma un modelo de los módulos anteriores y audítalo con esta checklist. Marca cada punto como cumplido, parcial o ausente. Elige los tres ausentes con mayor riesgo y propón una acción concreta con responsable y fecha.</p>
+              <p><strong>Orientación:</strong> los ausentes más comunes son versionado de datos, test de humo, monitoreo de drift y plan de rollback. Prioriza por impacto y probabilidad: un modelo de alto impacto sin rollback ni monitoreo es el riesgo más grave. La acción debe ser específica y verificable, no «mejorar el monitoreo».</p>
+            </div>
+          </details>
+        </article>

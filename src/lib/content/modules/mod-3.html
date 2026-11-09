@@ -1,0 +1,726 @@
+<article class="lesson" id="l-m3-l1" data-title="¿Cómo aprende una máquina?">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 3.1</div>
+              <h2>¿Cómo aprende una máquina?</h2>
+              <div class="lesson-meta"><span>18 min</span><span class="sep"></span><span>Conceptual + formal</span><span class="sep"></span><span>Bucle de entrenamiento</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m3-l1"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Aprender, en ML, es <strong>ajustar los parámetros de una función</strong> para que cometa menos errores sobre datos que no ha visto. Todo el proceso se reduce a cuatro piezas: datos, modelo, pérdida y optimizador.</p>
+
+            <h3>Las cuatro piezas</h3>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">1</span><h4>Datos</h4><p>Una muestra de ejemplos $(x_i,y_i)$ que representa el problema. Sin datos representativos, no hay aprendizaje posible.</p></div>
+              <div class="algo-card"><span class="tag">2</span><h4>Modelo</h4><p>Una familia de funciones $f_\theta$ con parámetros $\theta$. La arquitectura define qué formas puede representar.</p></div>
+              <div class="algo-card"><span class="tag">3</span><h4>Pérdida</h4><p>Una medida $L(y,f_\theta(x))$ de cuán mal predice el modelo. Convierte el objetivo en un número que se puede minimizar.</p></div>
+              <div class="algo-card"><span class="tag">4</span><h4>Optimizador</h4><p>Un procedimiento que actualiza $\theta$ para reducir la pérdida: descenso del gradiente, mínimos cuadrados, Adam…</p></div>
+            </div>
+
+            <h3>El problema de aprendizaje, formalmente</h3>
+            <p>Sea $\mathcal{H}$ el <strong>espacio de hipótesis</strong> (todas las funciones que nuestro modelo puede representar). Buscamos:</p>
+            <div class="formula">
+              <span class="formula-label">Riesgo empírico</span>
+              $$\hat{\theta} = \arg\min_{\theta} \; \hat{R}(\theta) = \arg\min_{\theta} \; \frac{1}{n}\sum_{i=1}^{n} L\left(y_i, f_\theta(x_i)\right)$$
+              <span class="formula-caption">$\hat{R}$ es el riesgo empírico: el error promedio en la muestra. El verdadero objetivo es minimizar el riesgo esperado sobre la distribución $\mathcal{D}$, que no conocemos.</span>
+            </div>
+            <p>Esta distinción es el corazón del ML: minimizar el error de entrenamiento es fácil (basta memorizar); lo difícil es <strong>generalizar</strong>. Todo el Módulo 3 gira alrededor de esa tensión.</p>
+
+            <h3>El bucle de entrenamiento</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">training_loop.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python"># Pseudocódigo del bucle universal de entrenamiento
+for epoca in range(num_epocas):
+    for batch in data_loader:
+        X, y = batch
+        y_pred = modelo(X)                 # forward pass
+        loss = perdida(y, y_pred)          # calcular error
+        gradientes = calcular_gradiente(loss, parametros)  # backprop
+        parametros -= learning_rate * gradientes           # actualizar
+    validar(modelo, validacion)            # medir generalización</code></pre></div>
+            <p>Este esqueleto es el mismo para una regresión logística, una CNN o un Transformer. Cambian el modelo, la pérdida y el optimizador; el ciclo es idéntico.</p>
+
+            <h3>Una analogía útil: el tiro con arco</h3>
+            <p>El modelo es el arco; los parámetros, la tensión y el ángulo; la pérdida, la distancia al centro; el optimizador, el ajuste tras cada flecha. Con una sola flecha no puedes calibrar; con muchas, corriges. Pero si solo practicas a una distancia fija, fallarás en otra: eso es overfitting.</p>
+
+            <h3>Tipos de aprendizaje, otra vez</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Señal disponible</th><th>Objetivo</th><th>Ejemplo</th></tr></thead>
+                <tbody>
+                  <tr><td>Etiquetas $y$</td><td>Predecir $y$</td><td>Supervisado: regresión/clasificación</td></tr>
+                  <tr><td>Solo $x$</td><td>Estructura</td><td>No supervisado: clustering, PCA</td></tr>
+                  <tr><td>Recompensa</td><td>Política óptima</td><td>Refuerzo: juegos, robótica</td></tr>
+                  <tr><td>Datos + pocas etiquetas</td><td>Predecir con bajo costo de etiquetado</td><td>Semi-supervisado</td></tr>
+                  <tr><td>El propio dato</td><td>Representación</td><td>Auto-supervisado: LLMs, contrastivo</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout info">
+              <span class="callout-title">No todo es gradient descent</span>
+              Los árboles se construyen con búsqueda codiciosa de divisiones; K-Means alterna asignaciones y centroides; los KNN no tienen entrenamiento. El marco «modelo + pérdida + optimizador» sigue aplicando, aunque el optimizador no sea un gradiente.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 3.1 · Descomponer un problema</summary>
+            <div class="answer">
+              <p>Para predecir el precio de una vivienda, define: (a) los datos y la forma de cada ejemplo; (b) el espacio de hipótesis si usas una regresión lineal; (c) la pérdida; (d) el optimizador; (e) cómo medirás la generalización.</p>
+              <p><strong>Orientación:</strong> (a) vector de features (superficie, habitaciones, distrito) y etiqueta continua; (b) $f_\theta(x)=w^\top x+b$; (c) MSE; (d) mínimos cuadrados o descenso del gradiente; (e) RMSE sobre un conjunto de prueba no utilizado durante el ajuste.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- 3.2 -->
+        <article class="lesson" id="l-m3-l2" data-title="Datos, features y labels">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 3.2</div>
+              <h2>Datos, features y labels</h2>
+              <div class="lesson-meta"><span>17 min</span><span class="sep"></span><span>Datos</span><span class="sep"></span><span>Datasets públicos</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m3-l2"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un dataset es una tabla (o colección de archivos) donde cada fila es un <strong>ejemplo</strong>, cada columna una <strong>característica</strong> y, en aprendizaje supervisado, una columna especial es la <strong>etiqueta</strong> que queremos predecir.</p>
+            <div class="formula">
+              <span class="formula-label">Matriz de diseño y vector objetivo</span>
+              $$X\in\mathbb{R}^{n\times d}, \qquad \mathbf{y}\in\mathcal{Y}^n$$
+              <span class="formula-caption">$n$ ejemplos, $d$ features. $x_{ij}$ es el valor de la feature $j$ para el ejemplo $i$.</span>
+            </div>
+
+            <h3>Tipos de variables</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Tipo</th><th>Ejemplos</th><th>Tratamiento</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Numérica continua</strong></td><td>Temperatura, ingreso, precio</td><td>Estandarizar, transformar, discretizar si aporta</td></tr>
+                  <tr><td><strong>Numérica discreta</strong></td><td>Número de hijos, clics</td><td>Tratar como numérica o categórica según cardinalidad</td></tr>
+                  <tr><td><strong>Categórica nominal</strong></td><td>Ciudad, color, marca</td><td>One-hot, target encoding, embeddings</td></tr>
+                  <tr><td><strong>Categórica ordinal</strong></td><td>Nivel educativo, riesgo</td><td>Codificación ordinal respetando el orden</td></tr>
+                  <tr><td><strong>Texto</strong></td><td>Reseñas, correos</td><td>TF-IDF, embeddings, transformers</td></tr>
+                  <tr><td><strong>Imagen</strong></td><td>Radiografías, fotos</td><td>Normalización, aumentación, CNN</td></tr>
+                  <tr><td><strong>Serie temporal</strong></td><td>Precio diario, sensores</td><td>Lags, ventanas, validación temporal</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Datasets públicos que usaremos</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Dataset</th><th>Tarea</th><th>Tamaño</th><th>Dónde</th></tr></thead>
+                <tbody>
+                  <tr><td>Iris</td><td>Clasificación multiclase</td><td>150 × 4</td><td><span class="inline-code">sklearn.datasets</span></td></tr>
+                  <tr><td>California Housing</td><td>Regresión</td><td>20 640 × 8</td><td><span class="inline-code">sklearn.datasets</span></td></tr>
+                  <tr><td>Titanic</td><td>Clasificación binaria</td><td>891 × 11</td><td>Kaggle</td></tr>
+                  <tr><td>20 Newsgroups</td><td>Clasificación de texto</td><td>≈18 000 documentos</td><td><span class="inline-code">sklearn.datasets</span></td></tr>
+                  <tr><td>SMS Spam Collection</td><td>Clasificación de texto</td><td>5 574 mensajes</td><td>UCI ML Repository</td></tr>
+                  <tr><td>MNIST / Fashion-MNIST</td><td>Clasificación de imágenes</td><td>70 000 imágenes 28×28</td><td><span class="inline-code">keras.datasets</span></td></tr>
+                  <tr><td>CIFAR-10</td><td>Clasificación de imágenes</td><td>60 000 imágenes 32×32</td><td>Toronto</td></tr>
+                  <tr><td>IMDB</td><td>Análisis de sentimiento</td><td>50 000 reseñas</td><td>Hugging Face / Keras</td></tr>
+                  <tr><td>MovieLens</td><td>Recomendación</td><td>100k–25M ratings</td><td>GroupLens</td></tr>
+                  <tr><td>Credit Card Fraud</td><td>Detección de fraude</td><td>284 807 × 30</td><td>Kaggle / OpenML</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Calidad de datos: lo que mata proyectos</h3>
+            <ul>
+              <li><strong>Valores faltantes:</strong> ¿faltan al azar o sistemáticamente? Si faltan más en un grupo, imputar la media puede introducir sesgo.</li>
+              <li><strong>Duplicados:</strong> inflan el rendimiento si caen en train y test. Elimínalos antes de dividir.</li>
+              <li><strong>Outliers:</strong> pueden ser errores o señal. Investiga antes de recortar.</li>
+              <li><strong>Etiquetas ruidosas:</strong> un 5% de etiquetas mal puestas limita el techo de cualquier modelo.</li>
+              <li><strong>Desbalance:</strong> si una clase es el 1%, accuracy no sirve como métrica.</li>
+              <li><strong>Sesgo de selección:</strong> los datos reflejan cómo se recogieron, no necesariamente la población objetivo.</li>
+            </ul>
+
+            <div class="callout warn">
+              <span class="callout-title">La regla de oro</span>
+              Un modelo mediocre con datos excelentes suele superar a un modelo excelente con datos malos. La mayor parte del trabajo real de ML es entender y curar datos, no elegir arquitecturas.
+            </div>
+
+            <h3>Cargar y dividir con Scikit-learn</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">datos.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.datasets import load_iris, fetch_california_housing
+from sklearn.model_selection import train_test_split
+
+iris = load_iris(as_frame=True)
+X, y = iris.data, iris.target
+print(X.shape, y.shape)
+print(iris.target_names)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+print("train:", X_train.shape, "test:", X_test.shape)
+
+# Regresión: sin estratificar
+housing = fetch_california_housing(as_frame=True)
+Xh, yh = housing.data, housing.target
+Xtr, Xte, ytr, yte = train_test_split(Xh, yh, test_size=0.2, random_state=42)</code></pre></div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 3.2 · Auditoría de un dataset</summary>
+            <div class="answer">
+              <p>Elige un dataset público y responde: ¿cuántas filas y columnas? ¿cuál es la etiqueta y de qué tipo? ¿hay nulos, duplicados o desbalance? ¿qué representa una fila? ¿qué riesgo de sesgo ves? Documenta tus hallazgos en una tabla antes de entrenar cualquier modelo.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- 3.3 -->
+        <article class="lesson" id="l-m3-l3" data-title="Train, validation, test y leakage">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 3.3</div>
+              <h2>Train, validation, test y fuga de información</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Metodología</span><span class="sep"></span><span>Errores críticos</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m3-l3"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">No puedes evaluar un modelo con los mismos datos con los que lo entrenaste. La separación de conjuntos es la garantía mínima de que estás midiendo <strong>generalización</strong> y no memorización.</p>
+
+            <h3>Los tres conjuntos</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Conjunto</th><th>Proporción típica</th><th>Uso</th><th>Qué no hacer</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Train</strong></td><td>60–80%</td><td>Ajustar parámetros</td><td>No evaluar rendimiento final</td></tr>
+                  <tr><td><strong>Validation</strong></td><td>10–20%</td><td>Elegir modelo e hiperparámetros</td><td>No usarlo para el ajuste de parámetros</td></tr>
+                  <tr><td><strong>Test</strong></td><td>10–20%</td><td>Estimar rendimiento final una vez</td><td>No mirarlo repetidamente para decidir</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Si el dataset es pequeño, la validación cruzada ($k$-fold) use el train completo para estimar el rendimiento y reserva el test para el final. Lo veremos en el Módulo 6.</p>
+
+            <h3>Fuga de información (data leakage)</h3>
+            <p>Ocurre cuando información del conjunto de validación o test se filtra al entrenamiento. Es la causa más común de resultados «demasiado buenos» que se desmoronan en producción.</p>
+            <div class="callout warn">
+              <span class="callout-title">Ejemplo clásico</span>
+              Estandarizas todo el dataset y <em>después</em> lo divides. La media y la desviación usadas para escalar el train incluyen información del test. La fuga es sutil, pero infla la métrica. <strong>Regla:</strong> divide primero, ajusta el preprocesamiento solo con train.
+            </div>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Fuga</th><th>Cómo se cuela</th><th>Solución</th></tr></thead>
+                <tbody>
+                  <tr><td>Escalado antes de dividir</td><td>Estadísticas globales</td><td>Pipeline que ajusta solo en train</td></tr>
+                  <tr><td>Target encoding sin CV</td><td>La media de $y$ incluye la fila</td><td>Encoding out-of-fold</td></tr>
+                  <tr><td>Duplicados entre splits</td><td>El mismo ejemplo en train y test</td><td>Deduplicar antes de dividir</td></tr>
+                  <tr><td>Features del futuro</td><td>Datos posteriores al evento</td><td>Validación temporal, revisar disponibilidad</td></tr>
+                  <tr><td>Selección de features con todo el dataset</td><td>El test influye en qué variables se eligen</td><td>Selección dentro del fold de train</td></tr>
+                  <tr><td>Ajuste de hiperparámetros en test</td><td>Eliges el mejor de 100 en el mismo test</td><td>Validación separada o anidada</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Divisiones especiales</h3>
+            <div class="two-col">
+              <div>
+                <h4>Estratificada</h4>
+                <p>Mantiene la proporción de clases en cada split. Indispensable con desbalance. <span class="inline-code">stratify=y</span>.</p>
+                <h4>Temporal</h4>
+                <p>Train con el pasado, test con el futuro. Nunca aleatorizar series temporales: rompe la causalidad y produce fugas.</p>
+              </div>
+              <div>
+                <h4>Por grupo</h4>
+                <p>Si hay varias filas por paciente o usuario, todos sus registros deben ir al mismo split. Evita que el modelo reconozca individuos.</p>
+                <h4>Validación cruzada</h4>
+                <p>Cuando hay pocos datos: $k$ particiones, se entrena $k$ veces y se promedian las métricas. Más robusta que un solo split.</p>
+              </div>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">splits.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.model_selection import (
+    train_test_split, StratifiedKFold, TimeSeriesSplit, GroupKFold
+)
+
+# 1) Split estratificado (clasificación desbalanceada)
+X_tr, X_te, y_tr, y_te = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+# 2) Validación cruzada estratificada
+skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+for fold, (tr_idx, va_idx) in enumerate(skf.split(X, y), 1):
+    print(f"fold {fold}: train={len(tr_idx)}, val={len(va_idx)}")
+
+# 3) Serie temporal: nunca mezclar pasado y futuro
+tscv = TimeSeriesSplit(n_splits=5)
+
+# 4) Por grupo (mismo paciente no se reparte entre splits)
+# gkf = GroupKFold(n_splits=5)
+# for tr, va in gkf.split(X, y, groups=patient_id):
+#     ...
+
+# 5) Test final: se toca una sola vez
+# metricas_finales = evaluar(modelo_final, X_te, y_te)</code></pre></div>
+
+            <div class="callout tip">
+              <span class="callout-title">Regla práctica</span>
+              Si tu métrica de test es sospechosamente alta, busca una fuga antes de celebrar. Pregunta: ¿alguna feature se calcula después del evento? ¿el mismo ejemplo aparece dos veces? ¿el preprocesamiento vio el test?
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 3.3 · Detectar fugas</summary>
+            <div class="answer">
+              <p>Un modelo predice si un cliente cancelará su suscripción con accuracy 0.99. Entre las features están «número de llamadas al servicio de cancelación» y «fecha de baja». ¿Qué está mal?</p>
+              <p><strong>Respuesta:</strong> ambas features se conocen solo después (o durante) la cancelación. Son consecuencias de la etiqueta, no predictores disponibles en el momento de la decisión. El modelo aprende a detectar el evento ya ocurrido. La solución es usar solo información disponible antes del periodo de predicción y validar temporalmente.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- 3.4 -->
+        <article class="lesson" id="l-m3-l4" data-title="Modelos, parámetros e hiperparámetros">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 3.4</div>
+              <h2>Modelos, parámetros e hiperparámetros</h2>
+              <div class="lesson-meta"><span>16 min</span><span class="sep"></span><span>Conceptual</span><span class="sep"></span><span>Capacidad</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m3-l4"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <h3>Parámetros vs. hiperparámetros</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th></th><th>Parámetros</th><th>Hiperparámetros</th></tr></thead>
+                <tbody>
+                  <tr><td>Se aprenden</td><td>Sí, durante el entrenamiento</td><td>No, se eligen antes</td></tr>
+                  <tr><td>Ejemplos</td><td>Pesos $w$, sesgos $b$, centroides</td><td>Tasa de aprendizaje, $k$ en KNN, profundidad de árbol</td></tr>
+                  <tr><td>Cómo se fijan</td><td>Optimización</td><td>Validación cruzada, búsqueda</td></tr>
+                  <tr><td>Impacto</td><td>Definen la función ajustada</td><td>Definen la capacidad y el proceso de aprendizaje</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Capacidad del modelo</h3>
+            <p>La <strong>capacidad</strong> es la complejidad de las funciones que un modelo puede representar. Un polinomio de grado 1 tiene capacidad baja; uno de grado 20, alta. Una red con millones de pesos, altísima.</p>
+            <div class="formula">
+              <span class="formula-label">Compromiso capacidad–generalización</span>
+              $$\text{Error total} = \text{Error de aproximación (bias)} + \text{Error de estimación (variance)} + \text{Ruido}$$
+              <span class="formula-caption">Demasiada capacidad → overfitting. Demasiada poca → underfitting. El objetivo es el punto de equilibrio para tu tamaño de datos.</span>
+            </div>
+
+            <h3>Modelos paramétricos y no paramétricos</h3>
+            <ul>
+              <li><strong>Paramétricos:</strong> tienen un número fijo de parámetros. Regresión lineal, regresión logística, Naive Bayes. Rápidos, interpretables, pero asumen una forma funcional.</li>
+              <li><strong>No paramétricos:</strong> el número de parámetros crece con los datos. KNN, árboles, SVM con kernel, procesos gaussianos. Más flexibles, pero pueden ser costosos y sobreajustar.</li>
+            </ul>
+
+            <h3>Hiperparámetros que más importan</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Modelo</th><th>Hiperparámetros clave</th><th>Efecto</th></tr></thead>
+                <tbody>
+                  <tr><td>Regresión Ridge/Lasso</td><td>$\alpha$</td><td>Más $\alpha$ → más regularización, menos overfitting</td></tr>
+                  <tr><td>KNN</td><td>$k$, distancia, pesos</td><td>$k$ pequeño → frontera compleja; $k$ grande → suaviza</td></tr>
+                  <tr><td>Árbol de decisión</td><td>Profundidad, mín. muestras por hoja</td><td>Más profundidad → más capacidad</td></tr>
+                  <tr><td>Random Forest</td><td>Nº árboles, max_features, profundidad</td><td>Más árboles → más estabilidad (con costo)</td></tr>
+                  <tr><td>SVM</td><td>$C$, kernel, $\gamma$</td><td>$C$ y $\gamma$ altos → frontera compleja</td></tr>
+                  <tr><td>Gradient Boosting</td><td>Nº árboles, lr, profundidad, subsample</td><td>Combinación delicada; lr bajo + más árboles suele funcionar</td></tr>
+                  <tr><td>Red neuronal</td><td>Capas, neuronas, lr, dropout, batch size</td><td>Arquitectura y regularización</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout info">
+              <span class="callout-title">No existe «el mejor hiperparámetro» universal</span>
+              Depende del dataset, del tamaño, del ruido y de la métrica. Por eso se buscan empíricamente con validación. Copiar hiperparámetros de un tutorial sin validarlos es una receta para el fracaso.
+            </div>
+
+            <h3>Un ejemplo concreto: KNN</h3>
+            <p>Con $k=1$, cada punto de entrenamiento es su propio vecino: la frontera pasa por todos los puntos y el error de entrenamiento es cero, pero el de test suele ser alto. Con $k=n$, todos predicen la clase mayoritaria: underfitting extremo. El valor óptimo está en medio y se encuentra con validación cruzada.</p>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">hiperparametros.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import cross_val_score
+import numpy as np
+
+for k in [1, 3, 5, 11, 21, 51]:
+    modelo = KNeighborsClassifier(n_neighbors=k)
+    scores = cross_val_score(modelo, X, y, cv=5, scoring="accuracy")
+    print(f"k={k:2d}  accuracy={scores.mean():.3f} ± {scores.std():.3f}")</code></pre></div>
+
+            <p>La curva típica de accuracy vs. $k$ tiene forma de U invertida. Ese es el compromiso sesgo–varianza en acción.</p>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 3.4</summary>
+            <div class="answer">
+              <ol>
+                <li>Clasifica: (a) coeficientes de una regresión; (b) número de vecinos en KNN; (c) pesos de una red; (d) profundidad máxima de un árbol; (e) media aprendida por un escalador. Parámetros: a, c, e. Hiperparámetros: b, d.</li>
+                <li>¿Qué esperas si usas un polinomio de grado 50 con 20 puntos? Overfitting: pasa por todos los puntos y oscila entre ellos.</li>
+                <li>¿Qué harías si el error de train es 0.01 y el de validación 0.40? Reducir capacidad o regularizar; recoger más datos; simplificar features.</li>
+              </ol>
+            </div>
+          </div>
+        </article>
+
+        <!-- 3.5 -->
+        <article class="lesson" id="l-m3-l5" data-title="Funciones de pérdida y optimización">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 3.5</div>
+              <h2>Funciones de pérdida y optimización</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Matemática aplicada</span><span class="sep"></span><span>MSE + cross-entropy</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m3-l5"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">La función de pérdida define <strong>qué significa equivocarse</strong>. Elegirla mal puede hacer que un modelo optimice lo que no importa. No es un detalle técnico: es una decisión de diseño.</p>
+
+            <h3>Pérdidas para regresión</h3>
+            <div class="formula">
+              <span class="formula-label">MSE, MAE y Huber</span>
+              $$\text{MSE}=\frac1n\sum_{i=1}^{n}(y_i-\hat{y}_i)^2, \qquad \text{MAE}=\frac1n\sum_{i=1}^{n}|y_i-\hat{y}_i|$$
+              $$\text{Huber}_\delta(e)=\begin{cases}\frac12e^2 & |e|\leq\delta\\ \delta(|e|-\frac12\delta) & |e|>\delta\end{cases}$$
+              <span class="formula-caption">MSE penaliza fuerte los errores grandes; MAE es robusta a outliers; Huber combina ambas.</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Pérdida</th><th>Sensible a outliers</th><th>Derivada</th><th>Cuándo usar</th></tr></thead>
+                <tbody>
+                  <tr><td>MSE</td><td>Alta</td><td>Suave</td><td>Ruido gaussiano, sin outliers extremos</td></tr>
+                  <tr><td>MAE</td><td>Baja</td><td>No derivable en 0</td><td>Outliers, métrica de negocio absoluta</td></tr>
+                  <tr><td>Huber</td><td>Media</td><td>Suave</td><td>Compromiso práctico</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Pérdidas para clasificación</h3>
+            <div class="formula">
+              <span class="formula-label">Entropía cruzada binaria</span>
+              $$L(y,p)=-\left[y\log p+(1-y)\log(1-p)\right]$$
+              <span class="formula-caption">$y\in\{0,1\}$; $p=P(y=1\mid x)$. Si $y=1$ y $p\to0$, la pérdida $\to\infty$: castiga con dureza la confianza equivocada.</span>
+            </div>
+            <div class="formula">
+              <span class="formula-label">Entropía cruzada multiclase</span>
+              $$L(\mathbf{y},\mathbf{p})=-\sum_{k=1}^{K}y_k\log p_k, \qquad p_k=\frac{e^{z_k}}{\sum_j e^{z_j}}\;(\text{softmax})$$
+            </div>
+            <p>La <strong>entropía cruzada</strong> es la pérdida estándar en clasificación porque proviene de maximizar la verosimilitud de la clase correcta. Para $K$ clases, el modelo produce un vector de probabilidades que suma 1.</p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span> Comparar dos predicciones</div>
+              <div class="example-body">
+                <p>Etiqueta real $y=1$. Modelo A predice $p=0.9$; modelo B predice $p=0.6$.</p>
+                <div class="step"><span class="step-n">A</span><div>$L_A=-\log(0.9)=0.105$.</div></div>
+                <div class="step"><span class="step-n">B</span><div>$L_B=-\log(0.6)=0.511$.</div></div>
+                <p>El modelo A es mucho mejor según la log-loss, aunque ambos aciertan la clase. La pérdida premia la <strong>confianza calibrada</strong>, no solo el acierto.</p>
+              </div>
+            </div>
+
+            <h3>Otras pérdidas</h3>
+            <ul>
+              <li><strong>Hinge:</strong> $\max(0,1-y\,f(x))$, usada en SVM; margen y clasificación correcta.</li>
+              <li><strong>Focal loss:</strong> modula la entropía cruzada para enfocarse en ejemplos difíciles; común en detección de objetos.</li>
+              <li><strong>Triplet / contrastiva:</strong> acerca representaciones de ejemplos similares y aleja las distintas; base de embeddings.</li>
+              <li><strong>Dice / IoU:</strong> segmentación de imágenes, donde el desbalance píxel a píxel es extremo.</li>
+            </ul>
+
+            <h3>Optimización: qué significa resolver</h3>
+            <p>Minimizar una pérdida es un problema de optimización. Si la función es convexa, cualquier mínimo local es global. Si no, el resultado depende de la inicialización y del optimizador. En la práctica no buscamos el mínimo global exacto: buscamos un modelo que generalice bien.</p>
+            <div class="formula">
+              <span class="formula-label">Descenso del gradiente estocástico</span>
+              $$\theta_{t+1}=\theta_t-\eta\,\nabla_\theta L\left(\theta_t;\, \mathcal{B}_t\right)$$
+              <span class="formula-caption">$\mathcal{B}_t$ es un mini-batch. El gradiente es una estimación ruidosa del gradiente completo.</span>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">perdidas.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+
+def mse(y, yp):
+    return np.mean((y - yp) ** 2)
+
+def mae(y, yp):
+    return np.mean(np.abs(y - yp))
+
+def huber(y, yp, delta=1.0):
+    e = y - yp
+    return np.mean(np.where(np.abs(e) <= delta,
+                            0.5 * e**2,
+                            delta * (np.abs(e) - 0.5 * delta)))
+
+def bce(y, p, eps=1e-12):
+    p = np.clip(p, eps, 1 - eps)
+    return -np.mean(y * np.log(p) + (1 - y) * np.log(1 - p))
+
+y = np.array([1, 0, 1, 1])
+p = np.array([0.9, 0.2, 0.8, 0.6])
+print("BCE:", bce(y, p))       # 0.288
+
+y_real = np.array([3., -0.5, 2., 7.])
+y_pred = np.array([2.5, 0.0, 2., 8.])
+print("MSE:", mse(y_real, y_pred))
+print("MAE:", mae(y_real, y_pred))
+print("Huber:", huber(y_real, y_pred))</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">La pérdida y la métrica no son lo mismo</span>
+              Puedes entrenar con entropía cruzada y evaluar con F1, o entrenar con MSE y evaluar con MAE. La pérdida debe ser optimizable; la métrica debe reflejar el objetivo real. Cuando divergen mucho, considera una pérdida alineada con el negocio o ajusta el umbral.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicios 3.5</summary>
+            <div class="answer">
+              <ol>
+                <li>Calcula la BCE para $y=0$, $p=0.1$: $-\log(0.9)=0.105$.</li>
+                <li>Para $y=(1,1,0)$, $p=(0.8,0.6,0.3)$: BCE $=-\frac13(\ln0.8+\ln0.6+\ln0.7)\approx0.363$.</li>
+                <li>¿Por qué MAE no es ideal con descenso del gradiente? Su derivada es constante salvo en 0; cerca del mínimo oscila y no converge suavemente.</li>
+                <li>Un modelo predice probabilidades de 0.99 para todas las transacciones y todas son normales. ¿Qué métrica lo delata? Log-loss y calibración, no accuracy (sería 99%+).</li>
+              </ol>
+            </div>
+          </div>
+        </article>
+
+        <!-- 3.6 -->
+        <article class="lesson" id="l-m3-l6" data-title="Generalización, bias-variance y regularización">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 3.6</div>
+              <h2>Generalización, bias-variance y regularización</h2>
+              <div class="lesson-meta"><span>24 min</span><span class="sep"></span><span>El concepto central</span><span class="sep"></span><span>Simulador incluido</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m3-l6"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un modelo generaliza si funciona bien en datos nuevos. El <strong>overfitting</strong> es memorizar el ruido del entrenamiento; el <strong>underfitting</strong> es no capturar ni la señal. Entre ambos hay un equilibrio que se gestiona con capacidad y regularización.</p>
+
+            <h3>Descomposición sesgo–varianza</h3>
+            <div class="formula">
+              <span class="formula-label">Para pérdida cuadrática</span>
+              $$\mathbb{E}\left[(y-\hat{f}(x))^2\right] = \underbrace{\sigma^2}_{\text{ruido}} + \underbrace{\left(\mathbb{E}[\hat{f}(x)]-f(x)\right)^2}_{\text{sesgo}^2} + \underbrace{\mathbb{E}\left[\left(\hat{f}(x)-\mathbb{E}[\hat{f}(x)]\right)^2\right]}_{\text{varianza}}$$
+              <span class="formula-caption">El ruido es irreducible. El sesgo mide cuán lejos está el modelo promedio de la verdad; la varianza, cuánto cambia entre muestras.</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Situación</th><th>Sesgo</th><th>Varianza</th><th>Síntoma</th><th>Remedio</th></tr></thead>
+                <tbody>
+                  <tr><td>Underfitting</td><td>Alto</td><td>Baja</td><td>Error alto en train y validación</td><td>Más capacidad, mejores features</td></tr>
+                  <tr><td>Equilibrio</td><td>Medio</td><td>Media</td><td>Gap pequeño y error bajo</td><td>—</td></tr>
+                  <tr><td>Overfitting</td><td>Baja</td><td>Alta</td><td>Train bajo, validación alta</td><td>Regularizar, más datos, simplificar</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout math">
+              <span class="callout-title">Intuición</span>
+              Un modelo de bias alto es como un arco mal calibrado: siempre falla hacia el mismo lado. Uno de varianza alta es como un tirador nervioso: acierta a veces, pero sus flechas se dispersan. Queremos un tirador centrado y consistente.
+            </div>
+
+            <h3>Curvas de aprendizaje</h3>
+            <p>Graficar el error de entrenamiento y validación en función de:</p>
+            <ul>
+              <li><strong>El tamaño del entrenamiento:</strong> si ambas curvas convergen a un error alto, hay underfitting. Si hay una brecha grande, overfitting o necesidad de más datos.</li>
+              <li><strong>La complejidad del modelo:</strong> a mayor complejidad, el error de train baja siempre; el de validación baja y luego sube. El mínimo de validación es el punto óptimo.</li>
+              <li><strong>Las épocas:</strong> en redes, la validación empeora tras cierto punto; el early stopping corta ahí.</li>
+            </ul>
+
+            <div class="sim" data-sim="overfit">
+              <div class="sim-head">
+                <div class="sim-icon">∿</div>
+                <div><h4>Simulador · Overfitting y underfitting</h4><p>Ajusta un polinomio de grado variable a datos ruidosos y observa el error de train vs. test.</p></div>
+              </div>
+              <div class="sim-body">
+                <div class="sim-canvas-wrap"><canvas id="overfitCanvas" width="560" height="360" aria-label="Simulador de overfitting"></canvas></div>
+                <div class="sim-controls">
+                  <div class="ctrl"><label for="ofDegree">Grado del polinomio <output id="ofDegreeOut">1</output></label><input type="range" id="ofDegree" min="1" max="15" step="1" value="1"></div>
+                  <div class="ctrl"><label for="ofNoise">Ruido de los datos <output id="ofNoiseOut">0.25</output></label><input type="range" id="ofNoise" min="0" max="0.6" step="0.05" value="0.25"></div>
+                  <div class="btn-row">
+                    <button class="btn small" id="ofNew" type="button">Nuevos datos</button>
+                    <button class="btn small" id="ofOpt" type="button">Grado óptimo</button>
+                  </div>
+                  <div class="sim-readout">
+                    <div>MSE train = <b id="ofTrain">—</b></div>
+                    <div>MSE test = <b id="ofTest">—</b></div>
+                    <div>Diagnóstico: <b id="ofDiag">—</b></div>
+                  </div>
+                  <div class="sim-hint">Verde: train. Naranja: test. Azul: ajuste. Los puntos grises son datos de test no vistos.</div>
+                </div>
+              </div>
+            </div>
+
+            <h3>Regularización</h3>
+            <p>Regularizar es añadir una penalización a la pérdida para limitar la complejidad de los parámetros:</p>
+            <div class="formula">
+              <span class="formula-label">Ridge (L2), Lasso (L1) y Elastic Net</span>
+              $$L_{\text{ridge}}=L+\lambda\|\mathbf{w}\|_2^2, \qquad L_{\text{lasso}}=L+\lambda\|\mathbf{w}\|_1, \qquad L_{\text{EN}}=L+\lambda\left(\alpha\|\mathbf{w}\|_1+(1-\alpha)\|\mathbf{w}\|_2^2\right)$$
+              <span class="formula-caption">$\lambda$ controla la fuerza. L2 encoge los pesos; L1 además los lleva a cero y selecciona features.</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Técnica</th><th>Cómo reduce overfitting</th><th>Coste</th></tr></thead>
+                <tbody>
+                  <tr><td>Regularización L1/L2</td><td>Limita la magnitud de los pesos</td><td>Sesgo introducido; requiere escalar features</td></tr>
+                  <tr><td>Más datos</td><td>Reduce la varianza de la estimación</td><td>Costoso o imposible</td></tr>
+                  <tr><td>Simplificar el modelo</td><td>Menos capacidad</td><td>Puede aumentar el sesgo</td></tr>
+                  <tr><td>Early stopping</td><td>Detiene antes de memorizar</td><td>Necesita validación</td></tr>
+                  <tr><td>Dropout</td><td>Desactiva neuronas al azar</td><td>Entrenamiento más lento</td></tr>
+                  <tr><td>Data augmentation</td><td>Amplía la variedad de ejemplos</td><td>Transformaciones válidas para el dominio</td></tr>
+                  <tr><td>Ensembles</td><td>Promediar modelos reduce varianza</td><td>Más cómputo e interpretación difícil</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">regularizacion.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">from sklearn.linear_model import Ridge, Lasso, ElasticNet
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+from sklearn.model_selection import cross_val_score
+
+# Importante: escalar antes de regularizar
+for alpha in [0.001, 0.01, 0.1, 1, 10, 100]:
+    ridge = make_pipeline(StandardScaler(), Ridge(alpha=alpha))
+    lasso = make_pipeline(StandardScaler(), Lasso(alpha=alpha, max_iter=10_000))
+    r = cross_val_score(ridge, X, y, cv=5, scoring="r2").mean()
+    l = cross_val_score(lasso, X, y, cv=5, scoring="r2").mean()
+    print(f"alpha={alpha:>6}  ridge={r:.3f}  lasso={l:.3f}")
+
+# Inspeccionar coeficientes de Lasso
+lasso = make_pipeline(StandardScaler(), Lasso(alpha=0.1)).fit(X, y)
+coefs = lasso[-1].coef_
+print("features con peso cero:", (coefs == 0).sum(), "de", len(coefs))</code></pre></div>
+
+            <div class="callout tip">
+              <span class="callout-title">Diagnóstico rápido</span>
+              Si el error de train es bajo y el de validación alto: reduce capacidad o regulariza. Si ambos son altos: aumenta capacidad o mejora las features. Si la brecha es pequeña pero el error es alto: el problema está en los datos o en la formulación, no en el modelo.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicios 3.6</summary>
+            <div class="answer">
+              <ol>
+                <li>Un modelo tiene MSE train 0.05 y validación 0.35. ¿Overfitting o underfitting? Overfitting; prueba regularización o más datos.</li>
+                <li>¿Qué esperas si aumentas $\lambda$ en Ridge hasta infinito? Los pesos tienden a cero; el modelo predice la media y aumenta el sesgo.</li>
+                <li>¿Por qué Lasso puede seleccionar features? Porque la geometría de la norma L1 tiene vértices en los ejes; el óptimo suele caer en uno de ellos, con coeficientes exactamente cero.</li>
+                <li>Explica por qué añadir ruido a los datos de entrenamiento puede reducir la varianza. Actúa como regularización: impide que el modelo se ajuste a particularidades exactas.</li>
+              </ol>
+            </div>
+          </div>
+        </article>
+
+        <!-- 3.7 -->
+        <article class="lesson" id="l-m3-l7" data-title="El pipeline de Machine Learning">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 3.7</div>
+              <h2>El pipeline de Machine Learning</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Ingeniería</span><span class="sep"></span><span>Scikit-learn</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m3-l7"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un <strong>pipeline</strong> encadena transformaciones y un modelo final en un solo objeto. Garantiza que el preprocesamiento se ajuste solo con train, evita fugas y hace que el despliegue sea reproducible.</p>
+
+            <h3>Flujo completo</h3>
+            <ol>
+              <li><strong>Definir el problema y la métrica.</strong></li>
+              <li><strong>Cargar y auditar los datos.</strong></li>
+              <li><strong>Dividir</strong> train / validación / test.</li>
+              <li><strong>Explorar</strong> solo el train (estadísticas, gráficos).</li>
+              <li><strong>Construir el pipeline</strong> de preprocesamiento + modelo.</li>
+              <li><strong>Validar</strong> con cross-validation y buscar hiperparámetros.</li>
+              <li><strong>Entrenar</strong> el modelo final con train+validación.</li>
+              <li><strong>Evaluar una vez</strong> en test.</li>
+              <li><strong>Analizar errores</strong> e interpretar.</li>
+              <li><strong>Serializar, desplegar y monitorear.</strong></li>
+            </ol>
+
+            <h3>Pipeline con columnas numéricas y categóricas</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">pipeline.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, roc_auc_score
+
+# Dataset de ejemplo (reemplaza por el tuyo)
+from sklearn.datasets import fetch_openml
+# titanic = fetch_openml("titanic", version=1, as_frame=True).frame
+
+# Simulamos un DataFrame con columnas mixtas
+rng = np.random.default_rng(42)
+n = 400
+df = pd.DataFrame({
+    "edad": rng.normal(38, 12, n).round(),
+    "tarifa": rng.lognormal(3, 1, n).round(2),
+    "clase": rng.choice(["primera", "segunda", "tercera"], n),
+    "puerto": rng.choice(["S", "C", "Q"], n),
+    "sobrevivio": rng.integers(0, 2, n),
+})
+df.loc[rng.choice(n, 30), "edad"] = np.nan
+
+X = df.drop(columns="sobrevivio")
+y = df["sobrevivio"]
+
+num_cols = ["edad", "tarifa"]
+cat_cols = ["clase", "puerto"]
+
+preprocesador = ColumnTransformer([
+    ("num", Pipeline([
+        ("imputar", SimpleImputer(strategy="median")),
+        ("escalar", StandardScaler()),
+    ]), num_cols),
+    ("cat", Pipeline([
+        ("imputar", SimpleImputer(strategy="most_frequent")),
+        ("onehot", OneHotEncoder(handle_unknown="ignore")),
+    ]), cat_cols),
+])
+
+pipeline = Pipeline([
+    ("prep", preprocesador),
+    ("modelo", RandomForestClassifier(random_state=42)),
+])
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+parametros = {
+    "modelo__n_estimators": [100, 300],
+    "modelo__max_depth": [None, 5, 10],
+    "modelo__min_samples_leaf": [1, 3, 5],
+}
+
+busqueda = GridSearchCV(pipeline, parametros, cv=5, scoring="roc_auc", n_jobs=-1)
+busqueda.fit(X_train, y_train)
+
+print("mejores params:", busqueda.best_params_)
+print("mejor CV AUC:", round(busqueda.best_score_, 3))
+
+y_pred = busqueda.predict(X_test)
+y_prob = busqueda.predict_proba(X_test)[:, 1]
+print(classification_report(y_test, y_pred))
+print("AUC test:", round(roc_auc_score(y_test, y_prob), 3))</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">El pipeline se ajusta completo</span>
+              <span class="inline-code">GridSearchCV</span> reajusta el preprocesamiento dentro de cada fold. Por eso es seguro: las estadísticas de imputación y escalado se calculan solo con el train del fold. Si preprocesas fuera y pasas los datos transformados, vuelve la fuga.
+            </div>
+
+            <h3>Errores frecuentes en el pipeline</h3>
+            <ul>
+              <li>Escalar o imputar antes de dividir.</li>
+              <li>Incluir el ID como feature.</li>
+              <li>Usar la etiqueta para construir una feature.</li>
+              <li>Evaluar en test más de una vez y ajustar decisiones con esa información.</li>
+              <li>No versionar el pipeline: el modelo serializado debe incluir el preprocesamiento.</li>
+              <li>Entrenar con una distribución y desplegar en otra sin monitoreo.</li>
+            </ul>
+
+            <h3>Línea base: el modelo que debes superar</h3>
+            <p>Siempre empieza con una <strong>baseline</strong>. En clasificación, predecir la clase mayoritaria; en regresión, predecir la media. Si tu modelo complejo no supera claramente la baseline, no justifica su costo. Documenta la mejora con intervalos de confianza.</p>
+
+            <div class="callout tip">
+              <span class="callout-title">Cierre del módulo</span>
+              Ya tienes el marco: datos representativos, split honesto, pérdida alineada, modelo con capacidad adecuada, regularización y evaluación en datos no vistos. Todos los algoritmos del Módulo 4 encajan en este marco; ninguno lo sustituye.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicios 3.7</summary>
+            <div class="answer">
+              <ol>
+                <li>Construye un pipeline para el dataset Titanic con imputación, one-hot y regresión logística. Reporta AUC con validación cruzada.</li>
+                <li>Compara el pipeline con una baseline que predice siempre la clase mayoritaria. ¿Cuánto mejora?</li>
+                <li>Elimina una feature sospechosa de fuga y observa el cambio en la métrica. Documenta el resultado.</li>
+                <li>Serializa el pipeline completo con joblib y vuelve a cargarlo; comprueba que predice lo mismo.</li>
+              </ol>
+            </div>
+          </div>
+          <div class="quiz-mount" data-quiz="3"></div>
+        </article>
