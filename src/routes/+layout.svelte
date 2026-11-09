@@ -8,6 +8,7 @@
   import SearchModal from '$lib/components/SearchModal.svelte';
   import { progress, overallPct } from '$lib/stores/progress';
   import { initTheme, sidebarOpen, searchOpen } from '$lib/stores/ui';
+  import { initPWA } from '$lib/stores/pwa';
 
   let { children } = $props();
   let mounted = $state(false);
@@ -15,6 +16,7 @@
   onMount(() => {
     progress.hydrate();
     initTheme();
+    initPWA();
     mounted = true;
 
     const onKey = (ev: KeyboardEvent) => {

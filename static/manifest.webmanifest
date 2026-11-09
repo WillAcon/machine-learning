@@ -1,0 +1,65 @@
+{
+  "id": "/",
+  "name": "Curso de Machine Learning",
+  "short_name": "ML Course",
+  "description": "Curso interactivo de Machine Learning en español: 12 módulos, 100 lecciones, simuladores, quizzes, examen y proyectos con datasets públicos.",
+  "lang": "es",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f7f5ef",
+  "theme_color": "#0f1b2d",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Continuar el curso",
+      "short_name": "Curso",
+      "description": "Abrir el dashboard y continuar donde lo dejaste",
+      "url": "/",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Examen final",
+      "short_name": "Examen",
+      "description": "Pon a prueba lo aprendido",
+      "url": "/examen",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Glosario",
+      "short_name": "Glosario",
+      "description": "Buscar un término de Machine Learning",
+      "url": "/glosario",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

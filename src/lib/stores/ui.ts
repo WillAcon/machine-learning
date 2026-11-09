@@ -19,6 +19,8 @@ export function applyTheme(value: Theme) {
   if (browser) {
     document.documentElement.dataset.theme = value;
     localStorage.setItem('mlcourse.theme', value);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', value === 'dark' ? '#0b1526' : '#f7f5ef');
   }
   theme.set(value);
 }

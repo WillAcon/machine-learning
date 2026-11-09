@@ -4,6 +4,8 @@ Plataforma interactiva en español para estudiar Machine Learning de cero a prod
 
 El sitio es estático: SvelteKit con `@sveltejs/adapter-static` genera HTML prerenderizado en `build/`, listo para Vercel. El progreso, los quizzes, el examen y el tema se guardan en `localStorage`; no hay backend ni cuentas. MathJax y las fuentes se cargan desde CDN.
 
+También es una **PWA instalable**: incluye manifest, service worker, iconos y una página offline. En Android/escritorio aparece un botón de instalación en la barra superior; en iPhone/iPad se instala desde Safari con **Compartir → Añadir a pantalla de inicio**.
+
 **Versión:** `v1.0.0` · **Estado:** completa y verificada (`npm run check` y `npm run build` sin errores).
 
 ## Contenido del curso
@@ -128,6 +130,7 @@ build/
 │   │   │   └── conv.ts                 # convolución
 │   │   └── stores/
 │   │       ├── progress.ts             # progreso, quizzes, examen, tiempo y exportación
+│   │       ├── pwa.ts                  # instalación, service worker y detección de iOS
 │   │       └── ui.ts                   # tema, sidebar, búsqueda y lección activa
 │   └── routes/
 │       ├── +error.svelte               # página de error
@@ -141,7 +144,17 @@ build/
 │       ├── modulos/[slug]/+page.ts     # validación del slug y carga de datos
 │       └── progreso/+page.svelte       # estadísticas, exportar y reiniciar
 ├── static/
-│   └── favicon.svg
+│   ├── favicon.svg
+│   ├── manifest.webmanifest            # nombre, colores, iconos y shortcuts de la PWA
+│   ├── offline.html                    # fallback cuando no hay red ni caché de la ruta
+│   ├── sw.js                           # service worker (network-first + caché)
+│   └── icons/
+│       ├── icon.svg                    # fuente vectorial del icono
+│       ├── icon-maskable.svg           # fuente con zona segura para Android
+│       ├── icon-192.png                # icono PWA 192×192
+│       ├── icon-512.png                # icono PWA 512×512
+│       ├── icon-maskable-512.png       # icono maskable 512×512
+│       └── apple-touch-icon.png        # icono iOS 180×180
 ├── package.json
 ├── package-lock.json
 ├── svelte.config.js                    # adapter-static, aliases y prerender
@@ -231,8 +244,35 @@ Los simuladores están implementados en Canvas 2D y se inicializan desde `src/li
 - Búsqueda global con `⌘K` en macOS o `Ctrl K` en Windows/Linux; `Escape` cierra el buscador y los overlays.
 - Tema claro/oscuro persistente; el tema inicial se aplica antes de hidratar para evitar parpadeos.
 - Navegación con teclado en el buscador (`↑`, `↓`, `Enter`, `Escape`).
-- Layout responsive con sidebar deslizante en móvil, sin desbordamiento horizontal a 390 px.
+- Layout responsive con sidebar deslizante en móvil; probado sin desbordamiento de botones a 320, 360 y 390 px.
 - Las fórmulas se tipografían de forma serializada para evitar errores de hidratación.
+
+## Aplicación instalable (PWA)
+
+La app se puede instalar y usar sin barra de navegador. La configuración vive en:
+
+- `static/manifest.webmanifest`: nombre, `start_url`, `display: standalone`, colores, iconos y atajos a examen/glosario.
+- `static/sw.js`: service worker con estrategia mixta:
+  - Navegaciones HTML: **network-first**, con la copia en caché como respaldo.
+  - Assets con hash de `/_app/immutable/`: **cache-first**.
+  - Recursos estables e iconos: **stale-while-revalidate**.
+  - Sin red y sin copia de la ruta: muestra `static/offline.html`.
+- `static/icons/`: iconos 192, 512, maskable y Apple Touch.
+- `src/lib/stores/pwa.ts`: captura `beforeinstallprompt`, registra `/sw.js` en producción y detecta iOS.
+
+### Instalar
+
+- **Android / Chrome / Edge / escritorio:** pulsa el icono de descarga que aparece en la barra superior cuando el navegador ofrece la instalación. También puedes usar el menú del navegador → **Instalar aplicación**.
+- **iPhone / iPad:** abre el sitio en Safari, toca **Compartir** y elige **Añadir a pantalla de inicio**. El dashboard muestra un aviso con estas instrucciones en iOS.
+- **Localhost:** la instalación solo se ofrece en `https://` o `localhost`; usa `npm run build && npm run preview`. En `npm run dev` el service worker no se registra para no interferir con la recarga en caliente.
+
+### Actualizar la PWA
+
+- El HTML se pide primero a la red, así que un deploy nuevo se ve al recargar.
+- Si cambias la estrategia del service worker, sube `CACHE_VERSION` en `static/sw.js` para eliminar cachés antiguas.
+- `vercel.json` sirve `/sw.js` con `max-age=0, must-revalidate` y `Service-Worker-Allowed: /` para que el navegador detecte actualizaciones y el scope sea la raíz.
+
+El modo offline conserva las páginas que ya visitaste. Una ruta nueva sin conexión muestra la página de aviso; no se precargan los 12 módulos completos para no descargar varios megabytes en la instalación.
 
 ## Persistencia
 
@@ -305,6 +345,9 @@ Estado verificado de esta versión:
 - `svelte-check`: **0 errores, 0 advertencias**.
 - Build estático: **12 páginas de módulo, 100 lecciones, 12 quiz-mounts** y `404.html`.
 - Pruebas de interacción en Chrome headless: **13/13** (persistencia de lecciones y quizzes, tema, búsqueda, `Escape`, layout móvil y sidebar).
+- PWA: manifest parseado sin errores, `Page.getInstallabilityErrors` vacío, service worker activo y controlando la página, botón de instalación disponible y los cuatro iconos responden 200.
+- Offline real con el servidor detenido: una lección visitada sigue abriendo y una ruta nueva muestra `offline.html`.
+- Responsive: sin desbordamiento de botones ni scroll horizontal a 320, 360 y 390 px en dashboard, módulos, examen, progreso, glosario y bibliografía.
 
 ## Solución de problemas
 
@@ -312,3 +355,6 @@ Estado verificado de esta versión:
 - **Las fórmulas no se renderizan:** MathJax se carga desde CDN; comprueba la conexión y la consola del navegador.
 - **El progreso no aparece:** verifica que el navegador permita `localStorage` y que no estés en modo privado con almacenamiento bloqueado.
 - **Un simulador no responde:** confirma que el bloque `data-sim` y los IDs de controles coinciden con los de `src/lib/simulators/`.
+- **No aparece el botón de instalar:** la PWA requiere HTTPS o `localhost`, un manifest válido y un service worker activo. En iOS no existe `beforeinstallprompt`: usa Safari → Compartir → Añadir a pantalla de inicio.
+- **Un deploy nuevo no se refleja:** recarga una vez para que el service worker actualice la caché. Si cambiaste la estrategia, sube `CACHE_VERSION` en `static/sw.js`.
+- **Una ruta no abre sin conexión:** solo se guardan las páginas que ya visitaste; las demás muestran `offline.html`.

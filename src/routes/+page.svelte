@@ -8,6 +8,7 @@
     progress,
     quizAverage
   } from '$lib/stores/progress';
+  import { installed, isIOS } from '$lib/stores/pwa';
   import ProgressRing from '$lib/components/ProgressRing.svelte';
 
   let resume = $derived(nextIncomplete($progress));
@@ -54,6 +55,14 @@
       </div>
     </div>
   </section>
+
+  {#if $isIOS && !$installed}
+    <div class="callout info install-hint">
+      <span class="callout-title">Instala el curso en tu iPhone o iPad</span>
+      Abre esta página en Safari, toca <b>Compartir</b> y elige <b>Añadir a pantalla de inicio</b>.
+      Se abrirá como una app y conservará tu progreso local.
+    </div>
+  {/if}
 
   <div class="section-head">
     <div>
@@ -106,7 +115,7 @@
         <div class="stat-box"><strong>{modules.length}</strong><span>módulos</span></div>
         <div class="stat-box"><strong>{totalLessons}</strong><span>lecciones</span></div>
         <div class="stat-box"><strong>{totalHours}</strong><span>horas estimadas</span></div>
-        <div class="stat-box"><strong>10</strong><span>proyectos guiados</span></div>
+        <div class="stat-box"><strong>10</strong><span>proyectos</span></div>
       </div>
       <div class="path-mini">
         <a href="/modulos/fundamentos-matematicos">Matemáticas</a>

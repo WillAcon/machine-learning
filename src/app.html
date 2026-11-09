@@ -4,7 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f7f5ef" />
     <link rel="icon" href="%sveltekit.assets%/favicon.svg" />
+    <link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="%sveltekit.assets%/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="ML Course" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -16,8 +23,19 @@
       try {
         const t = localStorage.getItem('mlcourse.theme');
         const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.dataset.theme = t || (dark ? 'dark' : 'light');
+        const theme = t || (dark ? 'dark' : 'light');
+        document.documentElement.dataset.theme = theme;
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', theme === 'dark' ? '#0b1526' : '#f7f5ef');
       } catch (e) {}
+    </script>
+    <script>
+      // Captura temprana del prompt de instalación (Chrome/Edge/Android).
+      window.__mlInstallPrompt = null;
+      window.addEventListener('beforeinstallprompt', function (event) {
+        event.preventDefault();
+        window.__mlInstallPrompt = event;
+      });
     </script>
     <script>
       window.MathJax = {

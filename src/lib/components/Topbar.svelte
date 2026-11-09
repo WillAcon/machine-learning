@@ -3,6 +3,7 @@
   import { getModule } from '$lib/data/modules';
   import { overallPct, progress } from '$lib/stores/progress';
   import { activeLesson, searchOpen, sidebarOpen, theme, toggleTheme } from '$lib/stores/ui';
+  import { canInstall, promptInstall } from '$lib/stores/pwa';
 
   let crumbs = $derived.by(() => {
     const path = page.url.pathname;
@@ -51,7 +52,7 @@
         <circle cx="11" cy="11" r="7" />
         <path d="m20 20-3.5-3.5" />
       </svg>
-      <span>Buscar concepto…</span>
+      <span class="label">Buscar concepto…</span>
       <span class="kbd">⌘ K</span>
     </button>
 
@@ -59,6 +60,21 @@
       <strong>{$overallPct}%</strong>
       <span class="mini-track"><span class="mini-fill" style={`width:${$overallPct}%`}></span></span>
     </div>
+
+    {#if $canInstall}
+      <button
+        class="icon-btn install-btn"
+        type="button"
+        aria-label="Instalar aplicación"
+        title="Instalar aplicación"
+        onclick={promptInstall}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 3v11m0 0 4-4m-4 4-4-4" />
+          <path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" />
+        </svg>
+      </button>
+    {/if}
 
     <button class="icon-btn" type="button" aria-label="Cambiar tema" onclick={toggleTheme}>
       {#if $theme === 'dark'}
