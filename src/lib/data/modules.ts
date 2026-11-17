@@ -10,6 +10,7 @@ import mod8 from '../content/modules/mod-8.html?raw';
 import mod9 from '../content/modules/mod-9.html?raw';
 import mod10 from '../content/modules/mod-10.html?raw';
 import mod11 from '../content/modules/mod-11.html?raw';
+import mod12 from '../content/modules/mod-12.html?raw';
 
 export type Lesson = {
   id: string;
@@ -215,6 +216,22 @@ const seeds: ModuleSeed[] = [
     accent: '#b42318',
     chip: '10 proyectos guiados',
     content: mod11
+  },
+  {
+    id: 12,
+    slug: 'mit-6-867',
+    title: 'MIT 6.867: Machine Learning (2006)',
+    short: 'MIT 6.867',
+    desc:
+      'Las 23 clases del curso clásico del MIT en español: perceptrón, SVM, kernels, boosting, EM, clustering espectral, HMM y redes bayesianas.',
+    lead:
+      'Un recorrido paralelo al curso 6.867 del MIT (otoño 2006, Prof. Tommi Jaakkola): la versión estadística y rigurosa del Machine Learning, traducida y adaptada al español. Cada lección corresponde a una clase real, con sus demostraciones, fórmulas, ejemplos numéricos, código Python y simuladores interactivos.',
+    level: 'Avanzado',
+    hours: 40,
+    tag: 'Curso MIT',
+    accent: '#1f5f8b',
+    chip: '23 clases + 3 simuladores',
+    content: mod12
   }
 ];
 

@@ -87,6 +87,6 @@
 
   <div class="sidebar-footer">
     <span class="dot"></span> Progreso guardado localmente<br />
-    <span style="color:#6f7f95">12 módulos · teoría, código y práctica</span>
+    <span style="color:#6f7f95">{modules.length} módulos · teoría, código y práctica</span>
   </div>
 </aside>

@@ -32,10 +32,10 @@
           datasets públicos. Sin atajos y sin cajas negras.
         </p>
         <div class="hero-meta">
-          <span class="chip accent">12 módulos</span>
+          <span class="chip accent">{modules.length} módulos</span>
           <span class="chip teal">{totalLessons} lecciones</span>
           <span class="chip gold">≈ {totalHours} horas</span>
-          <span class="chip violet">9 simuladores</span>
+          <span class="chip violet">12 simuladores</span>
         </div>
         <div class="hero-actions">
           <a class="btn primary" href={resumeHref}>{resumeLabel}</a>
@@ -67,7 +67,7 @@
   <div class="section-head">
     <div>
       <h2>Ruta de aprendizaje</h2>
-      <p>Doce módulos secuenciales. Cada uno incluye teoría, fórmulas, ejemplos, código y ejercicios.</p>
+      <p>{modules.length} módulos secuenciales. Cada uno incluye teoría, fórmulas, ejemplos, código y ejercicios.</p>
     </div>
     <span class="side">{$quizAverage === null ? 'Sin quizzes aún' : `Quizzes: ${$quizAverage}%`}</span>
   </div>
@@ -135,7 +135,7 @@
   <div class="section-head">
     <div>
       <h2>Práctica interactiva</h2>
-      <p>Nueve simuladores para experimentar con los conceptos en lugar de solo leerlos.</p>
+      <p>Doce simuladores para experimentar con los conceptos en lugar de solo leerlos.</p>
     </div>
   </div>
 
@@ -152,11 +152,14 @@
         <a href="/modulos/evaluacion-modelos#l-m6-l2">Matriz de confusión</a>
         <a href="/modulos/deep-learning#l-m7-l2">Red neuronal</a>
         <a href="/modulos/vision-artificial#l-m9-l2">Convolución</a>
+        <a href="/modulos/mit-6-867#l-m12-l1">Perceptrón</a>
+        <a href="/modulos/mit-6-867#l-m12-l3">Margen máximo</a>
+        <a href="/modulos/mit-6-867#l-m12-l15">EM y mezclas</a>
       </div>
     </div>
     <div class="panel">
       <h3>Evaluación</h3>
-      <p>El examen final repasa los 12 módulos con retroalimentación inmediata.</p>
+      <p>El examen final repasa los {modules.length} módulos con retroalimentación inmediata.</p>
       <div class="hero-actions">
         <a class="btn primary" href="/examen">Abrir examen final</a>
         <a class="btn" href="/progreso">Panel de progreso</a>

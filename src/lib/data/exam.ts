@@ -386,6 +386,76 @@ export const examQuestions: ExamQuestion[] = [
     correct: 1,
     explain:
       'Un número aislado no permite saber si la mejora es estable o relevante. Hay que reportar baseline, dispersión, metodología y limitaciones.'
+  },
+  {
+    moduleId: 12,
+    topic: 'Perceptrón',
+    q: 'Si los datos son linealmente separables con margen $\gamma$ y $\lVert x_i\rVert\le R$, el perceptrón comete como máximo…',
+    options: [
+      '$R/\gamma$ errores.',
+      '$(R/\gamma)^2$ errores.',
+      '$d+1$ errores, donde $d$ es la dimensión.',
+      'Infinitos errores, porque depende del orden.'
+    ],
+    correct: 1,
+    explain:
+      'El teorema de convergencia acota los errores por $(R/\gamma)^2$. La cota no depende de la dimensión, solo de la geometría: tamaño de los datos y margen de separación.'
+  },
+  {
+    moduleId: 12,
+    topic: 'Máquinas de vectores de soporte',
+    q: 'En el dual de una SVM, los ejemplos con $\alpha_i=0$…',
+    options: [
+      'son los vectores de soporte y definen la frontera.',
+      'no influyen en el modelo: podrían eliminarse sin cambiar la solución.',
+      'están siempre mal clasificados.',
+      'tienen margen negativo.'
+    ],
+    correct: 1,
+    explain:
+      'El vector de pesos es $w=\sum_i\alpha_i y_i x_i$. Si $\alpha_i=0$, el ejemplo no aparece ni en $w$ ni en la predicción. Solo los vectores de soporte ($\alpha_i \gt 0$) determinan la frontera.'
+  },
+  {
+    moduleId: 12,
+    topic: 'EM y variables latentes',
+    q: 'En EM para una mezcla de gaussianas, el E-step calcula…',
+    options: [
+      'las medias y covarianzas de cada componente.',
+      'la responsabilidad $r_{ik}=P(z_i=k\mid x_i,\theta)$, es decir, la posterior de la componente.',
+      'el número óptimo de componentes.',
+      'la matriz de confusión del clustering.'
+    ],
+    correct: 1,
+    explain:
+      'El E-step calcula la posterior de la variable latente con los parámetros actuales. El M-step usa esas responsabilidades como pesos para actualizar $\pi_k$, $\mu_k$ y $\Sigma_k$.'
+  },
+  {
+    moduleId: 12,
+    topic: 'HMM y decodificación',
+    q: 'Para obtener la secuencia de estados ocultos más probable de un HMM se usa…',
+    options: [
+      'el algoritmo forward, porque suma sobre trayectorias.',
+      'el algoritmo de Viterbi, que maximiza la probabilidad conjunta con programación dinámica.',
+      'k-means sobre las observaciones.',
+      'el teorema de Bayes aplicado instante a instante.'
+    ],
+    correct: 1,
+    explain:
+      'Viterbi usa una recursión de máximo y guarda punteros para reconstruir la trayectoria conjunta más probable. Forward calcula la verosimilitud sumando; elegir el estado más probable en cada instante por separado no garantiza una trayectoria coherente.'
+  },
+  {
+    moduleId: 12,
+    topic: 'Redes bayesianas',
+    q: 'En una red $A\to C\leftarrow B$, condicionar en $C$ hace que $A$ y $B$…',
+    options: [
+      'sigan siendo independientes.',
+      'se vuelvan dependientes: es el efecto de colisionador o explaining away.',
+      'se vuelvan deterministas.',
+      'dejen de tener distribución marginal.'
+    ],
+    correct: 1,
+    explain:
+      'El nodo $C$ es un colisionador. Sin condicionar en él, $A$ y $B$ son independientes. Al observar el efecto común, la presencia de una causa cambia la probabilidad de la otra: es la base de la d-separación.'
   }
 ];
 

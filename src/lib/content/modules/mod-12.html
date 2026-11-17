@@ -1,0 +1,2097 @@
+<article class="lesson" id="l-m12-l1" data-title="Introducción y clasificación lineal">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.1</div>
+              <h2>Introducción y clasificación lineal</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Teoría + simulador</span><span class="sep"></span><span>MIT · clase 1</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l1"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Todo empieza con una pregunta muy concreta: dado un conjunto pequeño de ejemplos etiquetados, ¿cómo construimos una función que decida correctamente sobre casos que nunca ha visto? Este módulo reconstruye, clase por clase, el curso <strong>6.867 Machine Learning</strong> del MIT (otoño 2006), con la misma intuición y las mismas matemáticas, pero en español y con simuladores.</p>
+
+            <div class="callout info">
+              <span class="callout-title">Fuente y licencia</span>
+              Material adaptado y traducido de <em>6.867 Machine Learning, Fall 2006</em>, MIT OpenCourseWare, del Prof. Tommi Jaakkola. Licencia original <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>. Esta adaptación mantiene la misma licencia y se ofrece con fines educativos no comerciales. Los apuntes originales en inglés están en <a href="https://ocw.mit.edu/courses/6-867-machine-learning-fall-2006/" target="_blank" rel="noopener">ocw.mit.edu</a>.
+            </div>
+
+            <h3>El ejemplo que abre el curso</h3>
+            <p>Supongamos que debemos automatizar el control de acceso de un edificio. Cada persona se mira en una cámara y el sistema decide, a partir de la imagen, si puede entrar. No necesitamos identificar a la persona: basta con una respuesta binaria. Tenemos imágenes etiquetadas de la época en que el acceso era manual: positivas si la persona debía entrar, negativas si no.</p>
+            <p>Formalmente, cada imagen en escala de grises es un vector columna $x \in \mathbb{R}^d$. Si la imagen tiene $100\times100$ píxeles, entonces $d = 10\,000$. El clasificador es una función</p>
+            <div class="formula">
+              <span class="formula-label">Clasificador binario</span>
+              $$f:\mathbb{R}^d \to \{-1,+1\}$$
+              <span class="formula-caption">El clasificador solo conoce el conjunto de entrenamiento $\{(x_1,y_1),\dots,(x_n,y_n)\}$ con $y_i \in \{-1,+1\}$. No sabe nada de rostros, iluminación ni geometría.</span>
+            </div>
+            <p>Esa ignorancia es intencional: el mismo algoritmo debe servir para píxeles, medidas clínicas o features financieras. El único puente entre el problema y el algoritmo son los datos etiquetados.</p>
+
+            <h3>¿Por qué no basta con memorizar?</h3>
+            <p>Con $n=50$ imágenes de $128\times128$ píxeles, es casi seguro que exista un píxel cuyo valor sea distinto en cada imagen. Podríamos construir una regla que mire solo ese píxel y acierte el 100 % del entrenamiento. Y fallará en la primera imagen nueva. Ese es el problema central del aprendizaje: <strong>ajustar no es generalizar</strong>.</p>
+            <p>La solución pasa por restringir la familia de funciones que consideramos. Si solo permitimos fronteras simples, el modelo no puede memorizar el ruido de 50 ejemplos. A cambio, puede capturar la estructura que se repite.</p>
+
+            <h3>El clasificador lineal</h3>
+            <p>La familia más simple es el conjunto de funciones lineales en $x$:</p>
+            <div class="formula">
+              <span class="formula-label">Clasificador lineal</span>
+              $$f(x) = \operatorname{sign}\left(w^\top x + b\right) = \operatorname{sign}\left(\sum_{j=1}^{d} w_j x_j + b\right)$$
+              <span class="formula-caption">$w \in \mathbb{R}^d$ es el vector de pesos; $b \in \mathbb{R}$ es el sesgo (<em>bias</em> o <em>intercept</em>). La cantidad $w^\top x + b$ se llama <strong>función de decisión</strong> o <em>score</em>.</span>
+            </div>
+            <p>La frontera de decisión es el hiperplano donde el score vale cero:</p>
+            <div class="formula">
+              $$\{x : w^\top x + b = 0\}$$
+              <span class="formula-caption">En dos dimensiones es una recta; en tres, un plano; en $d$ dimensiones, un hiperplano de dimensión $d-1$. El vector $w$ es perpendicular a la frontera y apunta hacia el lado positivo.</span>
+            </div>
+            <p>La distancia con signo de un punto $x$ al hiperplano es</p>
+            <div class="formula">
+              $$\text{dist}(x) = \frac{w^\top x + b}{\lVert w\rVert}, \qquad \lVert w\rVert = \sqrt{w^\top w}$$
+              <span class="formula-caption">El signo indica el lado. Esta cantidad, multiplicada por la etiqueta $y_i$, se llama <strong>margen funcional</strong> del ejemplo; dividida por $\lVert w\rVert$, <strong>margen geométrico</strong>.</span>
+            </div>
+
+            <h3>El perceptrón: aprender corrigiendo errores</h3>
+            <p>El algoritmo más antiguo para ajustar un clasificador lineal es el <strong>perceptrón</strong> de Rosenblatt (1958). Su idea es mínima: recorre los ejemplos; si uno está bien clasificado, no hace nada; si está mal, mueve la frontera en su dirección.</p>
+            <div class="formula">
+              <span class="formula-label">Regla de actualización del perceptrón</span>
+              $$\text{si } y_i\left(w^\top x_i + b\right) \le 0: \qquad w \leftarrow w + \eta\, y_i x_i, \qquad b \leftarrow b + \eta\, y_i$$
+              <span class="formula-caption">$\eta \gt 0$ es la tasa de aprendizaje. El producto $y_i(w^\top x_i+b)$ es positivo si el ejemplo está bien clasificado y negativo si está mal. Solo se actualiza en el error.</span>
+            </div>
+            <p>Geométricamente, sumar $y_i x_i$ a $w$ rota el vector normal hacia $x_i$ si $y_i=+1$ y en sentido contrario si $y_i=-1$. Es decir, empuja la frontera para que el ejemplo quede del lado correcto. El sesgo se actualiza igual, como si la entrada tuviera una coordenada constante igual a 1.</p>
+
+            <div class="sim" data-sim="perceptron">
+              <div class="sim-head">
+                <div class="sim-icon">◐</div>
+                <div><h4>Simulador · Perceptrón</h4><p>Avanza ejemplo por ejemplo. Cada corrección mueve la frontera; los puntos mal clasificados se marcan en rojo.</p></div>
+              </div>
+              <div class="sim-body">
+                <div class="sim-canvas-wrap"><canvas id="pcCanvas" width="560" height="360" aria-label="Simulador del perceptrón"></canvas></div>
+                <div class="sim-controls">
+                  <div class="ctrl"><label for="pcEta">Tasa de aprendizaje η <output id="pcEtaOut">0.50</output></label><input type="range" id="pcEta" min="0.05" max="2" step="0.05" value="0.5"></div>
+                  <div class="btn-row">
+                    <button class="btn small" id="pcStep" type="button">Un ejemplo</button>
+                    <button class="btn small primary" id="pcRun" type="button">Ejecutar</button>
+                    <button class="btn small" id="pcReset" type="button">Reiniciar</button>
+                  </div>
+                  <div class="sim-readout">
+                    <div>errores acumulados = <b id="pcErrors">0</b></div>
+                    <div>pasos = <b id="pcIter">0</b></div>
+                    <div>épocas = <b id="pcEpoch">0</b></div>
+                    <div>exactitud = <b id="pcAcc">—</b></div>
+                  </div>
+                  <div class="sim-hint">Con datos separables, el perceptrón siempre termina. Con solapamiento, la frontera oscila: ese es el límite que resuelven el margen máximo y la regresión logística.</div>
+                </div>
+              </div>
+            </div>
+
+            <h3>Notación que usaremos en todo el módulo</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Símbolo</th><th>Significado</th><th>Dimensión</th></tr></thead>
+                <tbody>
+                  <tr><td>$n$</td><td>Número de ejemplos de entrenamiento</td><td>escalar</td></tr>
+                  <tr><td>$d$</td><td>Número de features</td><td>escalar</td></tr>
+                  <tr><td>$x_i$</td><td>Vector de entrada del ejemplo $i$</td><td>$d\times 1$</td></tr>
+                  <tr><td>$y_i$</td><td>Etiqueta binaria $\{-1,+1\}$</td><td>escalar</td></tr>
+                  <tr><td>$w$</td><td>Pesos del clasificador</td><td>$d\times 1$</td></tr>
+                  <tr><td>$b$</td><td>Sesgo (intercepto)</td><td>escalar</td></tr>
+                  <tr><td>$\eta$</td><td>Tasa de aprendizaje</td><td>escalar positivo</td></tr>
+                  <tr><td>$\alpha_i$</td><td>Multiplicador de Lagrange del ejemplo $i$</td><td>escalar $\ge 0$</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout tip">
+              <span class="callout-title">Idea clave</span>
+              Un modelo no es una lista de casos memorizados: es una <strong>restricción</strong> sobre las funciones posibles. Elegir la familia (lineales, polinómicas, kernelizadas) es elegir qué tipo de regularidad esperamos encontrar en los datos. Todo el curso trata sobre cómo hacer esa elección y cómo medir si funcionó.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.1 · Frontera y márgenes</summary>
+            <div class="answer">
+              <p>Considera $w=(1,2)^\top$ y $b=-3$ en $\mathbb{R}^2$.</p>
+              <ol>
+                <li>Escribe la ecuación de la frontera de decisión.</li>
+                <li>Calcula el score y la etiqueta predicha para $x=(1,1)$ y $x=(0,0)$.</li>
+                <li>Calcula la distancia geométrica de cada punto a la frontera.</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) $x_1+2x_2-3=0$, es decir $x_2=(3-x_1)/2$. (2) Para $(1,1)$: score $=1+2-3=0$, justo sobre la frontera (empate). Para $(0,0)$: score $=-3$, clase $-1$. (3) $\lVert w\rVert=\sqrt{5}\approx2.236$; distancias $0$ y $-3/\sqrt{5}\approx-1.34$. El signo negativo confirma que $(0,0)$ cae del lado negativo.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l2" data-title="Convergencia y generalización del perceptrón">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.2</div>
+              <h2>Convergencia y generalización del perceptrón</h2>
+              <div class="lesson-meta"><span>18 min</span><span class="sep"></span><span>Demostración</span><span class="sep"></span><span>MIT · clase 2</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l2"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">El perceptrón plantea dos preguntas distintas. La primera es de <strong>optimización</strong>: ¿termina de corregir? La segunda es de <strong>estadística</strong>: si termina, ¿el clasificador que encuentra funcionará en datos nuevos? La respuesta a la primera es un teorema elegante; la segunda es más delicada.</p>
+
+            <h3>El teorema de convergencia</h3>
+            <p>Supongamos que los datos son linealmente separables: existe algún $w^{*}$ con $\lVert w^{*}\rVert=1$ y un margen $\gamma \gt 0$ tal que</p>
+            <div class="formula">
+              <span class="formula-label">Separabilidad con margen</span>
+              $$y_i\left(w^{*\top} x_i\right) \ge \gamma \qquad \text{para todo } i$$
+              <span class="formula-caption">Por simplicidad se ignora el sesgo o se absorbe añadiendo una coordenada constante a $x$. También se supone $\lVert x_i\rVert \le R$ para todo $i$.</span>
+            </div>
+            <p>Entonces el perceptrón comete como máximo</p>
+            <div class="formula">
+              <span class="formula-label">Cota de errores</span>
+              $$M \le \left(\frac{R}{\gamma}\right)^{2}$$
+              <span class="formula-caption">$R$ mide el tamaño de los datos; $\gamma$ mide cuán holgada es la separación. Si los datos se separan por un margen diminuto, la cota explota y el algoritmo puede tardar muchísimo.</span>
+            </div>
+
+            <h3>La idea de la demostración</h3>
+            <p>Sea $w_t$ el vector de pesos tras $t$ actualizaciones. Cada actualización ocurre sobre un ejemplo mal clasificado, así que $y_i w_t^\top x_i \le 0$. Al actualizar, $w_{t+1}=w_t+\eta y_i x_i$. Hay dos observaciones:</p>
+            <ol>
+              <li><strong>El alineamiento con $w^{*}$ crece.</strong> $w^{*\top}w_{t+1} = w^{*\top}w_t + \eta y_i w^{*\top}x_i \ge w^{*\top}w_t + \eta\gamma$. Tras $M$ errores, $w^{*\top}w_M \ge \eta\gamma M$.</li>
+              <li><strong>La norma no crece demasiado.</strong> $\lVert w_{t+1}\rVert^2 = \lVert w_t\rVert^2 + 2\eta y_i w_t^\top x_i + \eta^2\lVert x_i\rVert^2 \le \lVert w_t\rVert^2 + \eta^2 R^2$.</li>
+            </ol>
+            <p>Combinando ambas cotas y usando que $w^{*\top}w_M \le \lVert w_M\rVert$ (porque $\lVert w^{*}\rVert=1$) se obtiene $M \le (R/\gamma)^2$. La demostración no depende de $d$: el número de errores no crece con la dimensión, solo con la geometría de los datos.</p>
+
+            <div class="callout math">
+              <span class="callout-title">Qué dice y qué no dice el teorema</span>
+              Dice que <em>si</em> los datos son separables, el perceptrón termina. No dice cuándo termina en la práctica (la cota puede ser enorme), no dice nada si hay solapamiento y no garantiza que la frontera encontrada sea la mejor. La solución depende del orden de los ejemplos y de $\eta$.
+            </div>
+
+            <h3>Convergencia no es generalización</h3>
+            <p>Que el error de entrenamiento llegue a cero es una condición necesaria, no suficiente. La pregunta correcta es: ¿qué error esperamos en una muestra nueva? La teoría de generalización introduce la <strong>dimensión VC</strong> para medir la capacidad de una familia de clasificadores. Para hiperplanos en $\mathbb{R}^d$, la dimensión VC es $d+1$.</p>
+            <div class="formula">
+              <span class="formula-label">Cota de generalización (esquemática)</span>
+              $$R(f) \le \hat{R}_n(f) + O\!\left(\sqrt{\frac{d+1}{n}\log\frac{n}{d+1}}\right)$$
+              <span class="formula-caption">$R(f)$ es el error esperado; $\hat{R}_n(f)$ el error empírico. Con $n$ fijo, más dimensiones implican más capacidad pero peor cota. Es la primera aparición del compromiso sesgo-varianza.</span>
+            </div>
+            <p>En imágenes con $d=10\,000$ y $n=50$, la cota es inútil: $d \gg n$. La respuesta del curso será doble: usar <strong>márgenes</strong> (clase 3) y usar <strong>kernels</strong> (clases 6–8) para controlar la capacidad sin reducir $d$ explícitamente.</p>
+
+            <h3>El perceptrón en NumPy</h3>
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">perceptron.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+
+def perceptron(X, y, eta=0.5, max_epochs=100):
+    """X: (n, d)  y: (n,) con valores -1 o +1."""
+    n, d = X.shape
+    w = np.zeros(d)
+    b = 0.0
+    errors = []
+    for epoch in range(max_epochs):
+        n_err = 0
+        for i in range(n):
+            if y[i] * (X[i] @ w + b) &lt;= 0:
+                w += eta * y[i] * X[i]
+                b += eta * y[i]
+                n_err += 1
+        errors.append(n_err)
+        if n_err == 0:          # separables: no hubo errores
+            break
+    return w, b, errors
+
+# Datos separables de juguete
+rng = np.random.default_rng(0)
+X = np.vstack([rng.normal([-1, -1], 0.5, (30, 2)),
+               rng.normal([ 1,  1], 0.5, (30, 2))])
+y = np.array([-1] * 30 + [1] * 30)
+
+w, b, err = perceptron(X, y)
+print("w =", w, "b =", b, "errores por época =", err)
+print("exactitud =", np.mean(np.sign(X @ w + b) == y))
+</code></pre></div>
+            <p>Prueba a aumentar la superposición de las nubes (por ejemplo, separación 1.0 con desviación 1.0). Verás que la lista de errores deja de llegar a cero y la exactitud se estanca. Ese fenómeno motiva las clases siguientes.</p>
+
+            <div class="callout warn">
+              <span class="callout-title">Error frecuente</span>
+              Escalar las features no cambia la existencia de un separador lineal, pero sí cambia el valor de $R$ y, por tanto, la velocidad de convergencia y la geometría del margen. En la práctica, estandarizar siempre antes de comparar modelos lineales.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.2 · Cota de errores</summary>
+            <div class="answer">
+              <p>Supón que todos los ejemplos cumplen $\lVert x_i\rVert \le 2$ y que existe un separador con margen $\gamma = 0.25$.</p>
+              <ol>
+                <li>¿Cuál es la cota máxima de errores del perceptrón?</li>
+                <li>¿Qué ocurre con la cota si el margen se reduce a $0.05$?</li>
+                <li>¿Por qué la cota no depende de la dimensión?</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) $(2/0.25)^2 = 64$ errores. (2) $(2/0.05)^2 = 1600$ errores; la cota se degrada cuadráticamente al reducir el margen. (3) Porque la demostración solo usa productos internos y normas: la geometría del margen resume la dificultad, sin importar cuántas coordenadas tenga el espacio.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l3" data-title="Clasificación de margen máximo">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.3</div>
+              <h2>Clasificación de margen máximo</h2>
+              <div class="lesson-meta"><span>24 min</span><span class="sep"></span><span>Optimización + dual</span><span class="sep"></span><span>MIT · clase 3</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l3"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Si muchos hiperplanos separan los datos, ¿cuál elegir? El perceptrón devuelve uno cualquiera, dependiente del orden. La intuición de margen máximo dice: elige la frontera que deja <strong>la mayor distancia posible</strong> a los ejemplos más cercanos. Es la respuesta más robusta frente al ruido y el punto de partida de las máquinas de vectores de soporte.</p>
+
+            <h3>Margen geométrico</h3>
+            <p>Para un ejemplo $(x_i,y_i)$ bien clasificado, la distancia al hiperplano es $y_i(w^\top x_i+b)/\lVert w\rVert$. El margen del clasificador es la menor de esas distancias:</p>
+            <div class="formula">
+              <span class="formula-label">Margen del clasificador</span>
+              $$\gamma(w,b) = \min_{i=1,\dots,n} \frac{y_i\left(w^\top x_i+b\right)}{\lVert w\rVert}$$
+              <span class="formula-caption">Queremos maximizar $\gamma$ sujeto a que todos los ejemplos queden al menos a esa distancia. Los ejemplos que alcanzan la igualdad se llaman <strong>vectores de soporte</strong>.</span>
+            </div>
+            <p>El problema tiene una invarianza de escala: multiplicar $w$ y $b$ por una constante no cambia la frontera ni el margen geométrico. Podemos fijar la escala imponiendo que el margen funcional de los puntos más cercanos sea 1:</p>
+            <div class="formula">
+              <span class="formula-label">Problema primal (margen duro)</span>
+              $$\min_{w,b}\ \frac{1}{2}\lVert w\rVert^2 \quad \text{sujeto a}\quad y_i\left(w^\top x_i+b\right) \ge 1,\ \ i=1,\dots,n$$
+              <span class="formula-caption">Minimizar $\lVert w\rVert^2$ equivale a maximizar $2/\lVert w\rVert$, el ancho de la banda entre las dos rectas de margen. Es un problema cuadrático convexo con restricciones lineales.</span>
+            </div>
+
+            <div class="figure">
+              <div class="figure-frame">
+                <svg class="svg-diagram" viewBox="0 0 600 320" role="img" aria-label="Banda de margen máximo con vectores de soporte">
+                  <defs>
+                    <linearGradient id="mgBand" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3355c8" stop-opacity=".16"/><stop offset="1" stop-color="#3355c8" stop-opacity=".06"/></linearGradient>
+                  </defs>
+                  <rect x="0" y="0" width="600" height="320" fill="none"/>
+                  <path d="M60 250 L540 70" stroke="#b9b4a8" stroke-width="1.5" stroke-dasharray="6 5"/>
+                  <path d="M95 285 L575 105" stroke="#b9b4a8" stroke-width="1.5" stroke-dasharray="6 5"/>
+                  <path d="M40 215 L520 35" stroke="#3355c8" stroke-width="2.5"/>
+                  <path d="M60 250 L95 285 L575 105 L540 70 Z" fill="url(#mgBand)"/>
+                  <g fill="#0e7c6b"><circle cx="150" cy="238" r="6"/><circle cx="300" cy="176" r="6"/><circle cx="430" cy="120" r="6"/></g>
+                  <g fill="#b42318"><circle cx="210" cy="120" r="6"/><circle cx="350" cy="86" r="6"/><circle cx="470" cy="196" r="6"/></g>
+                  <g fill="none" stroke="#a86a12" stroke-width="2"><circle cx="150" cy="238" r="11"/><circle cx="300" cy="176" r="11"/><circle cx="350" cy="86" r="11"/></g>
+                  <text x="330" y="300" font-size="11" fill="currentColor" opacity=".65">frontera: wᵀx + b = 0</text>
+                  <text x="430" y="250" font-size="11" fill="currentColor" opacity=".65">margen 2/‖w‖</text>
+                </svg>
+              </div>
+              <figcaption>El margen máximo es la banda más ancha que separa las clases sin tocar ningún punto. Los círculos dorados son vectores de soporte: solo ellos determinan la solución.</figcaption>
+            </div>
+
+            <div class="sim" data-sim="margin">
+              <div class="sim-head">
+                <div class="sim-icon">↔</div>
+                <div><h4>Simulador · Margen máximo</h4><p>Ajusta la penalización C y observa la frontera, la banda de margen y los vectores de soporte.</p></div>
+              </div>
+              <div class="sim-body">
+                <div class="sim-canvas-wrap"><canvas id="svCanvas" width="560" height="360" aria-label="Simulador de margen máximo"></canvas></div>
+                <div class="sim-controls">
+                  <div class="ctrl"><label for="svC">Penalización C <output id="svCOut">1.0</output></label><input type="range" id="svC" min="-2" max="2" step="0.1" value="0"></div>
+                  <div class="btn-row">
+                    <button class="btn small primary" id="svReset" type="button">Nuevos datos</button>
+                  </div>
+                  <div class="sim-readout">
+                    <div>ancho de margen = <b id="svMargin">—</b></div>
+                    <div>vectores de soporte = <b id="svSV">—</b></div>
+                    <div>errores de entrenamiento = <b id="svErr">—</b></div>
+                  </div>
+                  <div class="sim-hint">C controla el compromiso: C pequeño = margen ancho y más errores tolerados; C grande = intenta clasificar todo y el margen se estrecha. La escala del deslizador es logarítmica.</div>
+                </div>
+              </div>
+            </div>
+
+            <h3>La formulación dual</h3>
+            <p>Introducimos un multiplicador $\alpha_i \ge 0$ por cada restricción. El lagrangiano es</p>
+            <div class="formula">
+              $$L(w,b,\alpha) = \frac{1}{2}\lVert w\rVert^2 - \sum_{i=1}^{n}\alpha_i\left[y_i\left(w^\top x_i+b\right)-1\right]$$
+            </div>
+            <p>Igualando a cero las derivadas respecto a $w$ y $b$:</p>
+            <div class="formula">
+              <span class="formula-label">Condiciones de estacionariedad</span>
+              $$w = \sum_{i=1}^{n}\alpha_i y_i x_i, \qquad \sum_{i=1}^{n}\alpha_i y_i = 0$$
+              <span class="formula-caption">El vector de pesos es una combinación lineal de los ejemplos, ponderada por sus multiplicadores. Los ejemplos con $\alpha_i=0$ no influyen en absoluto.</span>
+            </div>
+            <p>Sustituyendo se obtiene el problema dual:</p>
+            <div class="formula">
+              <span class="formula-label">Dual de margen máximo</span>
+              $$\max_{\alpha}\ \sum_{i=1}^{n}\alpha_i - \frac{1}{2}\sum_{i=1}^{n}\sum_{j=1}^{n}\alpha_i\alpha_j y_i y_j\, x_i^\top x_j$$
+              $$\text{sujeto a}\quad \alpha_i \ge 0, \qquad \sum_{i=1}^{n}\alpha_i y_i = 0$$
+              <span class="formula-caption">Solo aparecen productos internos $x_i^\top x_j$. Esa observación, explotada en las clases 6–8, permite reemplazarlos por kernels y trabajar en espacios de dimensión infinita.</span>
+            </div>
+            <p>Las condiciones de Karush–Kuhn–Tucker (KKT) añaden la holgura complementaria:</p>
+            <div class="formula">
+              $$\alpha_i\left[y_i\left(w^\top x_i+b\right)-1\right] = 0$$
+              <span class="formula-caption">Si $\alpha_i \gt 0$, el ejemplo está exactamente sobre el margen: es un vector de soporte. Si está holgadamente dentro de su lado, $\alpha_i=0$.</span>
+            </div>
+
+            <h3>Un ejemplo a mano</h3>
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Tres puntos en una dimensión</h4></div>
+              <div class="example-body">
+                <p>Datos: $x_1=-1$ con $y_1=-1$; $x_2=0$ con $y_2=-1$; $x_3=1$ con $y_3=+1$. Por simetría, la frontera debe estar en $x=0.5$ y el margen es $0.5$.</p>
+                <p>Los vectores de soporte son $x_1=-1$ (lado negativo) y $x_3=1$ (lado positivo). La condición $w=\sum_i\alpha_i y_i x_i$ da $w=\alpha_1(1)+\alpha_3(1)=\alpha_1+\alpha_3$ (con $y_1x_1=(-1)(-1)=1$).</p>
+                <p>La restricción $\sum_i\alpha_i y_i=0$ implica $-\alpha_1-\alpha_2+\alpha_3=0$. El punto $x_2=0$ está holgado, así que $\alpha_2=0$ y por tanto $\alpha_1=\alpha_3$. Con $w=1$ (escala canónica) se obtiene $\alpha_1=\alpha_3=0.5$ y $b=-0.5$. El clasificador es $f(x)=\operatorname{sign}(x-0.5)$.</p>
+                <p>Comprobación: $y_1(wx_1+b)=(-1)(-1-0.5)=1.5 \gt 1$; $y_2(wx_2+b)=(-1)(-0.5)=0.5$; $y_3(wx_3+b)=1(1-0.5)=0.5$. El mínimo es $0.5$, que es el margen geométrico $1/\lVert w\rVert$.</p>
+              </div>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">Margen duro vs. datos reales</span>
+              La formulación anterior exige separación perfecta. Con una sola etiqueta ruidosa el problema se vuelve infactible. La clase 8 introduce las <em>variables de holgura</em> $\xi_i \ge 0$ y el parámetro $C$, que permiten errores controlados: es la SVM de margen suave. El simulador ya usa esa versión.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.3 · Margen y vectores de soporte</summary>
+            <div class="answer">
+              <p>En $\mathbb{R}^2$, considera $x_1=(1,1)$ con $y_1=+1$ y $x_2=(-2,-2)$ con $y_2=-1$.</p>
+              <ol>
+                <li>Encuentra el hiperplano de margen máximo.</li>
+                <li>Calcula el margen geométrico.</li>
+                <li>¿Qué multiplicadores $\alpha_i$ son positivos?</li>
+              </ol>
+              <p><strong>Solución:</strong> por simetría, la frontera pasa por el punto medio $(x_1+x_2)/2=(-0.5,-0.5)$ y es perpendicular a $x_1-x_2=(3,3)$, es decir, dirección $(1,1)$. Con $w=(1,1)$ la frontera es $x_1+x_2+1=0$ (porque $w^\top x+b=0$ con $x=(-0.5,-0.5)$ da $b=1$). El margen es $2/\lVert w\rVert=2/\sqrt{2}=\sqrt{2}$. Ambos puntos son vectores de soporte: $\alpha_1=\alpha_2 \gt 0$.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l4" data-title="Errores, regularización y regresión logística">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.4</div>
+              <h2>Errores, regularización y regresión logística</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Probabilidad + optimización</span><span class="sep"></span><span>MIT · clase 4</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l4"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">El perceptrón solo distingue aciertos de errores. Pero en la mayoría de los problemas no todos los errores cuestan lo mismo, y necesitamos una <strong>probabilidad</strong>, no solo una etiqueta. La regresión logística reemplaza el signo por una función suave y convierte la clasificación en un problema de estimación estadística.</p>
+
+            <h3>De la función de decisión a la probabilidad</h3>
+            <p>Modelamos la probabilidad de la clase positiva con la función sigmoide aplicada al score:</p>
+            <div class="formula">
+              <span class="formula-label">Regresión logística</span>
+              $$P(y=+1 \mid x) = \sigma\left(w^\top x+b\right) = \frac{1}{1+e^{-(w^\top x+b)}}, \qquad P(y=-1 \mid x) = 1-\sigma\left(w^\top x+b\right)$$
+              <span class="formula-caption">La sigmoide transforma cualquier número real en $(0,1)$. La frontera de decisión sigue siendo $w^\top x+b=0$, donde ambas clases son igual de probables.</span>
+            </div>
+            <p>Con etiquetas $y\in\{-1,+1\}$, ambas expresiones se pueden escribir de forma compacta:</p>
+            <div class="formula">
+              $$P(y \mid x) = \sigma\left(y\left(w^\top x+b\right)\right)$$
+              <span class="formula-caption">Si $y=+1$ queda $\sigma(w^\top x+b)$; si $y=-1$, usando $\sigma(-z)=1-\sigma(z)$, queda la probabilidad de la clase negativa.</span>
+            </div>
+
+            <h3>La pérdida: verosimilitud negativa</h3>
+            <p>Elegimos $w,b$ maximizando la verosimilitud de los datos, o equivalentemente minimizando su logaritmo negativo:</p>
+            <div class="formula">
+              <span class="formula-label">Pérdida logística</span>
+              $$L(w,b) = \sum_{i=1}^{n}\log\left(1+e^{-y_i(w^\top x_i+b)}\right)$$
+              <span class="formula-caption">Cada término es la pérdida <em>hinge</em> suavizada: vale poco si el ejemplo está bien y con confianza, y crece linealmente si el score va en la dirección equivocada.</span>
+            </div>
+            <p>El gradiente tiene una forma notablemente simple:</p>
+            <div class="formula">
+              $$\nabla_w L = -\sum_{i=1}^{n} y_i x_i\,\sigma\left(-y_i(w^\top x_i+b)\right), \qquad \frac{\partial L}{\partial b} = -\sum_{i=1}^{n} y_i\,\sigma\left(-y_i(w^\top x_i+b)\right)$$
+              <span class="formula-caption">El factor $\sigma(-y_i\,\text{score})$ es la probabilidad de error del modelo. Los ejemplos que ya clasifica con seguridad pesan poco; los dudosos dominan la actualización.</span>
+            </div>
+
+            <h3>Regularización</h3>
+            <p>Si los datos son separables, la verosimilitud se maximiza haciendo $\lVert w\rVert \to \infty$: el modelo se vuelve infinitamente confiado. Para evitarlo se añade una penalización:</p>
+            <div class="formula">
+              <span class="formula-label">Pérdida regularizada</span>
+              $$L_\lambda(w,b) = \sum_{i=1}^{n}\log\left(1+e^{-y_i(w^\top x_i+b)}\right) + \frac{\lambda}{2}\lVert w\rVert^2$$
+              <span class="formula-caption">$\lambda \gt 0$ controla la fuerza de la regularización L2. En la práctica se elige por validación cruzada, no por el error de entrenamiento.</span>
+            </div>
+            <p>La penalización L2 encoge los pesos hacia cero, pero no los anula exactamente. La penalización L1 ($\lambda\sum_j|w_j|$) sí puede llevar coeficientes a cero y actúa como selección de variables, tema de la clase 11.</p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Un paso de gradiente a mano</h4></div>
+              <div class="example-body">
+                <p>Un ejemplo con $x=(1,0)^\top$, $y=+1$, $w=(0,0)^\top$, $b=0$, $\eta=1$, sin regularización.</p>
+                <div class="step"><span class="step-n">1</span><div>Score: $w^\top x+b=0$. Probabilidad de la clase correcta: $\sigma(0)=0.5$.</div></div>
+                <div class="step"><span class="step-n">2</span><div>Peso del error: $\sigma(-0)=0.5$.</div></div>
+                <div class="step"><span class="step-n">3</span><div>Gradiente: $\nabla_w L = -y x \cdot 0.5 = (-0.5, 0)^\top$; $\partial L/\partial b=-0.5$.</div></div>
+                <div class="step"><span class="step-n">4</span><div>Actualización: $w \leftarrow w-\eta\nabla_w L=(0.5,0)^\top$, $b\leftarrow 0.5$.</div></div>
+                <div class="step"><span class="step-n">5</span><div>Nuevo score: $1.0$; nueva probabilidad: $\sigma(1)\approx0.731$. El modelo ganó confianza en la clase correcta sin saltar al extremo.</div></div>
+              </div>
+            </div>
+
+            <h3>¿Por qué no usar mínimos cuadrados?</h3>
+            <p>Podríamos ajustar $y$ con regresión lineal y luego truncar en $\pm1$, pero la pérdida cuadrática castiga con fuerza los ejemplos mal clasificados y con confianza, y su gradiente se satura cuando la sigmoide está cerca de 0 o 1. La pérdida logística es convexa en $w,b$, tiene gradiente bien condicionado y se interpreta como verosimilitud. Es la elección correcta para clasificación probabilística.</p>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">logistica.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+
+def sigmoid(z):
+    return 1.0 / (1.0 + np.exp(-z))
+
+def logistic_loss(X, y, w, b, lam=0.0):
+    scores = y * (X @ w + b)
+    # log(1 + exp(-s)) estable: logaddexp(0, -s)
+    data = np.logaddexp(0.0, -scores).sum()
+    return data + 0.5 * lam * (w @ w)
+
+def logistic_grad(X, y, w, b, lam=0.0):
+    p_err = sigmoid(-y * (X @ w + b))     # P(error) por ejemplo
+    gw = -(X * (y * p_err)[:, None]).sum(axis=0) + lam * w
+    gb = -(y * p_err).sum()
+    return gw, gb
+
+# Descenso de gradiente
+rng = np.random.default_rng(0)
+X = np.vstack([rng.normal([-1, -1], 0.9, (80, 2)),
+               rng.normal([ 1,  1], 0.9, (80, 2))])
+y = np.array([-1] * 80 + [1] * 80)
+
+w, b, lr = np.zeros(2), 0.0, 0.5
+for t in range(400):
+    gw, gb = logistic_grad(X, y, w, b, lam=0.01)
+    w -= lr * gw
+    b -= lr * gb
+
+print("w =", w, "b =", b, "pérdida =", logistic_loss(X, y, w, b, 0.01))
+print("exactitud =", np.mean(np.sign(X @ w + b) == y))
+</code></pre></div>
+
+            <div class="callout info">
+              <span class="callout-title">Conexión con el resto del curso</span>
+              La regresión logística es el ladrillo de las redes neuronales (una capa con activación sigmoide y pérdida de entropía cruzada) y el caso base de los modelos lineales regularizados. Su dual y su extensión multiclase aparecen una y otra vez en la práctica.
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">Sobre la calibración</span>
+              Una probabilidad bien ordenada no es una probabilidad bien calibrada. Un modelo puede acertar el ranking (AUC alto) y aun así decir 0.9 cuando la frecuencia real es 0.7. Si las probabilidades se usan para decisiones con costos, hay que calibrarlas (Platt scaling, isotónica) y evaluar con <em>log loss</em> o Brier score.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.4 · Probabilidad y umbral</summary>
+            <div class="answer">
+              <p>Un modelo da $P(y=+1\mid x)=0.8$.</p>
+              <ol>
+                <li>¿Cuál es la pérdida logística si la etiqueta real es $+1$? ¿Y si es $-1$?</li>
+                <li>Si un falso negativo cuesta 10 veces más que un falso positivo, ¿qué umbral usarías en lugar de 0.5?</li>
+                <li>¿La regularización mejora siempre la exactitud de entrenamiento?</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) Con $+1$: $-\log 0.8\approx0.223$. Con $-1$: $-\log 0.2\approx1.609$. (2) El umbral óptimo para costos asimétricos es $c_{FP}/(c_{FP}+c_{FN})=1/11\approx0.091$: conviene predecir positivo con más facilidad. (3) No: la regularización empeora el ajuste en entrenamiento a cambio de mejorar la generalización. Es un intercambio, no una mejora gratuita.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l5" data-title="Regresión lineal, sesgo-varianza y aprendizaje activo">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.5</div>
+              <h2>Regresión lineal, sesgo-varianza y aprendizaje activo</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Estadística</span><span class="sep"></span><span>MIT · clase 5</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l5"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Hasta ahora la salida era una clase. Ahora la salida es un número real. La regresión lineal es el modelo continuo más simple y, sobre todo, el escenario donde se entiende con precisión qué significa que un estimador tenga <strong>sesgo</strong> y <strong>varianza</strong>.</p>
+
+            <h3>Modelo y estimador</h3>
+            <div class="formula">
+              <span class="formula-label">Regresión lineal con ruido</span>
+              $$y = w^\top x + b + \varepsilon, \qquad \mathbb{E}[\varepsilon \mid x]=0, \qquad \operatorname{Var}(\varepsilon)=\sigma^2$$
+              <span class="formula-caption">El modelo supone que la media condicional de $y$ es lineal en $x$. El ruido absorbe todo lo que no observamos.</span>
+            </div>
+            <p>Con mínimos cuadrados minimizamos $\sum_i(y_i-w^\top x_i-b)^2$. En forma matricial, absorbiendo $b$ con una columna de unos, la solución es:</p>
+            <div class="formula">
+              <span class="formula-label">Ecuaciones normales</span>
+              $$\hat{w} = \left(X^\top X\right)^{-1}X^\top y$$
+              <span class="formula-caption">Válida si $X^\top X$ es invertible. Con features colineales es casi singular; la regularización Ridge añade $\lambda I$ y estabiliza el cálculo.</span>
+            </div>
+
+            <h3>Descomposición sesgo-varianza</h3>
+            <p>El error esperado en un punto nuevo $x_0$ se descompone en tres partes:</p>
+            <div class="formula">
+              <span class="formula-label">Descomposición del error</span>
+              $$\mathbb{E}\left[(y_0-\hat{f}(x_0))^2\right] = \underbrace{\left(\mathbb{E}[\hat{f}(x_0)]-f(x_0)\right)^2}_{\text{sesgo}^2} + \underbrace{\operatorname{Var}\left(\hat{f}(x_0)\right)}_{\text{varianza}} + \underbrace{\sigma^2}_{\text{ruido}}$$
+              <span class="formula-caption">El ruido es irreducible. Solo podemos negociar sesgo contra varianza eligiendo la complejidad del modelo y la cantidad de datos.</span>
+            </div>
+            <ul>
+              <li><strong>Alto sesgo:</strong> el modelo es demasiado rígido; falla incluso en entrenamiento (underfitting).</li>
+              <li><strong>Alta varianza:</strong> el modelo cambia mucho con la muestra; ajusta el ruido (overfitting).</li>
+              <li><strong>Más datos</strong> reduce la varianza, pero no el sesgo.</li>
+            </ul>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Por qué la regresión lineal tiene sesgo en datos curvos</h4></div>
+              <div class="example-body">
+                <p>Supón que la verdad es $f(x)=x^2$ en $x\in[-1,1]$ y ajustamos $\hat{f}(x)=wx+b$ por mínimos cuadrados. Por simetría, $\mathbb{E}[\hat w]=0$ y $\mathbb{E}[\hat b]=1/3$. La predicción esperada es la constante $1/3$, mientras que $f$ varía entre 0 y 1.</p>
+                <p>El sesgo al cuadrado en $x=1$ es $(1/3-1)^2=4/9\approx0.444$. Aumentar el número de datos no lo reduce: es un límite de la familia de modelos. Para bajarlo hay que incluir el término $x^2$ o usar un método no lineal. A cambio, esa mayor flexibilidad aumentará la varianza si los datos son pocos.</p>
+              </div>
+            </div>
+
+            <h3>Regularización Ridge</h3>
+            <div class="formula">
+              <span class="formula-label">Ridge</span>
+              $$\hat{w}_\lambda = \left(X^\top X+\lambda I\right)^{-1}X^\top y$$
+              <span class="formula-caption">Equivale a penalizar $\lambda\lVert w\rVert^2$. Reduce la varianza a costa de introducir un poco de sesgo; con $\lambda$ elegido por validación cruzada suele generalizar mejor que mínimos cuadrados cuando $d$ es grande o hay colinealidad.</span>
+            </div>
+
+            <h3>Aprendizaje activo</h3>
+            <p>En el aprendizaje supervisado clásico los datos llegan dados. En el <strong>aprendizaje activo</strong> el modelo elige qué ejemplo etiquetar a continuación. La intuición: etiquetar es caro (un diagnóstico, una prueba de laboratorio), así que conviene preguntar por los casos más informativos.</p>
+            <p>Una estrategia habitual es elegir el punto donde el modelo está más inseguro, es decir, donde la probabilidad predicha se acerca a 0.5. Otra es maximizar la reducción esperada de la varianza del estimador. Formalmente, si el objetivo es estimar $w$, la ganancia de información de consultar $x$ es proporcional a</p>
+            <div class="formula">
+              $$\Delta(x) \propto x^\top \Sigma_w\, x$$
+              <span class="formula-caption">$\Sigma_w$ es la covarianza posterior de los parámetros. Se elige el punto que maximiza esa cantidad, sujeto a restricciones prácticas (costo, diversidad, cobertura).</span>
+            </div>
+            <p>El aprendizaje activo no es magia: depende de que el modelo esté bien especificado. Si la incertidumbre está mal cuantificada, puede consultar puntos inútiles o sesgar la muestra.</p>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">ridge_bias_varianza.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+
+rng = np.random.default_rng(0)
+
+def fit_ridge(X, y, lam):
+    Xb = np.column_stack([np.ones(len(X)), X])   # intercepto
+    d = Xb.shape[1]
+    A = Xb.T @ Xb + lam * np.eye(d)
+    A[0, 0] -= lam                               # no penalizar el intercepto
+    return np.linalg.solve(A, Xb.T @ y)
+
+def true_f(x):
+    return np.sin(2 * np.pi * x)
+
+xs = np.linspace(0, 1, 200)
+preds = []
+for rep in range(300):
+    x = rng.uniform(0, 1, 20)
+    y = true_f(x) + rng.normal(0, 0.2, 20)
+    coef = fit_ridge(x[:, None], y, lam=0.01)
+    preds.append(coef[0] + coef[1] * xs)
+
+preds = np.array(preds)
+bias2 = (preds.mean(axis=0) - true_f(xs)) ** 2
+var = preds.var(axis=0)
+print("sesgo² medio =", bias2.mean())
+print("varianza media =", var.mean())
+print("error esperado ≈", (bias2 + var + 0.2**2).mean())
+</code></pre></div>
+
+            <div class="callout tip">
+              <span class="callout-title">Regla práctica</span>
+              Antes de culpar al algoritmo, separa el error: ¿el modelo falla en entrenamiento (sesgo) o solo en test (varianza)? La respuesta indica si necesitas más capacidad o más datos/regularización. Es el diagnóstico más útil del aprendizaje supervisado.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.5 · Diagnóstico</summary>
+            <div class="answer">
+              <p>Un modelo de regresión obtiene $R^2=0.98$ en entrenamiento y $R^2=0.41$ en test con 200 filas y 150 variables.</p>
+              <ol>
+                <li>¿Sesgo o varianza?</li>
+                <li>Propón tres acciones concretas.</li>
+                <li>¿Añadir más filas ayudaría? ¿Y añadir más variables?</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) Varianza alta: el modelo se ajusta al ruido con $d$ cercano a $n$. (2) Regularización Ridge/Lasso, reducción de dimensionalidad o selección de variables, y validación cruzada para elegir $\lambda$. (3) Más filas sí reduce la varianza; más variables la empeoran. La opción más eficiente suele ser regularizar y reducir features.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l6" data-title="Predicciones no lineales y kernels">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.6</div>
+              <h2>Predicciones no lineales y kernels</h2>
+              <div class="lesson-meta"><span>24 min</span><span class="sep"></span><span>Álgebra lineal</span><span class="sep"></span><span>MIT · clase 6</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l6"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un clasificador lineal falla en problemas como XOR: ninguna recta separa las dos clases. La solución no es abandonar la linealidad, sino <strong>cambiar el espacio</strong>. Los kernels permiten hacerlo sin calcular explícitamente las coordenadas nuevas, a veces en dimensiones infinitas.</p>
+
+            <h3>Mapa de features</h3>
+            <p>Aplicamos una transformación $\phi:\mathbb{R}^d\to\mathcal{H}$ y ajustamos un modelo lineal en el espacio nuevo:</p>
+            <div class="formula">
+              <span class="formula-label">Clasificador lineal en un espacio de features</span>
+              $$f(x) = \operatorname{sign}\left(w^\top\phi(x)+b\right)$$
+              <span class="formula-caption">$\mathcal{H}$ puede tener dimensión mucho mayor que $d$. En $\mathcal{H}$ la frontera sigue siendo un hiperplano, pero al volver al espacio original se ve como una curva.</span>
+            </div>
+            <p>Ejemplo con dos variables y features cuadráticas:</p>
+            <div class="formula">
+              $$\phi(x_1,x_2) = \left(1,\ \sqrt{2}x_1,\ \sqrt{2}x_2,\ x_1^2,\ x_2^2,\ \sqrt{2}x_1x_2\right)$$
+              <span class="formula-caption">Un hiperplano en estas seis coordenadas corresponde a una cónica (elipse, parábola o hipérbola) en el plano original. Las $\sqrt{2}$ hacen que el producto interno coincida con $(1+x^\top z)^2$.</span>
+            </div>
+            <p>El coste de calcular $\phi(x)$ puede ser enorme. Pero si el algoritmo solo usa productos internos $\phi(x)^\top\phi(z)$, no necesitamos las coordenadas: basta con una función que los calcule directamente.</p>
+
+            <h3>Funciones kernel</h3>
+            <div class="formula">
+              <span class="formula-label">Definición</span>
+              $$K(x,z) = \phi(x)^\top\phi(z)$$
+              <span class="formula-caption">Un kernel es una función de similitud que se comporta como un producto interno en algún espacio. Por el teorema de Mercer, basta que la matriz $K_{ij}=K(x_i,x_j)$ sea simétrica y semidefinida positiva.</span>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Kernel</th><th>Fórmula</th><th>Espacio implícito</th></tr></thead>
+                <tbody>
+                  <tr><td>Lineal</td><td>$x^\top z$</td><td>$\mathbb{R}^d$</td></tr>
+                  <tr><td>Polinómico</td><td>$(1+x^\top z)^p$</td><td>Monomios hasta grado $p$</td></tr>
+                  <tr><td>Gaussiano (RBF)</td><td>$\exp\left(-\lVert x-z\rVert^2/(2\sigma^2)\right)$</td><td>Dimensión infinita</td></tr>
+                  <tr><td>Sigmoide</td><td>$\tanh\left(\kappa\,x^\top z+\theta\right)$</td><td>No siempre es PSD</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>El truco del kernel, paso a paso</h4></div>
+              <div class="example-body">
+                <p>Con $\phi(x)=(x_1^2,\sqrt{2}x_1x_2,x_2^2)$ para $x=(x_1,x_2)$:</p>
+                <div class="step"><span class="step-n">1</span><div>$\phi(x)^\top\phi(z)=x_1^2z_1^2+2x_1x_2z_1z_2+x_2^2z_2^2$.</div></div>
+                <div class="step"><span class="step-n">2</span><div>Reconocer el cuadrado: $=(x_1z_1+x_2z_2)^2=(x^\top z)^2$.</div></div>
+                <div class="step"><span class="step-n">3</span><div>Calcular $\phi$ cuesta $O(d^2)$; el kernel cuesta $O(d)$. Para $d=10^4$, es la diferencia entre $10^8$ y $10^4$ operaciones por par.</div></div>
+                <div class="step"><span class="step-n">4</span><div>Con RBF, $\phi$ sería infinito-dimensional, pero $K(x,z)$ se evalúa con una exponencial. El truco no es una aproximación: es exacto.</div></div>
+              </div>
+            </div>
+
+            <h3>Kernels sobre estructuras</h3>
+            <p>La ventaja real es que un kernel puede definirse directamente sobre objetos, sin vectorizarlos. Existen kernels para:</p>
+            <ul>
+              <li><strong>Texto:</strong> bolsas de palabras, n-gramas, subcadenas (string kernels), que miden similitud léxica.</li>
+              <li><strong>Grafos:</strong> random walk kernels, que comparan caminos y subestructuras.</li>
+              <li><strong>Secuencias biológicas:</strong> alineamiento y kernels de espectro para ADN o proteínas.</li>
+              <li><strong>Imágenes:</strong> kernels sobre histogramas o features locales.</li>
+            </ul>
+            <p>Siempre que se pueda demostrar que la matriz de Gram es semidefinida positiva, el algoritmo de margen máximo funcionará igual. Esa es la potencia del enfoque: separa el <em>algoritmo</em> de la <em>representación</em>.</p>
+
+            <div class="callout math">
+              <span class="callout-title">Por qué PSD importa</span>
+              Si $K$ no es semidefinida positiva, el problema dual deja de ser convexo y la «distancia» inducida puede ser negativa al cuadrado. En la práctica, kernels como el sigmoide pueden fallar; el RBF y el polinómico con parámetros válidos son seguros.
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">kernels.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+
+def linear_kernel(X, Z):
+    return X @ Z.T
+
+def poly_kernel(X, Z, degree=2, c=1.0):
+    return (c + X @ Z.T) ** degree
+
+def rbf_kernel(X, Z, sigma=1.0):
+    # ||x - z||^2 = ||x||^2 + ||z||^2 - 2 x·z
+    d2 = ((X ** 2).sum(1)[:, None]
+          + (Z ** 2).sum(1)[None, :]
+          - 2 * X @ Z.T)
+    return np.exp(-d2 / (2 * sigma ** 2))
+
+X = np.array([[0.0, 0.0], [1.0, 1.0]])
+Z = np.array([[1.0, 0.0], [0.0, 1.0]])
+
+K = rbf_kernel(X, Z, sigma=0.5)
+print(K)
+
+# Verificación empírica de PSD: autovalores >= 0
+Kxx = rbf_kernel(X, X, sigma=0.5)
+print("autovalores:", np.linalg.eigvalsh(Kxx))
+</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Cuidado con la escala</span>
+              En un kernel RBF, $\sigma$ controla el ancho de la similitud. Si $\sigma$ es demasiado pequeño, cada punto solo se parece a sí mismo (overfitting); si es demasiado grande, todos se parecen (underfitting). Estandariza las features y elige $\sigma$ junto con $C$ por validación cruzada.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.6 · Construir un kernel</summary>
+            <div class="answer">
+              <p>Sea $\phi(x)=(1,x_1,x_2,x_1x_2)$ para $x\in\mathbb{R}^2$.</p>
+              <ol>
+                <li>Calcula $K(x,z)=\phi(x)^\top\phi(z)$.</li>
+                <li>¿Puede un clasificador lineal en este espacio resolver XOR? Justifica.</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) $K=1+x_1z_1+x_2z_2+x_1x_2z_1z_2$. (2) Sí. La etiqueta XOR es $y=x_1x_2$ (con etiquetas $\pm1$ según convención), y el término $x_1x_2$ está disponible como coordenada. Un hiperplano puede usar solo esa coordenada y separar las clases; las demás permiten corregir el resto de la geometría.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l7" data-title="Regresión con kernels">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.7</div>
+              <h2>Regresión con kernels</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Suavizado</span><span class="sep"></span><span>MIT · clase 7</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l7"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Los kernels también sirven para predecir valores continuos. En lugar de ajustar una recta global, la regresión con kernels construye una predicción como <strong>promedio local ponderado</strong> de los valores observados. Cuanto más cerca está un ejemplo, más influye.</p>
+
+            <h3>Estimador de Nadaraya–Watson</h3>
+            <div class="formula">
+              <span class="formula-label">Regresión kernel</span>
+              $$\hat{f}(x) = \frac{\sum_{i=1}^{n}K\!\left(\frac{x-x_i}{h}\right)y_i}{\sum_{i=1}^{n}K\!\left(\frac{x-x_i}{h}\right)}$$
+              <span class="formula-caption">$K$ es una función de suavizado (típicamente gaussiana) y $h$ el ancho de banda. Las predicciones son combinaciones convexas de las $y_i$: nunca se salen del rango observado.</span>
+            </div>
+            <p>Con un kernel gaussiano, cada punto de entrenamiento aporta un «voto» cuya influencia decae exponencialmente con la distancia. El ancho de banda $h$ controla el compromiso sesgo-varianza:</p>
+            <ul>
+              <li>$h$ pequeño: la curva pasa por casi todos los puntos → alta varianza.</li>
+              <li>$h$ grande: la curva se aplana hacia la media global → alto sesgo.</li>
+            </ul>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Predicción en un punto</h4></div>
+              <div class="example-body">
+                <p>Datos: $(0,1)$, $(1,2)$, $(2,4)$, $(3,3)$. Queremos $\hat{f}(2.5)$ con kernel gaussiano y $h=1$.</p>
+                <div class="step"><span class="step-n">1</span><div>Pesos sin normalizar: $K(-2.5)=e^{-3.125}\approx0.044$; $K(-1.5)=e^{-1.125}\approx0.325$; $K(-0.5)=e^{-0.125}\approx0.882$; $K(0.5)=0.882$.</div></div>
+                <div class="step"><span class="step-n">2</span><div>Numerador: $0.044(1)+0.325(2)+0.882(4)+0.882(3)=0.044+0.65+3.528+2.646=6.868$.</div></div>
+                <div class="step"><span class="step-n">3</span><div>Denominador: $0.044+0.325+0.882+0.882=2.133$.</div></div>
+                <div class="step"><span class="step-n">4</span><div>Predicción: $6.868/2.133\approx3.22$. Los puntos cercanos (2 y 3) dominan; el punto lejano casi no influye.</div></div>
+              </div>
+            </div>
+
+            <h3>Formulación como problema regularizado</h3>
+            <p>La regresión kernel también puede derivarse de un problema de mínimos cuadrados con penalización en un espacio de funciones. El <strong>teorema del representador</strong> garantiza que la solución óptima se escribe como combinación de kernels centrados en los datos:</p>
+            <div class="formula">
+              <span class="formula-label">Teorema del representador</span>
+              $$\hat{f}(x) = \sum_{i=1}^{n}\alpha_i K(x,x_i)$$
+              <span class="formula-caption">No hace falta buscar en todo el espacio de funciones: basta con $n$ coeficientes. Es la base de las máquinas de vectores de soporte para regresión y de los procesos gaussianos.</span>
+            </div>
+            <p>Los coeficientes se obtienen resolviendo un sistema lineal:</p>
+            <div class="formula">
+              $$\left(K+\lambda I\right)\alpha = y, \qquad \hat{f}(x) = k(x)^\top\alpha$$
+              <span class="formula-caption">$K$ es la matriz de Gram $K_{ij}=K(x_i,x_j)$; $k(x)$ es el vector de similitudes entre $x$ y cada ejemplo de entrenamiento. $\lambda$ controla la suavidad.</span>
+            </div>
+
+            <h3>Ventajas y límites</h3>
+            <div class="two-col">
+              <div>
+                <h4>Ventajas</h4>
+                <ul>
+                  <li>Captura relaciones no lineales sin elegir una forma funcional global.</li>
+                  <li>Funciona con pocos datos si la dimensión es moderada.</li>
+                  <li>Interpretación local: la predicción depende de los vecinos.</li>
+                </ul>
+              </div>
+              <div>
+                <h4>Límites</h4>
+                <ul>
+                  <li>Costo de entrenamiento $O(n^3)$ por resolver el sistema.</li>
+                  <li>Predicción $O(n)$ por cada punto nuevo.</li>
+                  <li>En dimensión alta, las distancias se vuelven poco informativas (maldición de la dimensionalidad).</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">kernel_regression.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+
+def rbf(A, B, h=1.0):
+    d2 = ((A ** 2).sum(1)[:, None]
+          + (B ** 2).sum(1)[None, :]
+          - 2 * A @ B.T)
+    return np.exp(-d2 / (2 * h ** 2))
+
+rng = np.random.default_rng(1)
+x = np.sort(rng.uniform(0, 5, 40))
+y = np.sin(x) + rng.normal(0, 0.15, 40)
+
+xs = np.linspace(0, 5, 300)
+
+for h in (0.15, 0.5, 2.0):
+    K = rbf(x[:, None], x[:, None], h)
+    alpha = np.linalg.solve(K + 1e-3 * np.eye(len(x)), y)
+    pred = rbf(xs[:, None], x[:, None], h) @ alpha
+    print(f"h={h}: error en datos = {np.mean((rbf(x[:, None], x[:, None], h) @ alpha - y) ** 2):.4f}")
+</code></pre></div>
+
+            <div class="callout tip">
+              <span class="callout-title">Cómo elegir $h$</span>
+              Nunca por inspección visual del conjunto de entrenamiento: usa validación cruzada. Un $h$ que hace la curva pasar por todos los puntos suele ser overfitting, aunque se vea «perfecta» en la gráfica.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.7 · Ancho de banda</summary>
+            <div class="answer">
+              <p>Explica qué ocurre con la predicción de Nadaraya–Watson en los extremos cuando $h\to 0$ y cuando $h\to\infty$.</p>
+              <p><strong>Solución:</strong> con $h\to0$, el peso de cada punto se concentra en sí mismo. En un punto de entrenamiento la predicción tiende a su propio $y_i$; entre puntos, el denominador puede volverse inestable y la predicción queda indefinida o dominada por el vecino más cercano. Con $h\to\infty$, todos los pesos tienden a ser iguales y la predicción tiende a la media de las $y_i$: un modelo constante con alto sesgo. El valor adecuado está entre ambos y se elige por validación.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l8" data-title="SVM y optimización con kernels">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.8</div>
+              <h2>SVM y optimización con kernels</h2>
+              <div class="lesson-meta"><span>26 min</span><span class="sep"></span><span>Optimización convexa</span><span class="sep"></span><span>MIT · clase 8</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l8"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">La máquina de vectores de soporte (SVM) es la combinación de tres ideas que ya conocemos: margen máximo, kernels y margen suave. El resultado es un clasificador convexo, eficiente y con una teoría de generalización elegante. Es el algoritmo emblemático del ML estadístico de los años noventa.</p>
+
+            <h3>Margen suave: tolerar errores</h3>
+            <p>Con datos ruidosos, exigir separación perfecta es imposible. Añadimos variables de holgura $\xi_i\ge0$ que miden cuánto viola cada ejemplo su margen:</p>
+            <div class="formula">
+              <span class="formula-label">SVM primal (margen suave)</span>
+              $$\min_{w,b,\xi}\ \frac{1}{2}\lVert w\rVert^2 + C\sum_{i=1}^{n}\xi_i$$
+              $$\text{sujeto a}\quad y_i\left(w^\top x_i+b\right) \ge 1-\xi_i, \qquad \xi_i \ge 0$$
+              <span class="formula-caption">$C \gt 0$ penaliza las violaciones. $C\to\infty$ recupera el margen duro; $C$ pequeño acepta más errores a cambio de un margen más ancho.</span>
+            </div>
+
+            <h3>Dual y kernelización</h3>
+            <p>Repitiendo el procedimiento de la clase 3, el dual queda:</p>
+            <div class="formula">
+              <span class="formula-label">SVM dual</span>
+              $$\max_{\alpha}\ \sum_{i=1}^{n}\alpha_i - \frac{1}{2}\sum_{i,j}\alpha_i\alpha_j y_i y_j K(x_i,x_j)$$
+              $$\text{sujeto a}\quad 0 \le \alpha_i \le C, \qquad \sum_{i=1}^{n}\alpha_i y_i = 0$$
+              <span class="formula-caption">La única diferencia con el margen duro es la cota superior $\alpha_i\le C$. Los productos internos se han reemplazado por $K$. El problema sigue siendo cuadrático convexo.</span>
+            </div>
+            <p>La predicción usa solo los vectores de soporte ($\alpha_i \gt 0$):</p>
+            <div class="formula">
+              $$f(x) = \operatorname{sign}\left(\sum_{i\in SV}\alpha_i y_i K(x_i,x)+b\right)$$
+              <span class="formula-caption">$b$ se recupera de cualquier vector de soporte con $0 \lt \alpha_i \lt C$, usando $y_i(w^\top x_i+b)=1$. En la práctica se promedia sobre varios para reducir error numérico.</span>
+            </div>
+
+            <h3>El algoritmo SMO</h3>
+            <p>Resolver el dual con un solver de programación cuadrática general es costoso para $n$ grande. <strong>SMO</strong> (Sequential Minimal Optimization) explota la restricción $\sum_i\alpha_i y_i=0$: optimiza dos multiplicadores a la vez mientras mantiene fijos los demás. Cada subproblema tiene solución analítica, así que no hace falta un solver externo.</p>
+            <div class="formula">
+              <span class="formula-label">Actualización de dos multiplicadores</span>
+              $$\alpha_j \leftarrow \alpha_j - \frac{y_j\left(E_i-E_j\right)}{\eta}, \qquad \alpha_i \leftarrow \alpha_i + y_i y_j\left(\alpha_j^{\text{old}}-\alpha_j\right)$$
+              <span class="formula-caption">$E_k=f(x_k)-y_k$ es el error de predicción y $\eta=2K(x_i,x_j)-K(x_i,x_i)-K(x_j,x_j)$. Después se recortan ambos valores al intervalo $[0,C]$.</span>
+            </div>
+            <p>La convergencia se monitoriza con la violación de las condiciones KKT: para cada ejemplo,</p>
+            <div class="formula">
+              $$y_i f(x_i) \ge 1 \ \text{si}\ \alpha_i=0, \qquad y_i f(x_i)=1 \ \text{si}\ 0 \lt \alpha_i \lt C, \qquad y_i f(x_i)\le 1 \ \text{si}\ \alpha_i=C$$
+              <span class="formula-caption">Cuando todas se cumplen dentro de una tolerancia, el solver ha terminado. Es el criterio que usa la implementación de referencia.</span>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Cómo cambia la solución con C</h4></div>
+              <div class="example-body">
+                <p>En el simulador de la clase 12.3, prueba estos escenarios con los mismos datos:</p>
+                <ol>
+                  <li>$C$ muy pequeño: la banda de margen es ancha, varios puntos caen dentro o al otro lado y el número de vectores de soporte es alto.</li>
+                  <li>$C$ intermedio: se separa casi todo con una banda razonable. Es el régimen útil.</li>
+                  <li>$C$ muy grande: la banda se estrecha, los errores de entrenamiento bajan, pero la sensibilidad al ruido aumenta.</li>
+                </ol>
+                <p>Conclusión: $C$ no es un parámetro «de precisión», es el control del compromiso sesgo-varianza. Se elige con validación cruzada, idealmente en escala logarítmica.</p>
+              </div>
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">svm.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.datasets import make_moons
+
+X, y = make_moons(n_samples=400, noise=0.25, random_state=0)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.25, stratify=y, random_state=0)
+
+pipe = make_pipeline(StandardScaler(), SVC(kernel="rbf"))
+grid = {
+    "svc__C": [0.01, 0.1, 1, 10, 100],
+    "svc__gamma": [0.01, 0.1, 1, 10],
+}
+search = GridSearchCV(pipe, grid, cv=5, scoring="accuracy", n_jobs=-1)
+search.fit(X_train, y_train)
+
+print("mejores parámetros:", search.best_params_)
+print("exactitud en test:", search.score(X_test, y_test))
+print("vectores de soporte:", search.best_estimator_.named_steps["svc"].n_support_)
+</code></pre></div>
+
+            <div class="callout math">
+              <span class="callout-title">Por qué funciona en dimensión alta</span>
+              La cota de generalización de una SVM depende del margen y del número de vectores de soporte, no de la dimensión del espacio de features. Por eso puede rendir bien con $d$ enorme o incluso infinito (kernel RBF), siempre que el margen sea amplio en el espacio implícito.
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">SVM hoy</span>
+              Para datos tabulares medianos, la SVM sigue siendo una alternativa sólida y una excelente línea base. Para millones de filas o texto masivo, los métodos lineales con SGD y los modelos de boosting suelen ser más prácticos por costo computacional. La idea de margen, en cambio, sigue viva en la teoría y en las pérdidas hinge de muchos modelos.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.8 · Interpretar los multiplicadores</summary>
+            <div class="answer">
+              <p>Tras entrenar una SVM, se observa que 12 ejemplos tienen $\alpha_i=0$, 5 tienen $0 \lt \alpha_i \lt C$ y 3 tienen $\alpha_i=C$.</p>
+              <ol>
+                <li>¿Cuántos vectores de soporte hay?</li>
+                <li>¿Qué significa que un ejemplo tenga $\alpha_i=C$?</li>
+                <li>¿Qué pasaría con el modelo si se eliminara un ejemplo con $\alpha_i=0$?</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) Ocho: los que tienen $\alpha_i \gt 0$. (2) Está en el margen o violándolo y la cota impide que su influencia crezca más; suele ser un punto difícil o mal etiquetado. (3) Nada: su multiplicador es cero, así que no aparece en $w$ ni en la predicción. Solo los vectores de soporte definen la frontera.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l9" data-title="Selección de modelo">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.9</div>
+              <h2>Selección de modelo</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Metodología</span><span class="sep"></span><span>MIT · clase 9</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l9"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Ya sabemos entrenar un modelo. La pregunta siguiente es más difícil: ¿cómo elegimos entre un modelo lineal, uno cuadrático y una SVM con RBF? No podemos usar el error de entrenamiento —siempre favorece al más complejo— ni el de test —lo gastaríamos en decidir—. Necesitamos una estimación honesta del rendimiento.</p>
+
+            <h3>El problema de la comparación</h3>
+            <p>Sea $\mathcal{M}_1,\dots,\mathcal{M}_M$ una familia de modelos candidatos. Para cada uno elegimos parámetros $\hat\theta_m$ minimizando el error empírico. El error de entrenamiento es optimista:</p>
+            <div class="formula">
+              $$\hat{R}_{train}(\hat{f}_m) \le R(\hat{f}_m) \quad \text{en promedio}, \qquad \mathbb{E}\left[\hat{R}_{train}\right] \le \mathbb{E}\left[R\right]$$
+              <span class="formula-caption">La brecha crece con la capacidad del modelo y decrece con $n$. Comparar modelos por su error de entrenamiento es comparar optimismo, no calidad.</span>
+            </div>
+
+            <h3>Validación cruzada</h3>
+            <p>Partimos los datos en $k$ bloques. Entrenamos con $k-1$ y evaluamos en el bloque restante, rotando:</p>
+            <div class="formula">
+              <span class="formula-label">Error de validación cruzada</span>
+              $$\hat{R}_{CV} = \frac{1}{n}\sum_{i=1}^{n}\ell\left(y_i,\hat{f}^{-\kappa(i)}(x_i)\right)$$
+              <span class="formula-caption">$\hat{f}^{-\kappa(i)}$ es el modelo entrenado sin el bloque $\kappa(i)$ que contiene a $i$. Con $k=n$ se obtiene <em>leave-one-out</em>: máximo uso de datos, $n$ entrenamientos.</span>
+            </div>
+            <p>Para elegir hiperparámetros se hace una búsqueda: una rejilla o búsqueda aleatoria, evaluada con el mismo esquema. Dos advertencias:</p>
+            <ul>
+              <li><strong>Data leakage:</strong> cualquier transformación (escalado, imputación, selección de features) debe ajustarse dentro de cada fold, no sobre el dataset completo.</li>
+              <li><strong>Selección múltiple:</strong> si se prueban cientos de configuraciones, el mejor resultado de validación también está sesgado al alza. Se necesita un test final intacto o validación anidada.</li>
+            </ul>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Leave-one-out y la matriz de sombrero</h4></div>
+              <div class="example-body">
+                <p>Para mínimos cuadrados lineales existe un atajo: el error LOO se calcula con los residuos del modelo completo y la diagonal de la matriz de proyección $H=X(X^\top X)^{-1}X^\top$:</p>
+                <div class="formula">
+                  $$R_{LOO} = \frac{1}{n}\sum_{i=1}^{n}\left(\frac{y_i-\hat{y}_i}{1-h_{ii}}\right)^2$$
+                  <span class="formula-caption">$h_{ii}$ es el apalancamiento (<em>leverage</em>) del ejemplo $i$. No hace falta reentrenar $n$ veces. Esta fórmula aparece también en el criterio $C_p$ de Mallows.</span>
+                </div>
+                <p>Un punto con $h_{ii}$ cercano a 1 es muy influyente: al quitarlo, el modelo cambia mucho. Esa es exactamente la información que el LOO captura.</p>
+              </div>
+            </div>
+
+            <h3>Compromiso entre capacidad y datos</h3>
+            <p>La teoría de aprendizaje estadístico formaliza la selección como un problema de riesgo estructural:</p>
+            <div class="formula">
+              <span class="formula-label">Riesgo estructural</span>
+              $$R(\hat{f}) \le \hat{R}(\hat{f}) + \Omega(\mathcal{F}, n)$$
+              <span class="formula-caption">$\Omega$ es un término de complejidad: dimensión VC, norma de los pesos, número de parámetros efectivos. Elegir modelo es minimizar la suma, no solo el primer término.</span>
+            </div>
+            <p>Esta idea conecta con las clases siguientes: los criterios AIC/BIC estiman $\Omega$ desde la verosimilitud; el MDL lo hace desde la teoría de la información; los márgenes lo hacen desde la geometría.</p>
+
+            <div class="callout tip">
+              <span class="callout-title">Protocolo mínimo</span>
+              Reserva un 20 % para test y no lo toques hasta el final. Dentro del 80 % restante, usa validación cruzada para elegir modelo e hiperparámetros. Si vas a reportar una comparación entre muchos modelos, usa validación anidada o un segundo conjunto de test.
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">Un solo número no basta</span>
+              Reporta media y dispersión entre folds. Una diferencia de 0.5 puntos porcentuales con desviación de 3 puntos no es evidencia de nada. La variabilidad de la partición puede ser mayor que la diferencia entre modelos.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.9 · Diseñar la validación</summary>
+            <div class="answer">
+              <p>Tienes 1 200 clientes, 40 variables y tres modelos candidatos. Además, quieres ajustar dos hiperparámetros por modelo y escalar las variables.</p>
+              <ol>
+                <li>Describe un protocolo correcto con validación cruzada de 5 folds.</li>
+                <li>¿Dónde va el escalador?</li>
+                <li>¿Cómo reportarías el resultado final?</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) Separar 240 clientes como test estratificado. En los 960 restantes, 5 folds; para cada configuración, entrenar en 4 folds y validar en 1. Elegir la mejor configuración por media de validación. Reentrenar con los 960 y evaluar una vez en test. (2) El escalador se ajusta solo con el fold de entrenamiento, dentro de un pipeline. (3) Media ± desviación entre folds en validación y el resultado único en test, junto con la baseline y las limitaciones.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l10" data-title="Criterios de selección de modelo">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.10</div>
+              <h2>Criterios de selección de modelo</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Verosimilitud penalizada</span><span class="sep"></span><span>MIT · clase 10</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l10"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Cuando el número de datos es limitado, la validación cruzada es costosa o ruidosa. Los criterios de información ofrecen una alternativa: estimar el rendimiento futuro a partir de la verosimilitud del modelo y una penalización por su número de parámetros. Son aproximaciones, no verdades, pero muy útiles.</p>
+
+            <h3>AIC: información de Akaike</h3>
+            <div class="formula">
+              <span class="formula-label">Criterio de Akaike</span>
+              $$\mathrm{AIC} = -2\log L(\hat\theta) + 2k$$
+              <span class="formula-caption">$L$ es la verosimilitud máxima; $k$ el número de parámetros estimados. El primer término mide ajuste; el segundo castiga complejidad. Se elige el modelo con AIC <strong>mínimo</strong>.</span>
+            </div>
+            <p>AIC estima la divergencia de Kullback–Leibler esperada entre el modelo y la distribución verdadera. Es apropiado cuando el objetivo es <strong>predecir</strong> y el modelo verdadero no está necesariamente en la familia considerada.</p>
+
+            <h3>BIC: información bayesiana</h3>
+            <div class="formula">
+              <span class="formula-label">Criterio bayesiano</span>
+              $$\mathrm{BIC} = -2\log L(\hat\theta) + k\log n$$
+              <span class="formula-caption">La penalización crece con $\log n$, más rápido que AIC. Por eso BIC tiende a elegir modelos más simples. Es una aproximación a la evidencia marginal y, bajo ciertas condiciones, consistente: con $n\to\infty$ selecciona el modelo verdadero si está en la familia.</span>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Criterio</th><th>Penalización</th><th>Sesgo</th><th>Uso típico</th></tr></thead>
+                <tbody>
+                  <tr><td>AIC</td><td>$2k$</td><td>Elige modelos algo grandes</td><td>Predicción, comparación de modelos no anidados</td></tr>
+                  <tr><td>BIC</td><td>$k\log n$</td><td>Elige modelos más pequeños</td><td>Inferencia estructural, selección de variables</td></tr>
+                  <tr><td>$C_p$ de Mallows</td><td>$2k\hat\sigma^2$</td><td>Similar a AIC en regresión</td><td>Regresión lineal con ruido gaussiano</td></tr>
+                  <tr><td>Validación cruzada</td><td>Empírica</td><td>Depende de $k$ y $n$</td><td>Comparación directa de rendimiento</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Selección bayesiana y factor de Occam</h3>
+            <p>Desde el punto de vista bayesiano, comparar modelos es calcular la probabilidad de los datos bajo cada uno, integrando los parámetros:</p>
+            <div class="formula">
+              <span class="formula-label">Evidencia marginal</span>
+              $$p(\mathcal{D}\mid \mathcal{M}) = \int p(\mathcal{D}\mid\theta,\mathcal{M})\,p(\theta\mid\mathcal{M})\,d\theta$$
+              <span class="formula-caption">La integral penaliza automáticamente los modelos que dispersan probabilidad en regiones donde los datos no están: es el <strong>factor de Occam</strong>. Un modelo más complejo debe predecir mejor en la región relevante para compensar el volumen extra.</span>
+            </div>
+            <p>La aproximación de Laplace a esa integral produce BIC. Para modelos pequeños se puede calcular exactamente; para modelos grandes se usan métodos variacionales o MCMC.</p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Comparar dos modelos gaussianos</h4></div>
+              <div class="example-body">
+                <p>Datos de altura con $n=100$. Modelo A: una gaussiana ($\log L=-320$, $k=2$). Modelo B: mezcla de dos gaussianas ($\log L=-305$, $k=5$).</p>
+                <div class="step"><span class="step-n">A</span><div>AIC: $-2(-320)+2(2)=644$. BIC: $640+2\log 100\approx649.2$.</div></div>
+                <div class="step"><span class="step-n">B</span><div>AIC: $-2(-305)+2(5)=620$. BIC: $610+5\log 100\approx633.0$.</div></div>
+                <div class="step"><span class="step-n">✓</span><div>Ambos criterios prefieren B: la mejora de 15 unidades de log-verosimilitud compensa los 3 parámetros extra. La diferencia de AIC es 24 y la de BIC 16, ambas sustanciales.</div></div>
+                <div class="step"><span class="step-n">!</span><div>Pero BIC con $n=20$ habría dado $610+5\log 20\approx625.0$ frente a $640+2\log20\approx646.0$: sigue prefiriendo B, con menos margen. La penalización depende del tamaño muestral.</div></div>
+              </div>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">No son balas de plata</span>
+              AIC y BIC asumen que el modelo está bien especificado y que $n$ es grande. Con $n$ pequeño, outliers o modelos mal especificados pueden dar conclusiones erróneas. Úsalos como criterio complementario a la validación cruzada, nunca como sustituto único.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.10 · AIC frente a BIC</summary>
+            <div class="answer">
+              <p>Dos modelos tienen la misma log-verosimilitud $-500$. El modelo A usa 3 parámetros; el B, 8. Con $n=50$:</p>
+              <ol>
+                <li>Calcula AIC y BIC.</li>
+                <li>¿Cuál elige cada criterio?</li>
+                <li>¿Qué pasaría si $n=10\,000$?</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) A: AIC $=1000+6=1006$; BIC $=1000+3(3.912)\approx1011.7$. B: AIC $=1000+16=1016$; BIC $=1000+8(3.912)\approx1031.3$. (2) Ambos eligen A. (3) Con $n=10\,000$, BIC de A $=1000+3(9.21)\approx1027.6$; B $=1000+8(9.21)\approx1073.7$. A sigue ganando, pero la penalización por parámetro creció. Si B mejorara la log-verosimilitud en más de $\approx5.5$ puntos con $n=50$, BIC podría cambiar de preferencia.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l11" data-title="Longitud de descripción y selección de variables">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.11</div>
+              <h2>Longitud de descripción y selección de variables</h2>
+              <div class="lesson-meta"><span>18 min</span><span class="sep"></span><span>Teoría de la información</span><span class="sep"></span><span>MIT · clase 11</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l11"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Imagina que debes transmitir los datos a otra persona y solo puedes enviar un mensaje. Si el modelo captura regularidades, el mensaje será corto: describes el modelo y luego los residuos, que son pequeños. Si el modelo es inútil, tendrás que enviar los datos crudos. La <strong>longitud de descripción mínima</strong> (MDL) convierte esta intuición en un criterio de selección.</p>
+
+            <h3>El principio MDL</h3>
+            <div class="formula">
+              <span class="formula-label">Longitud total de descripción</span>
+              $$L(\mathcal{D}) = L(\mathcal{M}) + L(\mathcal{D}\mid\mathcal{M})$$
+              <span class="formula-caption">$L(\mathcal{M})$ es el costo de describir el modelo (parámetros); $L(\mathcal{D}\mid\mathcal{M})$ es el costo de codificar los datos usando el modelo. Elegimos el modelo que minimiza la suma, no solo el segundo término.</span>
+            </div>
+            <p>La conexión con la probabilidad es directa. Para una distribución $p$, el código óptimo asigna a un evento $x$ una longitud de $-\log_2 p(x)$ bits (teorema de Shannon). Así, minimizar la longitud esperada equivale a maximizar la verosimilitud, y la longitud del modelo se convierte en una penalización por complejidad.</p>
+
+            <div class="callout math">
+              <span class="callout-title">MDL ≈ BIC</span>
+              Si se codifican los $k$ parámetros con precisión $\sim 1/\sqrt{n}$, cada uno cuesta alrededor de $\frac12\log n$ nats. Sumando sobre $k$ parámetros aparece el término $k\log n$ de BIC. MDL y BIC son primos cercanos: uno habla de bits, el otro de probabilidades.
+            </div>
+
+            <h3>Selección de variables</h3>
+            <p>Con $d$ variables hay $2^d$ subconjuntos posibles. Probar todos es inviable para $d \gt 30$. Estrategias prácticas:</p>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">Filtro</span><h4>Selección univariada</h4><p>Ordena variables por correlación, información mutua o estadístico $F$, sin entrenar el modelo final. Rápida y útil como preprocesamiento, pero ignora redundancias.</p></div>
+              <div class="algo-card"><span class="tag">Wrapper</span><h4>Búsqueda hacia adelante</h4><p>Añade la variable que más mejora el criterio (AIC, BIC, validación). Costosa, pero considera interacciones. Puede quedar atrapada en óptimos locales.</p></div>
+              <div class="algo-card"><span class="tag">Embedded</span><h4>Lasso / L1</h4><p>La penalización L1 lleva coeficientes a cero y selecciona automáticamente. Eficiente y convexa, aunque inestable con variables muy correlacionadas.</p></div>
+              <div class="algo-card"><span class="tag">Post-hoc</span><h4>Importancia y SHAP</h4><p>Entrenar un modelo flexible y medir contribuciones. No selecciona por sí solo, pero ayuda a auditar y simplificar.</p></div>
+            </div>
+
+            <h3>Información mutua</h3>
+            <p>Para medir cuánto aporta una variable $X_j$ sobre $Y$ se usa la información mutua:</p>
+            <div class="formula">
+              $$I(X_j;Y) = \sum_{x,y}p(x,y)\log\frac{p(x,y)}{p(x)p(y)}$$
+              <span class="formula-caption">Es cero si y solo si $X_j$ y $Y$ son independientes. Captura dependencias no lineales, a diferencia de la correlación. Su estimación con muestras finitas es sesgada y requiere cuidado.</span>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Variables redundantes</h4></div>
+              <div class="example-body">
+                <p>Un modelo de crédito tiene dos variables casi idénticas: ingresos mensuales e ingresos anuales (correlación 0.999). Individualmente, ambas son predictivas. Juntas, aportan lo mismo que una sola y reparten el coeficiente entre las dos.</p>
+                <p>Con Lasso, una de las dos se anula y la otra conserva el peso. Con Ridge, ambas se quedan con pesos pequeños y similares. En ambos casos, la predicción es estable, pero la interpretación cambia. Si el objetivo es explicar, conviene eliminar la redundancia antes de modelar. Si es predecir, la regularización basta.</p>
+              </div>
+            </div>
+
+            <div class="callout tip">
+              <span class="callout-title">Regla de parsimonia</span>
+              Si dos modelos predicen igual de bien, elige el que tiene menos variables. Es más barato de mantener, más fácil de auditar y suele generalizar mejor cuando los datos cambian. La simplicidad no es estética: es una forma de regularización.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.11 · Costo de descripción</summary>
+            <div class="answer">
+              <p>Un modelo necesita 40 bits para describir sus parámetros y codifica cada uno de 1 000 datos con 6 bits. Otro modelo necesita 12 bits y codifica cada dato con 7 bits.</p>
+              <ol>
+                <li>¿Qué longitud total tiene cada descripción?</li>
+                <li>¿Cuál elige MDL?</li>
+                <li>¿Qué supone este cálculo sobre la independencia de los datos?</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) Modelo A: $40+1000(6)=6040$ bits. Modelo B: $12+1000(7)=7012$ bits. (2) A, porque la mejora de 1 bit por dato compensa los 28 bits extra del modelo. (3) Se supone que los datos son condicionalmente independientes dado el modelo; si hay dependencia, el costo por dato no es constante y la cuenta cambia.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l12" data-title="Combinación de clasificadores y boosting">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.12</div>
+              <h2>Combinación de clasificadores y boosting</h2>
+              <div class="lesson-meta"><span>24 min</span><span class="sep"></span><span>Algoritmo</span><span class="sep"></span><span>MIT · clase 12</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l12"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Un clasificador mediocre puede ser útil si se combina con otros. La pregunta es cómo ponderarlos y cómo hacer que se equivoquen en lugares distintos. <strong>AdaBoost</strong> responde ambas cosas con un procedimiento iterativo sorprendentemente simple, y su análisis revela por qué los ensambles funcionan.</p>
+
+            <h3>De la votación al boosting</h3>
+            <p>La votación por mayoría combina clasificadores con el mismo peso. El <strong>bagging</strong> entrena cada uno con una muestra bootstrap y reduce varianza. El <strong>boosting</strong> hace algo distinto: entrena secuencialmente, y cada nuevo clasificador se concentra en los ejemplos que los anteriores fallaron.</p>
+
+            <h3>AdaBoost, paso a paso</h3>
+            <p>Datos $\{(x_i,y_i)\}_{i=1}^n$ con $y_i\in\{-1,+1\}$. Inicializamos pesos uniformes $D_1(i)=1/n$.</p>
+            <p><strong>Para $t=1,\dots,T$:</strong></p>
+            <ol>
+              <li>Entrenar un clasificador débil $h_t$ con los pesos $D_t$, minimizando el error ponderado:
+                <div class="formula">$$\varepsilon_t = \sum_{i=1}^{n}D_t(i)\,\mathbb{1}\left[h_t(x_i)\ne y_i\right]$$</div>
+              </li>
+              <li>Calcular su peso en el comité:
+                <div class="formula">$$\alpha_t = \frac{1}{2}\log\frac{1-\varepsilon_t}{\varepsilon_t}$$</div>
+              </li>
+              <li>Actualizar la distribución de ejemplos:
+                <div class="formula">$$D_{t+1}(i) = \frac{D_t(i)\exp\left(-\alpha_t y_i h_t(x_i)\right)}{Z_t}$$</div>
+                <span class="formula-caption">$Z_t$ es una constante de normalización para que los pesos sumen 1. Si el ejemplo se clasifica bien, su peso se multiplica por $e^{-\alpha_t} \lt 1$; si falla, por $e^{\alpha_t} \gt 1$.</span>
+              </li>
+            </ol>
+            <p>El clasificador final es la votación ponderada:</p>
+            <div class="formula">
+              <span class="formula-label">Comité AdaBoost</span>
+              $$H(x) = \operatorname{sign}\left(\sum_{t=1}^{T}\alpha_t h_t(x)\right)$$
+              <span class="formula-caption">Los clasificadores con menor error reciben más peso. Un clasificador con $\varepsilon_t \gt 0.5$ recibe peso negativo: se invierte su voto, lo que tiene sentido si es sistemáticamente peor que el azar.</span>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Dos rondas con números</h4></div>
+              <div class="example-body">
+                <p>Cuatro ejemplos con pesos iniciales $D_1=(0.25,0.25,0.25,0.25)$. El primer clasificador falla solo en el ejemplo 1: $\varepsilon_1=0.25$.</p>
+                <div class="step"><span class="step-n">1</span><div>$\alpha_1=\frac12\log(0.75/0.25)=\frac12\log 3\approx0.549$.</div></div>
+                <div class="step"><span class="step-n">2</span><div>Pesos sin normalizar: ejemplo 1 (error) $0.25e^{0.549}\approx0.433$; los otros $0.25e^{-0.549}\approx0.144$. Suma $=0.433+3(0.144)=0.865$.</div></div>
+                <div class="step"><span class="step-n">3</span><div>$D_2\approx(0.500,0.167,0.167,0.167)$. El ejemplo fallado pesa el 50 % del total.</div></div>
+                <div class="step"><span class="step-n">4</span><div>El segundo clasificador se entrena con esos pesos: si acierta el ejemplo 1, su error ponderado será bajo y recibirá un $\alpha_2$ grande.</div></div>
+              </div>
+            </div>
+
+            <h3>Por qué funciona: la vista de margen</h3>
+            <p>AdaBoost puede interpretarse como descenso de gradiente sobre la <strong>pérdida exponencial</strong>:</p>
+            <div class="formula">
+              $$L(H) = \sum_{i=1}^{n}\exp\left(-y_i F(x_i)\right), \qquad F(x)=\sum_{t}\alpha_t h_t(x)$$
+              <span class="formula-caption">Cada ronda añade el clasificador que más reduce esta pérdida. La pérdida exponencial castiga con dureza los ejemplos mal clasificados con confianza, y por eso el algoritmo se concentra en los difíciles.</span>
+            </div>
+            <p>La pérdida exponencial es una cota superior del error de clasificación. Minimizarla reduce el error de entrenamiento, pero también empuja los márgenes $y_iF(x_i)$ a crecer. En la clase 13 veremos que ese margen, no el error de entrenamiento, explica la generalización.</p>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">adaboost.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.datasets import make_moons
+from sklearn.model_selection import train_test_split
+
+class AdaBoost:
+    def __init__(self, n_estimators=50, max_depth=1):
+        self.n_estimators = n_estimators
+        self.max_depth = max_depth
+
+    def fit(self, X, y):
+        n = len(y)
+        w = np.full(n, 1 / n)
+        self.models, self.alphas = [], []
+        for _ in range(self.n_estimators):
+            h = DecisionTreeClassifier(max_depth=self.max_depth, random_state=0)
+            h.fit(X, y, sample_weight=w)
+            pred = h.predict(X)
+            err = np.sum(w * (pred != y)) / np.sum(w)
+            err = np.clip(err, 1e-10, 1 - 1e-10)
+            alpha = 0.5 * np.log((1 - err) / err)
+            w = w * np.exp(-alpha * y * pred)
+            w /= w.sum()
+            self.models.append(h)
+            self.alphas.append(alpha)
+        return self
+
+    def predict(self, X):
+        scores = sum(a * h.predict(X) for a, h in zip(self.alphas, self.models))
+        return np.sign(scores)
+
+X, y = make_moons(n_samples=500, noise=0.3, random_state=0)
+y = np.where(y == 0, -1, 1)
+Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.3, random_state=0)
+
+clf = AdaBoost(n_estimators=60, max_depth=2).fit(Xtr, ytr)
+print("exactitud en test:", np.mean(clf.predict(Xte) == yte))
+</code></pre></div>
+
+            <div class="callout warn">
+              <span class="callout-title">Sensibilidad al ruido</span>
+              AdaBoost aumenta el peso de los ejemplos difíciles en cada ronda. Si esos ejemplos son etiquetas erróneas, el modelo terminará obsesionado con el ruido. Por eso los ensambles modernos (gradient boosting regularizado, XGBoost, LightGBM) limitan la profundidad, añaden shrinkage y usan submuestreo.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.12 · Pesos y error</summary>
+            <div class="answer">
+              <p>En la primera ronda de AdaBoost, un clasificador tiene $\varepsilon_1=0.1$.</p>
+              <ol>
+                <li>Calcula $\alpha_1$.</li>
+                <li>¿Por qué factor se multiplica el peso de un ejemplo mal clasificado?</li>
+                <li>¿Qué ocurre si $\varepsilon_1=0.5$? ¿Y si $\varepsilon_1=0.6$?</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) $\alpha_1=\frac12\log(0.9/0.1)=\frac12\log 9\approx1.099$. (2) Por $e^{\alpha_1}\approx3$. Los bien clasificados se multiplican por $e^{-1.099}\approx0.333$. (3) Con $\varepsilon=0.5$, $\alpha=0$: el clasificador no aporta y los pesos no cambian. Con $\varepsilon=0.6$, $\alpha=\frac12\log(0.4/0.6)\approx-0.203$: el voto se invierte, porque un clasificador peor que el azar contiene información si se usa al revés.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l13" data-title="Boosting, margen y complejidad">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.13</div>
+              <h2>Boosting, margen y complejidad</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Teoría</span><span class="sep"></span><span>MIT · clase 13</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l13"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">AdaBoost parece violar la intuición: combina cientos de clasificadores, tiene muchos parámetros efectivos y, sin embargo, rara vez sobreajusta. La explicación está en los <strong>márgenes</strong> de las predicciones del comité, no en el número de componentes.</p>
+
+            <h3>Margen de una predicción combinada</h3>
+            <p>Para el comité $F(x)=\sum_t\alpha_t h_t(x)$, definimos el margen de un ejemplo como</p>
+            <div class="formula">
+              <span class="formula-label">Margen normalizado</span>
+              $$\text{margen}_i = \frac{y_i F(x_i)}{\sum_{t=1}^{T}\alpha_t} \in [-1,1]$$
+              <span class="formula-caption">Es positivo si el ejemplo se clasifica bien y negativo si se clasifica mal. Su magnitud mide la confianza: cerca de 1, todos los clasificadores coinciden; cerca de 0, la decisión es ajustada.</span>
+            </div>
+            <p>La observación empírica clave es que, incluso después de alcanzar error de entrenamiento cero, las rondas adicionales de AdaBoost siguen aumentando los márgenes. El error de entrenamiento ya no puede bajar, pero la confianza del comité mejora, y con ella la generalización.</p>
+            <div class="formula">
+              <span class="formula-label">Cota de generalización (esquemática)</span>
+              $$R(H) \le \hat{R}_\theta(H) + O\!\left(\sqrt{\frac{d}{n\,\theta^2}}\right)$$
+              <span class="formula-caption">$\hat{R}_\theta$ cuenta los ejemplos con margen menor que $\theta$. Para un margen mínimo $\theta$ fijo, la complejidad efectiva deja de depender de $T$: por eso añadir clasificadores no necesariamente sobreajusta.</span>
+            </div>
+
+            <h3>La pérdida exponencial en detalle</h3>
+            <p>AdaBoost minimiza $\sum_i e^{-y_iF(x_i)}$ de forma voraz: en cada ronda elige el par $(h_t,\alpha_t)$ que más la reduce. Para un clasificador fijo $h$, la elección óptima de $\alpha$ es exactamente la fórmula del boosting:</p>
+            <div class="formula">
+              $$\alpha^{*} = \arg\min_{\alpha}\ \sum_{i}e^{-y_i\left(F_{t-1}(x_i)+\alpha h(x_i)\right)} = \frac{1}{2}\log\frac{1-\varepsilon}{\varepsilon}$$
+              <span class="formula-caption">La derivada respecto a $\alpha$ igualada a cero produce esta expresión. El boosting es, literalmente, descenso de gradiente en el espacio de funciones con pasos de tamaño óptimo.</span>
+            </div>
+            <p>Esa interpretación abrió la puerta al <strong>gradient boosting</strong> moderno: en lugar de reajustar pesos, se ajusta cada nuevo modelo a los residuos (o al gradiente negativo) de la pérdida elegida. Con pérdida cuadrática da boosting de regresión; con logística, clasificación calibrada; con cualquier pérdida diferenciable, un algoritmo nuevo.</p>
+
+            <div class="callout math">
+              <span class="callout-title">Por qué el margen importa más que el error</span>
+              Un clasificador que acierta por un margen de 0.01 es funcionalmente distinto de uno que acierta por 0.8, aunque ambos tengan error cero. El primero está al borde de cambiar de decisión ante una perturbación mínima; el segundo es robusto. La teoría de márgenes formaliza esa diferencia y explica por qué SVM y boosting generalizan bien en espacios de gran dimensión.
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">Margen no es inmunidad</span>
+              Con ruido extremo o etiquetas erróneas, el margen de los ejemplos mal etiquetados se vuelve negativo y el comité gasta capacidad en corregirlos. La cota de margen no salva de datos corruptos: solo describe el comportamiento cuando la señal es aprendible.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.13 · Interpretar márgenes</summary>
+            <div class="answer">
+              <p>Un comité tiene dos ejemplos: el primero con $yF(x)=2.5$ y el segundo con $yF(x)=0.1$. La suma de pesos es $\sum_t\alpha_t=4$.</p>
+              <ol>
+                <li>Calcula ambos márgenes normalizados.</li>
+                <li>¿Cuál es más robusto?</li>
+                <li>¿Qué significa un margen negativo?</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) $2.5/4=0.625$ y $0.1/4=0.025$. (2) El primero. (3) Que la predicción del comité es incorrecta; si además el margen es muy negativo, muchos clasificadores se equivocan con confianza.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l14" data-title="Margen, generalización y mezclas">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.14</div>
+              <h2>Margen, generalización y mezclas</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Modelos latentes</span><span class="sep"></span><span>MIT · clase 14</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l14"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Cerramos la parte supervisada con dos ideas que se conectan: el margen como medida de capacidad y las mezclas como primer modelo con variables latentes. La segunda nos llevará directamente al algoritmo EM, el corazón de la parte no supervisada.</p>
+
+            <h3>Más allá del margen mínimo</h3>
+            <p>Las cotas de generalización basadas en el margen mínimo $\theta$ pueden ser demasiado pesimistas: exigen que <em>todos</em> los ejemplos tengan margen al menos $\theta$. En la práctica, una fracción pequeña de ejemplos puede tener márgenes pequeños sin destruir el rendimiento. Las cotas empíricas usan la distribución completa de márgenes:</p>
+            <div class="formula">
+              $$R(H) \le \hat{R}_\theta(H) + \tilde{O}\!\left(\sqrt{\frac{d}{n\theta^2}}\right) + \text{término de cola}$$
+              <span class="formula-caption">El término de cola depende de cuántos ejemplos caen por debajo de $\theta$. La conclusión práctica se mantiene: lo que importa es la proporción de predicciones con margen amplio.</span>
+            </div>
+
+            <h3>Mezclas de distribuciones</h3>
+            <p>Una mezcla modela la densidad de los datos como una combinación convexa de componentes simples:</p>
+            <div class="formula">
+              <span class="formula-label">Modelo de mezcla</span>
+              $$p(x) = \sum_{k=1}^{K}\pi_k\,p_k(x), \qquad \pi_k \ge 0, \qquad \sum_{k=1}^{K}\pi_k=1$$
+              <span class="formula-caption">Cada $p_k$ es una distribución base (gaussiana, multinomial, etc.) y $\pi_k$ su peso. La mezcla puede aproximar densidades muy flexibles manteniendo componentes interpretables.</span>
+            </div>
+            <p>Introducimos una variable latente $z\in\{1,\dots,K\}$ que indica qué componente generó cada observación. El modelo generativo es:</p>
+            <div class="formula">
+              $$z \sim \operatorname{Categorical}(\pi), \qquad x \mid z=k \sim p_k(x)$$
+              <span class="formula-caption">No observamos $z$. Esa ausencia es lo que hace difícil la estimación: la verosimilitud incluye una suma dentro del logaritmo.</span>
+            </div>
+            <div class="formula">
+              <span class="formula-label">Log-verosimilitud</span>
+              $$\log p(\mathcal{D}\mid\theta) = \sum_{i=1}^{n}\log\left(\sum_{k=1}^{K}\pi_k\,p_k(x_i\mid\theta_k)\right)$$
+              <span class="formula-caption">La suma dentro del logaritmo impide obtener una solución cerrada. Derivar e igualar a cero produce ecuaciones acopladas: cada componente depende de las responsabilidades, y las responsabilidades dependen de los parámetros.</span>
+            </div>
+
+            <h3>Mezcla de gaussianas</h3>
+            <p>El caso más usado es la mezcla de gaussianas (GMM), donde cada componente tiene media $\mu_k$ y covarianza $\Sigma_k$:</p>
+            <div class="formula">
+              $$p_k(x) = \frac{1}{(2\pi)^{d/2}|\Sigma_k|^{1/2}}\exp\left(-\frac12(x-\mu_k)^\top\Sigma_k^{-1}(x-\mu_k)\right)$$
+              <span class="formula-caption">Los parámetros son $\theta=\{\pi_k,\mu_k,\Sigma_k\}_{k=1}^{K}$. Con $K$ componentes y $d$ dimensiones, el número de parámetros crece como $K(d^2/2+d+1)$: hay que regularizar o restringir la covarianza.</span>
+            </div>
+            <p>Una mezcla puede representar distribuciones multimodales, agrupamientos y colas pesadas que una sola gaussiana no captura. También es un <strong>modelo de clustering probabilístico</strong>: la probabilidad posterior de cada componente es una asignación suave, no una etiqueta rígida.</p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Dos gaussianas en una dimensión</h4></div>
+              <div class="example-body">
+                <p>Sea $\pi_1=0.6$, $\pi_2=0.4$, con $\mu_1=0$, $\sigma_1=1$ y $\mu_2=4$, $\sigma_2=1$. Para $x=1.5$:</p>
+                <div class="step"><span class="step-n">1</span><div>$p_1(1.5)=\frac{1}{\sqrt{2\pi}}e^{-1.125}\approx0.128$.</div></div>
+                <div class="step"><span class="step-n">2</span><div>$p_2(1.5)=\frac{1}{\sqrt{2\pi}}e^{-3.125}\approx0.0175$.</div></div>
+                <div class="step"><span class="step-n">3</span><div>Densidad total: $0.6(0.128)+0.4(0.0175)=0.0838$.</div></div>
+                <div class="step"><span class="step-n">4</span><div>Responsabilidad de la componente 1: $0.6(0.128)/0.0838\approx0.917$. El punto es casi seguramente de la primera.</div></div>
+                <div class="step"><span class="step-n">5</span><div>En $x=2$: $p_1\approx0.054$, $p_2\approx0.054$; responsabilidades $0.6$ y $0.4$, exactamente las proporciones previas. Es el punto de máxima ambigüedad.</div></div>
+              </div>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">Identificabilidad</span>
+              Las mezclas tienen simetrías: intercambiar dos componentes produce la misma densidad. Además, con $K$ grande y pocos datos, la verosimilitud puede crecer sin límite si una componente se colapsa sobre un punto y su varianza tiende a cero. La regularización y las restricciones de covarianza son necesarias, no opcionales.
+            </div>
+
+            <div class="callout tip">
+              <span class="callout-title">Puente al EM</span>
+              Si conociéramos las etiquetas $z_i$, estimar $\pi_k,\mu_k,\Sigma_k$ sería contar y promediar. Si conociéramos los parámetros, podríamos calcular la probabilidad de cada $z_i$ con Bayes. EM alterna entre ambos pasos hasta converger. Esa es toda la idea de la clase siguiente.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.14 · Responsabilidades</summary>
+            <div class="answer">
+              <p>Con la mezcla del ejemplo, calcula la responsabilidad de la componente 1 en $x=0$ y en $x=4$.</p>
+              <p><strong>Solución:</strong> en $x=0$: $p_1=0.399$, $p_2\approx0.000134$; numerador $0.6(0.399)=0.239$, denominador $\approx0.239+0.4(0.000134)=0.2391$; responsabilidad $\approx0.9998$. En $x=4$: por simetría, $p_2=0.399$ y $p_1\approx0.000134$; responsabilidad de la componente 1 $\approx0.0002$. Los puntos en las medias son casi puros; la ambigüedad aparece entre ambas.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l15" data-title="Mezclas y algoritmo EM">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.15</div>
+              <h2>Mezclas y algoritmo EM</h2>
+              <div class="lesson-meta"><span>24 min</span><span class="sep"></span><span>Derivación + simulador</span><span class="sep"></span><span>MIT · clase 15</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l15"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">El algoritmo <strong>Expectation–Maximization</strong> (EM) resuelve el problema de estimar modelos con variables latentes. Su estructura es tan general que aparece en mezclas, HMM, factor analysis, imputación de datos y modelos de temas. La idea: si no puedes maximizar directamente, maximiza una cota inferior y mejórala.</p>
+
+            <h3>La cota de Jensen</h3>
+            <p>Partimos de la log-verosimilitud y multiplicamos y dividimos por una distribución auxiliar $q_i(z)$ sobre las variables latentes:</p>
+            <div class="formula">
+              $$\log p(x_i\mid\theta) = \log\sum_{z}q_i(z)\frac{p(x_i,z\mid\theta)}{q_i(z)} \ge \sum_{z}q_i(z)\log\frac{p(x_i,z\mid\theta)}{q_i(z)}$$
+              <span class="formula-caption">La desigualdad es Jensen aplicada al logaritmo (cóncavo). La igualdad se alcanza cuando $q_i(z)$ es proporcional a $p(x_i,z\mid\theta)$, es decir, cuando $q_i$ es la posterior exacta.</span>
+            </div>
+            <p>Definimos la función auxiliar:</p>
+            <div class="formula">
+              <span class="formula-label">Función Q</span>
+              $$Q(\theta\mid\theta^{(t)}) = \sum_{i=1}^{n}\sum_{z}q_i(z)\log p(x_i,z\mid\theta), \qquad q_i(z)=p\left(z\mid x_i,\theta^{(t)}\right)$$
+              <span class="formula-caption">$Q$ es la esperanza de la log-verosimilitud completa bajo la posterior actual de las variables latentes. EM maximiza $Q$ en lugar de la verosimilitud difícil.</span>
+            </div>
+
+            <h3>Los dos pasos</h3>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">E-step</span><h4>Expectation</h4><p>Con los parámetros actuales, calcula la posterior de las variables latentes: las responsabilidades. Para una mezcla, $r_{ik}=P(z_i=k\mid x_i,\theta^{(t)})$.</p></div>
+              <div class="algo-card"><span class="tag">M-step</span><h4>Maximization</h4><p>Con las responsabilidades fijas, maximiza $Q$ respecto a $\theta$. En mezclas, actualiza pesos, medias y covarianzas con promedios ponderados.</p></div>
+            </div>
+
+            <h3>EM para una mezcla de gaussianas</h3>
+            <div class="formula">
+              <span class="formula-label">E-step: responsabilidades</span>
+              $$r_{ik} = \frac{\pi_k\,\mathcal{N}\left(x_i\mid\mu_k,\Sigma_k\right)}{\sum_{j=1}^{K}\pi_j\,\mathcal{N}\left(x_i\mid\mu_j,\Sigma_j\right)}$$
+              <span class="formula-caption">$r_{ik}$ es la probabilidad de que el ejemplo $i$ haya sido generado por la componente $k$. Para cada $i$, las responsabilidades suman 1.</span>
+            </div>
+            <div class="formula">
+              <span class="formula-label">M-step: parámetros</span>
+              $$N_k=\sum_{i=1}^{n}r_{ik}, \qquad \pi_k=\frac{N_k}{n}, \qquad \mu_k=\frac{1}{N_k}\sum_{i=1}^{n}r_{ik}x_i$$
+              $$\Sigma_k=\frac{1}{N_k}\sum_{i=1}^{n}r_{ik}\left(x_i-\mu_k\right)\left(x_i-\mu_k\right)^\top$$
+              <span class="formula-caption">$N_k$ es el número efectivo de puntos asignados a la componente $k$. Todo se reduce a medias y covarianzas ponderadas. Si $N_k\to0$, la componente muere; conviene reinicializarla o regularizar.</span>
+            </div>
+
+            <div class="sim" data-sim="em">
+              <div class="sim-head">
+                <div class="sim-icon">◎</div>
+                <div><h4>Simulador · EM para mezcla de gaussianas</h4><p>Observa cómo las elipses se ajustan a los grupos y cómo la log-verosimilitud sube en cada paso.</p></div>
+              </div>
+              <div class="sim-body">
+                <div class="sim-canvas-wrap"><canvas id="emCanvas" width="560" height="360" aria-label="Simulador del algoritmo EM"></canvas></div>
+                <div class="sim-controls">
+                  <div class="ctrl"><label for="emK">Componentes K <output id="emKOut">2</output></label><input type="range" id="emK" min="2" max="4" step="1" value="2"></div>
+                  <div class="btn-row">
+                    <button class="btn small" id="emStep" type="button">Paso EM</button>
+                    <button class="btn small primary" id="emRun" type="button">Ejecutar</button>
+                    <button class="btn small" id="emReset" type="button">Reiniciar</button>
+                  </div>
+                  <div class="sim-readout">
+                    <div>log-verosimilitud = <b id="emLoglik">—</b></div>
+                    <div>iteración = <b id="emIter">0</b></div>
+                    <div>cambio = <b id="emDelta">—</b></div>
+                  </div>
+                  <div class="sim-hint">La log-verosimilitud nunca baja: es la garantía teórica de EM. Si una elipse colapsa sobre un punto, la covarianza se vuelve singular; el suelo de regularización lo evita.</div>
+                </div>
+              </div>
+            </div>
+
+            <h3>Monotonía</h3>
+            <p>EM nunca disminuye la verosimilitud observada. La demostración es corta: al elegir $q_i$ como la posterior, la cota se vuelve exacta; al maximizar $Q$ en el M-step, la cota sube; y como la cota es inferior a la verosimilitud, esta también sube (o se queda igual).</p>
+            <div class="formula">
+              $$\log p(\mathcal{D}\mid\theta^{(t+1)}) \ge \log p(\mathcal{D}\mid\theta^{(t)})$$
+              <span class="formula-caption">La monotonía garantiza convergencia a un máximo local o a un punto estacionario, no al global. La inicialización importa y conviene ejecutar EM varias veces con distintas semillas.</span>
+            </div>
+
+            <div class="callout math">
+              <span class="callout-title">Por qué no basta con derivar</span>
+              La derivada de la log-verosimilitud de una mezcla produce ecuaciones donde $\mu_k$ aparece en las responsabilidades y las responsabilidades en $\mu_k$. No hay forma de desacoplarlas. EM convierte un problema acoplado en una secuencia de problemas resueltos: es una estrategia de optimización, no una fórmula cerrada.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.15 · Un paso de EM a mano</summary>
+            <div class="answer">
+              <p>Datos unidimensionales $\{0,1,2,10\}$. Inicializa $K=2$ con $\mu_1=0$, $\mu_2=10$, $\sigma_1=\sigma_2=1$ y $\pi_1=\pi_2=0.5$.</p>
+              <ol>
+                <li>Calcula aproximadamente las responsabilidades de $x=1$.</li>
+                <li>¿Qué dirección tomarán las medias en el M-step?</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) $x=1$ está a 1 de $\mu_1$ y a 9 de $\mu_2$. Las densidades difieren en un factor $e^{-(81-1)/2}=e^{-40}$, así que $r_{11}\approx1$ y $r_{12}\approx0$. (2) $\mu_1$ se moverá hacia la media de $\{0,1,2\}$ (aproximadamente 1) y $\mu_2$ quedará cerca de 10. Las varianzas se reducirán. Con más pasos, el modelo converge a dos grupos claros, aunque el punto 10 podría formar su propia componente si $K=3$.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l16" data-title="EM, regularización y clustering">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.16</div>
+              <h2>EM, regularización y clustering</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Conexiones</span><span class="sep"></span><span>MIT · clase 16</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l16"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">EM es un marco, no un algoritmo único. Cambiando la distribución base, las restricciones o la inicialización se obtienen variantes con comportamientos muy distintos. En esta clase conectamos EM con k-means, con la regularización y con el clustering en general.</p>
+
+            <h3>k-means como límite de EM</h3>
+            <p>Supongamos una mezcla de gaussianas con covarianzas esféricas e iguales, $\Sigma_k=\sigma^2 I$, y hacemos $\sigma^2\to0$. Las responsabilidades se vuelven duras: cada punto se asigna a la componente más cercana. El M-step se reduce a la media de los puntos asignados. Ese es exactamente k-means.</p>
+            <div class="formula">
+              <span class="formula-label">Objetivo de k-means</span>
+              $$\min_{\{\mu_k\},\{c_i\}}\ \sum_{i=1}^{n}\left\lVert x_i-\mu_{c_i}\right\rVert^2$$
+              <span class="formula-caption">k-means es EM con asignaciones duras y varianza compartida. Su función objetivo es la inercia; cada iteración reduce la inercia y converge a un mínimo local.</span>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th></th><th>k-means</th><th>GMM + EM</th></tr></thead>
+                <tbody>
+                  <tr><td>Asignación</td><td>Dura (un cluster)</td><td>Suave (probabilidades)</td></tr>
+                  <tr><td>Forma de cluster</td><td>Esférica, mismo tamaño</td><td>Elipse, distinto tamaño y orientación</td></tr>
+                  <tr><td>Parámetros</td><td>Centroides</td><td>Pesos, medias, covarianzas</td></tr>
+                  <tr><td>Robustez</td><td>Simple y rápido</td><td>Más flexible, más parámetros</td></tr>
+                  <tr><td>Salida</td><td>Etiqueta</td><td>Probabilidad de pertenencia</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Regularización en EM</h3>
+            <p>La verosimilitud de una mezcla es no acotada: una componente puede colapsar sobre un punto con varianza cero y verosimilitud infinita. Tres remedios estándar:</p>
+            <ul>
+              <li><strong>Suelo de covarianza:</strong> $\Sigma_k \leftarrow \Sigma_k + \epsilon I$, con $\epsilon$ pequeño. Evita matrices singulares.</li>
+              <li><strong>Prior bayesiano:</strong> usar un prior inverse-Wishart sobre $\Sigma_k$ y Dirichlet sobre $\pi$. El M-step se convierte en MAP y las componentes vacías se contraen hacia el prior.</li>
+              <li><strong>Restricción de forma:</strong> covarianza diagonal, esférica o compartida. Menos parámetros, más estabilidad, menos flexibilidad.</li>
+            </ul>
+            <div class="formula">
+              <span class="formula-label">MAP con prior Dirichlet</span>
+              $$\pi_k = \frac{N_k+\alpha_k-1}{n+\sum_j(\alpha_j-1)}$$
+              <span class="formula-caption">Con $\alpha_k=1$ se recupera el MLE. Con $\alpha_k \gt 1$ se evita que una componente desaparezca y se suavizan las proporciones.</span>
+            </div>
+
+            <h3>Selección del número de componentes</h3>
+            <p>Más componentes siempre aumentan la verosimilitud. Para elegir $K$ se usan BIC, AIC o validación. BIC es el más habitual porque penaliza con $\frac12 k\log n$ y es consistente en condiciones regulares:</p>
+            <div class="formula">
+              $$\mathrm{BIC}(K) = -2\log p(\mathcal{D}\mid\hat\theta_K) + p_K\log n$$
+              <span class="formula-caption">$p_K$ es el número de parámetros libres del modelo con $K$ componentes. Se elige el $K$ que minimiza BIC, no el que maximiza la verosimilitud.</span>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">Clustering no es clasificación</span>
+              Un cluster no es una clase real: es una partición inducida por el modelo y la métrica. Cambiar la escala, la inicialización o el número de componentes cambia el resultado. Validar un clustering exige criterios externos (si existen etiquetas), internos (silhouette, Davies–Bouldin) y, sobre todo, interpretación del dominio.
+            </div>
+
+            <div class="callout tip">
+              <span class="callout-title">Uso práctico de GMM</span>
+              En producción, GMM se usa para detección de anomalías (baja densidad), segmentación suave, modelado de voz y como capa generativa. Siempre estandariza las features antes de ajustar covarianzas: una variable con varianza 10 000 domina la distancia de Mahalanobis.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.16 · k-means vs. GMM</summary>
+            <div class="answer">
+              <p>Dos grupos tienen forma alargada y orientaciones distintas, con 200 y 20 puntos respectivamente.</p>
+              <ol>
+                <li>¿Qué método esperarías que funcione mejor: k-means o GMM con covarianza completa?</li>
+                <li>¿Qué problema tendría GMM con el grupo pequeño?</li>
+                <li>¿Cómo lo mitigarías?</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) GMM con covarianza completa, porque puede modelar elipses alargadas y tamaños distintos; k-means impone fronteras lineales y clusters esféricos de similar dispersión. (2) El grupo de 20 puntos podría colapsar en una componente casi puntual o quedar absorbido por el grande. (3) Regularizar covarianzas (suelo o prior), inicializar con k-means, o usar un prior Dirichlet que favorezca proporciones no extremas.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l17" data-title="Clustering">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.17</div>
+              <h2>Clustering</h2>
+              <div class="lesson-meta"><span>20 min</span><span class="sep"></span><span>Métodos y métricas</span><span class="sep"></span><span>MIT · clase 17</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l17"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Agrupar sin etiquetas es un problema mal definido: ¿qué es un grupo? La respuesta depende de la métrica, del modelo y del objetivo. Esta clase recorre las familias principales y, sobre todo, enseña a desconfiar de un clustering que no se puede validar.</p>
+
+            <h3>Tres familias</h3>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">Centroides</span><h4>k-means</h4><p>Minimiza la distancia al centroide. Rápido, simple, asume grupos esféricos y requiere elegir $k$. Sensible a la escala y a la inicialización.</p></div>
+              <div class="algo-card"><span class="tag">Jerárquico</span><h4>Aglomerativo</h4><p>Fusiona iterativamente los grupos más cercanos y produce un dendrograma. No requiere $k$ de antemano; el costo es $O(n^2\log n)$ o peor.</p></div>
+              <div class="algo-card"><span class="tag">Densidad</span><h4>DBSCAN</h4><p>Conecta puntos con suficientes vecinos. Encuentra formas arbitrarias y marca ruido, pero falla si las densidades varían mucho.</p></div>
+              <div class="algo-card"><span class="tag">Probabilístico</span><h4>GMM + EM</h4><p>Asigna probabilidades y modela elipses. Más flexible, más parámetros; necesita regularización e inicialización cuidadosa.</p></div>
+            </div>
+
+            <h3>Distancias y escalas</h3>
+            <p>Todo clustering depende de una noción de distancia. La elección no es neutral:</p>
+            <div class="formula">
+              <span class="formula-label">Distancias habituales</span>
+              $$d_2(x,z)=\sqrt{\sum_j(x_j-z_j)^2}, \qquad d_1(x,z)=\sum_j|x_j-z_j|, \qquad d_\infty(x,z)=\max_j|x_j-z_j|$$
+              <span class="formula-caption">La distancia euclidiana favorece diferencias grandes en pocas variables; la Manhattan es más robusta; la del máximo solo mira la coordenada más discrepante.</span>
+            </div>
+            <p>Si una variable se mide en miles y otra en fracciones, la primera domina la suma. <strong>Estandarizar</strong> (media 0, desviación 1) es el mínimo indispensable. A veces conviene una transformación no lineal (log) o una distancia de Mahalanobis que tenga en cuenta la correlación.</p>
+
+            <h3>Evaluación interna</h3>
+            <div class="formula">
+              <span class="formula-label">Coeficiente de silueta</span>
+              $$s(i)=\frac{b(i)-a(i)}{\max\left(a(i),b(i)\right)}$$
+              <span class="formula-caption">$a(i)$ es la distancia media de $i$ a los puntos de su cluster; $b(i)$ la distancia media al cluster vecino más cercano. $s(i)\in[-1,1]$: cerca de 1 indica asignación clara; cerca de 0, frontera difusa; negativo, posible mala asignación.</span>
+            </div>
+            <div class="formula">
+              <span class="formula-label">Índice de Davies–Bouldin</span>
+              $$\mathrm{DB} = \frac{1}{K}\sum_{k=1}^{K}\max_{j\ne k}\frac{\sigma_k+\sigma_j}{d(\mu_k,\mu_j)}$$
+              <span class="formula-caption">$\sigma_k$ es la dispersión media dentro del cluster $k$. Valores menores son mejores: clusters compactos y separados.</span>
+            </div>
+            <p>Ninguna métrica interna es definitiva. Optimizan la misma geometría que el algoritmo ya optimiza, así que pueden favorecer formas esféricas. La validación externa (etiquetas disponibles) o la interpretación del dominio son el verdadero juez.</p>
+
+            <h3>Jerárquico aglomerativo</h3>
+            <p>Se parte de $n$ clusters individuales y se fusionan los dos más cercanos según un criterio de enlace:</p>
+            <ul>
+              <li><strong>Single linkage:</strong> distancia mínima entre puntos de dos clusters. Detecta formas alargadas, pero sufre el efecto cadena.</li>
+              <li><strong>Complete linkage:</strong> distancia máxima. Produce clusters compactos y equilibrados.</li>
+              <li><strong>Average linkage:</strong> distancia media. Compromiso razonable.</li>
+              <li><strong>Ward:</strong> minimiza el aumento de la suma de cuadrados. Es el más usado con distancia euclidiana.</li>
+            </ul>
+            <p>El dendrograma permite decidir el número de grupos a posteriori, cortando a una altura determinada. Es una ventaja exploratoria, no una garantía estadística.</p>
+
+            <div class="callout warn">
+              <span class="callout-title">El mito del número correcto de clusters</span>
+              En datos reales, los grupos rara vez están perfectamente separados. El «número óptimo» según silhouette puede no ser el más útil para el negocio. Prueba varios $k$, inspecciona los perfiles, y elige el que permita tomar decisiones. Un clustering sin acción asociada es solo una visualización.
+            </div>
+
+            <div class="code-block"><div class="code-head"><span class="lang">Python</span><span class="file">clustering.py</span><button class="copy-btn" type="button">Copiar</button></div><pre><code class="language-python">import numpy as np
+from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score, davies_bouldin_score
+from sklearn.datasets import make_blobs
+
+X, _ = make_blobs(n_samples=600, centers=4, cluster_std=1.4, random_state=7)
+X = StandardScaler().fit_transform(X)
+
+for k in range(2, 8):
+    km = KMeans(n_clusters=k, n_init=20, random_state=0).fit(X)
+    print(f"k={k}  silhouette={silhouette_score(X, km.labels_):.3f}  "
+          f"DB={davies_bouldin_score(X, km.labels_):.3f}")
+
+ward = AgglomerativeClustering(n_clusters=4, linkage="ward").fit(X)
+db = DBSCAN(eps=0.5, min_samples=8).fit(X)
+print("Ward silhouette:", silhouette_score(X, ward.labels_))
+print("DBSCAN clusters:", len(set(db.labels_)) - (1 if -1 in db.labels_ else 0),
+      "ruido:", np.sum(db.labels_ == -1))
+</code></pre></div>
+
+            <div class="callout tip">
+              <span class="callout-title">Protocolo de clustering</span>
+              Estandariza → elige una familia según la forma esperada → prueba varios $k$ o parámetros → evalúa con al menos dos métricas internas → inspecciona los centros o perfiles → valida con el dominio. Si no puedes describir los grupos en una frase cada uno, probablemente no sean reales.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.17 · Elegir el método</summary>
+            <div class="answer">
+              <p>Elige un método y justifica: (a) 50 000 clientes, 12 variables estandarizadas, grupos aproximadamente esféricos; (b) puntos GPS de rutas con forma de anillo; (c) 300 documentos de texto; (d) datos con outliers extremos.</p>
+              <p><strong>Solución:</strong> (a) k-means con k-means++ y varios $k$. (b) DBSCAN o clustering espectral; k-means fallaría por la forma. (c) GMM sobre embeddings o k-means sobre TF-IDF reducido con SVD; la métrica adecuada es coseno, no euclidiana. (d) DBSCAN (marca ruido) o k-medoids, que es más robusto que k-means a valores extremos.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l18" data-title="Clustering espectral y cadenas de Markov">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.18</div>
+              <h2>Clustering espectral y cadenas de Markov</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Grafos + álgebra lineal</span><span class="sep"></span><span>MIT · clase 18</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l18"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Cuando los grupos no son esféricos, la distancia euclidiana engaña. El clustering espectral cambia de perspectiva: construye un grafo de similitud y busca cortes que separen comunidades con pocas conexiones entre ellas. Las cadenas de Markov aportan la misma maquinaria desde la teoría de procesos.</p>
+
+            <h3>Del dato al grafo</h3>
+            <p>Dados $n$ puntos, construimos una matriz de afinidad $W$ con $W_{ij}\ge0$ y $W_{ij}=W_{ji}$. Opciones habituales:</p>
+            <div class="formula">
+              <span class="formula-label">Afinidad gaussiana</span>
+              $$W_{ij} = \exp\left(-\frac{\lVert x_i-x_j\rVert^2}{2\sigma^2}\right)$$
+              <span class="formula-caption">Solo se conservan los $k$ vecinos más cercanos de cada punto (grafo $k$-NN) para que la matriz sea dispersa. El grado de un nodo es $d_i=\sum_j W_{ij}$.</span>
+            </div>
+            <p>El problema de clustering se convierte en un problema de <strong>corte de grafo</strong>: dividir los nodos en grupos con pocas aristas entre grupos y muchas dentro. El corte simple favorece grupos diminutos, así que se normaliza por el volumen de cada grupo:</p>
+            <div class="formula">
+              <span class="formula-label">Corte normalizado (Ncut)</span>
+              $$\mathrm{Ncut}(A,B) = \frac{\mathrm{cut}(A,B)}{\mathrm{vol}(A)} + \frac{\mathrm{cut}(A,B)}{\mathrm{vol}(B)}$$
+              <span class="formula-caption">$\mathrm{cut}(A,B)=\sum_{i\in A,j\in B}W_{ij}$ y $\mathrm{vol}(A)=\sum_{i\in A}d_i$. Minimizar Ncut es NP-difícil, pero su relajación espectral es tratable.</span>
+            </div>
+
+            <h3>El laplaciano</h3>
+            <div class="formula">
+              <span class="formula-label">Laplaciano y laplaciano normalizado</span>
+              $$L = D-W, \qquad L_{\text{sym}} = I - D^{-1/2}WD^{-1/2}$$
+              <span class="formula-caption">$D$ es la matriz diagonal de grados. $L$ es simétrica y semidefinida positiva; su autovalor más pequeño es 0, con autovector constante.</span>
+            </div>
+            <p>La intuición: el número de componentes conectadas del grafo es igual a la multiplicidad del autovalor 0 de $L$. Si el grafo tiene $K$ comunidades bien separadas, los primeros $K$ autovectores de $L_{\text{sym}}$ son casi constantes dentro de cada comunidad. Usarlos como nuevas coordenadas convierte un problema no convexo en un k-means fácil.</p>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">Paso 1</span><h4>Grafo de similitud</h4><p>Construye $W$ con $k$-NN y afinidad gaussiana. Estandariza antes.</p></div>
+              <div class="algo-card"><span class="tag">Paso 2</span><h4>Laplaciano</h4><p>Calcula $L_{\text{sym}}$ y sus primeros $K$ autovectores.</p></div>
+              <div class="algo-card"><span class="tag">Paso 3</span><h4>Embedding</h4><p>Forma la matriz $U\in\mathbb{R}^{n\times K}$ con esos autovectores como columnas y normaliza cada fila a norma 1.</p></div>
+              <div class="algo-card"><span class="tag">Paso 4</span><h4>k-means</h4><p>Agrupa las filas de $U$ con k-means. Cada fila es la representación espectral de un punto.</p></div>
+            </div>
+
+            <h3>Cadenas de Markov</h3>
+            <p>Una cadena de Markov describe una secuencia de estados donde el futuro depende solo del presente. Su matriz de transición $P$ tiene filas que suman 1:</p>
+            <div class="formula">
+              $$P_{ij} = P\left(z_{t+1}=j\mid z_t=i\right), \qquad P_{ij}\ge0, \qquad \sum_j P_{ij}=1$$
+              <span class="formula-caption">La distribución de estados evoluciona como $\pi_{t+1}=\pi_t P$. Si existe una distribución estacionaria, cumple $\pi P=\pi$: es el autovector izquierdo de $P$ asociado a 1.</span>
+            </div>
+            <p>El clustering espectral tiene una lectura markoviana: normalizando $W$ por filas se obtiene una matriz de transición. Los autovectores de $L_{\text{sym}}$ describen los modos lentos de mezcla del paseo aleatorio. Las comunidades son regiones donde el paseo queda atrapado mucho tiempo antes de saltar.</p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Dos comunidades y un puente</h4></div>
+              <div class="example-body">
+                <p>Imagina dos grupos de 10 nodos totalmente conectados dentro de cada grupo y una única arista entre ellos. El corte entre comunidades tiene peso 1; cualquier corte interno tiene peso mucho mayor.</p>
+                <p>El autovalor 0 de $L$ tiene multiplicidad 1 (el grafo es conexo), pero el segundo autovalor es muy pequeño: mide la dificultad del corte. El autovector asociado toma valores positivos en una comunidad y negativos en la otra. Al graficarlo, la separación es visible a simple vista.</p>
+                <p>Si se añaden más puentes, el segundo autovalor crece y la separación se difumina. Ese valor, llamado <em>conductancia</em> o <em>gap espectral</em>, es un indicador de cuán clusterizable es el grafo.</p>
+              </div>
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">Costo y estabilidad</span>
+              La descomposición espectral completa cuesta $O(n^3)$. Para $n$ grande se usan solvers iterativos para los primeros autovectores, pero sigue siendo más caro que k-means. Además, el resultado depende de $\sigma$ y de $k$ en el grafo de vecinos: no hay una elección universal.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.18 · Laplaciano de un grafo pequeño</summary>
+            <div class="answer">
+              <p>Tres nodos en línea: aristas 1–2 y 2–3, todas de peso 1.</p>
+              <ol>
+                <li>Escribe $W$, $D$ y $L$.</li>
+                <li>Calcula los autovalores de $L$.</li>
+                <li>¿Cuántas componentes conexas tiene el grafo y cómo se refleja?</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) $W=\begin{pmatrix}0&1&0\\1&0&1\\0&1&0\end{pmatrix}$, $D=\operatorname{diag}(1,2,1)$, $L=\begin{pmatrix}1&-1&0\\-1&2&-1\\0&-1&1\end{pmatrix}$. (2) Autovalores $0,1,3$. (3) Una sola componente; el autovalor 0 tiene multiplicidad 1. Si se eliminara la arista 2–3, habría dos componentes y el autovalor 0 tendría multiplicidad 2.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l19" data-title="Modelos ocultos de Markov">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.19</div>
+              <h2>Modelos ocultos de Markov (HMM)</h2>
+              <div class="lesson-meta"><span>24 min</span><span class="sep"></span><span>Secuencias</span><span class="sep"></span><span>MIT · clase 19</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l19"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Muchos datos llegan en secuencia: voz, texto, ADN, precios, sensores. Un HMM supone que detrás de la secuencia observada hay una cadena de estados oculta que evoluciona de forma markoviana. Es el modelo secuencial más influyente antes del deep learning, y sigue siendo una excelente herramienta conceptual.</p>
+
+            <h3>Definición</h3>
+            <p>Un HMM tiene estados ocultos $z_t\in\{1,\dots,K\}$ y observaciones $x_t$. Se especifica con:</p>
+            <ul>
+              <li><strong>Distribución inicial:</strong> $\pi_i=P(z_1=i)$.</li>
+              <li><strong>Transiciones:</strong> $a_{ij}=P(z_{t+1}=j\mid z_t=i)$.</li>
+              <li><strong>Emisiones:</strong> $b_i(x)=P(x_t=x\mid z_t=i)$, discretas o continuas (gaussianas).</li>
+            </ul>
+            <div class="formula">
+              <span class="formula-label">Probabilidad conjunta</span>
+              $$p(x_{1:T},z_{1:T}) = \pi_{z_1}\,b_{z_1}(x_1)\prod_{t=2}^{T}a_{z_{t-1},z_t}\,b_{z_t}(x_t)$$
+              <span class="formula-caption">La cadena de estados es de primer orden: el estado actual resume todo el pasado. Las observaciones son condicionalmente independientes dado el estado.</span>
+            </div>
+
+            <h3>El problema de la verosimilitud</h3>
+            <p>Calcular $p(x_{1:T})$ sumando sobre todas las trayectorias posibles requiere $K^T$ términos. Para $T=100$ y $K=5$ es imposible. El algoritmo <strong>forward</strong> explota la estructura para calcularlo en $O(TK^2)$:</p>
+            <div class="formula">
+              <span class="formula-label">Recursión forward</span>
+              $$\alpha_1(j) = \pi_j\,b_j(x_1), \qquad \alpha_t(j) = b_j(x_t)\sum_{i=1}^{K}\alpha_{t-1}(i)\,a_{ij}$$
+              <span class="formula-caption">$\alpha_t(j)=p(x_{1:t},z_t=j)$ es la probabilidad de haber visto las primeras $t$ observaciones y estar en el estado $j$. La verosimilitud total es $p(x_{1:T})=\sum_j\alpha_T(j)$.</span>
+            </div>
+            <p>La misma idea funciona hacia atrás:</p>
+            <div class="formula">
+              <span class="formula-label">Recursión backward</span>
+              $$\beta_T(j)=1, \qquad \beta_t(i)=\sum_{j=1}^{K}a_{ij}\,b_j(x_{t+1})\,\beta_{t+1}(j)$$
+              <span class="formula-caption">$\beta_t(i)=p(x_{t+1:T}\mid z_t=i)$. Forward y backward juntos permiten calcular la posterior de cualquier estado en cualquier instante.</span>
+            </div>
+
+            <h3>Suavizado y responsabilidades</h3>
+            <div class="formula">
+              <span class="formula-label">Posterior marginal del estado</span>
+              $$\gamma_t(i) = P\left(z_t=i\mid x_{1:T}\right) = \frac{\alpha_t(i)\beta_t(i)}{\sum_{j}\alpha_t(j)\beta_t(j)}$$
+              <span class="formula-caption">Es la probabilidad de estar en el estado $i$ en el instante $t$, usando toda la secuencia. Es el análogo de la responsabilidad en una mezcla.</span>
+            </div>
+            <div class="formula">
+              <span class="formula-label">Posterior de una transición</span>
+              $$\xi_t(i,j) = P\left(z_t=i,z_{t+1}=j\mid x_{1:T}\right) = \frac{\alpha_t(i)\,a_{ij}\,b_j(x_{t+1})\,\beta_{t+1}(j)}{p(x_{1:T})}$$
+              <span class="formula-caption">$\xi$ indica cuánto contribuye cada transición $i\to j$ a explicar los datos. Es la base del aprendizaje no supervisado (Baum–Welch).</span>
+            </div>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Un HMM de clima</h4></div>
+              <div class="example-body">
+                <p>Estados ocultos: soleado (S) y lluvioso (L). Observaciones: paraguas (P) o no paraguas (N). Transiciones: $P(S\to S)=0.8$, $P(S\to L)=0.2$, $P(L\to S)=0.3$, $P(L\to L)=0.7$. Emisiones: $P(P\mid S)=0.1$, $P(P\mid L)=0.8$.</p>
+                <p>Si observamos la secuencia $N, P, P$ y empezamos con $\pi_S=\pi_L=0.5$:</p>
+                <div class="step"><span class="step-n">1</span><div>$\alpha_1(S)=0.5(0.9)=0.45$; $\alpha_1(L)=0.5(0.2)=0.10$.</div></div>
+                <div class="step"><span class="step-n">2</span><div>$\alpha_2(S)=0.1[0.45(0.8)+0.10(0.3)]=0.1(0.39)=0.039$.</div></div>
+                <div class="step"><span class="step-n">3</span><div>$\alpha_2(L)=0.8[0.45(0.2)+0.10(0.7)]=0.8(0.16)=0.128$.</div></div>
+                <div class="step"><span class="step-n">4</span><div>$\alpha_3(S)=0.1[0.039(0.8)+0.128(0.3)]=0.1(0.0696)=0.00696$.</div></div>
+                <div class="step"><span class="step-n">5</span><div>$\alpha_3(L)=0.8[0.039(0.2)+0.128(0.7)]=0.8(0.0974)=0.0779$.</div></div>
+                <div class="step"><span class="step-n">6</span><div>Verosimilitud $=0.00696+0.0779\approx0.0849$. La secuencia es más probable bajo un régimen lluvioso, como sugiere la intuición.</div></div>
+              </div>
+            </div>
+
+            <div class="callout info">
+              <span class="callout-title">Tres problemas clásicos</span>
+              (1) <strong>Evaluación:</strong> ¿cuál es la probabilidad de una secuencia? → forward. (2) <strong>Decodificación:</strong> ¿cuál es la secuencia de estados más probable? → Viterbi. (3) <strong>Aprendizaje:</strong> ¿cómo estimar $\pi,a,b$? → Baum–Welch o conteos si hay estados etiquetados. Las tres se resuelven con programación dinámica.
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">Subdesbordamiento numérico</span>
+              Los productos de probabilidades se vuelven cero rápidamente. En la práctica se trabaja en escala logarítmica ($\log\alpha$) o se renormaliza $\alpha_t$ en cada paso. Nunca implementes forward con productos directos para $T \gt 30$.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.19 · Forward a mano</summary>
+            <div class="answer">
+              <p>Con el HMM del ejemplo, calcula $\alpha_1$ y $\alpha_2$ si la secuencia empieza con $P, P$ en lugar de $N, P$.</p>
+              <p><strong>Solución:</strong> $\alpha_1(S)=0.5(0.1)=0.05$; $\alpha_1(L)=0.5(0.8)=0.40$. Luego $\alpha_2(S)=0.1[0.05(0.8)+0.40(0.3)]=0.1(0.16)=0.016$; $\alpha_2(L)=0.8[0.05(0.2)+0.40(0.7)]=0.8(0.29)=0.232$. La verosimilitud parcial es $0.248$ y domina el estado lluvioso: dos paraguas seguidos son evidencia fuerte de lluvia.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l20" data-title="HMM: decodificación y aprendizaje">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.20</div>
+              <h2>HMM: decodificación y aprendizaje</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Viterbi + Baum–Welch</span><span class="sep"></span><span>MIT · clase 20</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l20"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Saber la probabilidad de una secuencia es útil, pero a menudo queremos la secuencia de estados más probable, o directamente aprender los parámetros del modelo. Viterbi y Baum–Welch resuelven ambos problemas con la misma idea de mensajes hacia adelante y hacia atrás.</p>
+
+            <h3>Viterbi</h3>
+            <p>Definimos $\delta_t(j)$ como la probabilidad de la mejor trayectoria que termina en el estado $j$ en el instante $t$:</p>
+            <div class="formula">
+              <span class="formula-label">Recursión de Viterbi</span>
+              $$\delta_1(j)=\pi_j b_j(x_1), \qquad \delta_t(j)=b_j(x_t)\max_{i}\left[\delta_{t-1}(i)\,a_{ij}\right]$$
+              <span class="formula-caption">Se guarda el argmax $\psi_t(j)$ para reconstruir la trayectoria al final. La diferencia con forward es que se usa $\max$ en lugar de $\sum$.</span>
+            </div>
+            <div class="formula">
+              <span class="formula-label">Reconstrucción</span>
+              $$z_T^{*}=\arg\max_j\delta_T(j), \qquad z_t^{*}=\psi_{t+1}\left(z_{t+1}^{*}\right)$$
+              <span class="formula-caption">El resultado es la trayectoria conjunta más probable, no la secuencia de estados marginalmente más probables. Ambas cosas pueden diferir, y es un error conceptual frecuente.</span>
+            </div>
+
+            <h3>Baum–Welch: EM para HMM</h3>
+            <p>Si no observamos los estados, podemos estimar los parámetros con EM. Las responsabilidades son $\gamma_t(i)$ y $\xi_t(i,j)$, calculadas con forward–backward. El M-step usa conteos esperados:</p>
+            <div class="formula">
+              <span class="formula-label">Reestimación</span>
+              $$\hat\pi_i=\gamma_1(i), \qquad \hat a_{ij}=\frac{\sum_{t=1}^{T-1}\xi_t(i,j)}{\sum_{t=1}^{T-1}\gamma_t(i)}, \qquad \hat b_i(v)=\frac{\sum_{t:x_t=v}\gamma_t(i)}{\sum_{t=1}^{T}\gamma_t(i)}$$
+              <span class="formula-caption">Son las frecuencias esperadas de inicio, transición y emisión. Con emisiones gaussianas, la media y la varianza se estiman ponderando cada observación por $\gamma_t(i)$.</span>
+            </div>
+            <p>Cada iteración de Baum–Welch aumenta la verosimilitud de los datos, igual que EM en mezclas. Converge a un máximo local y requiere varias inicializaciones. Con secuencias etiquetadas, basta con contar transiciones y emisiones directamente (aprendizaje supervisado).</p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Viterbi en el HMM del clima</h4></div>
+              <div class="example-body">
+                <p>Secuencia $N,P,P$, mismos parámetros que la clase anterior.</p>
+                <div class="step"><span class="step-n">1</span><div>$\delta_1(S)=0.45$, $\delta_1(L)=0.10$; $\psi_1$ vacío.</div></div>
+                <div class="step"><span class="step-n">2</span><div>$\delta_2(S)=0.1\max(0.45(0.8),0.10(0.3))=0.1(0.36)=0.036$, con $\psi_2(S)=S$. $\delta_2(L)=0.8\max(0.45(0.2),0.10(0.7))=0.8(0.09)=0.072$, con $\psi_2(L)=S$.</div></div>
+                <div class="step"><span class="step-n">3</span><div>$\delta_3(S)=0.1\max(0.036(0.8),0.072(0.3))=0.1(0.0288)=0.00288$, $\psi_3(S)=S$. $\delta_3(L)=0.8\max(0.036(0.2),0.072(0.7))=0.8(0.0504)=0.04032$, $\psi_3(L)=L$.</div></div>
+                <div class="step"><span class="step-n">4</span><div>Termina en $L$. Reconstrucción: $z_3=L$, $z_2=\psi_3(L)=L$, $z_1=\psi_2(L)=S$. Trayectoria óptima: $S,L,L$.</div></div>
+                <div class="step"><span class="step-n">✓</span><div>Observa que la trayectoria óptima no coincide necesariamente con los estados más probables en cada instante por separado. Viterbi optimiza la secuencia completa.</div></div>
+              </div>
+            </div>
+
+            <div class="callout math">
+              <span class="callout-title">Por qué $O(TK^2)$</span>
+              En cada instante se calculan $K$ valores $\delta_t(j)$, y cada uno requiere mirar $K$ estados anteriores. Con $T$ pasos, el costo es $O(TK^2)$ y la memoria $O(TK)$ si se guardan los punteros. Sin programación dinámica, el costo sería $O(K^T)$.
+            </div>
+
+            <div class="callout warn">
+              <span class="callout-title">Inicialización y modelos degenerados</span>
+              Baum–Welch puede quedar atrapado en máximos locales poco útiles. Estrategias: inicializar con k-means sobre las observaciones, usar varias semillas, imponer un suelo a las probabilidades de emisión y validar con datos retenidos. Un HMM con demasiados estados memoriza la secuencia de entrenamiento y no generaliza.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.20 · Forward vs. Viterbi</summary>
+            <div class="answer">
+              <p>Explica por qué la secuencia de estados marginalmente más probables puede no ser la trayectoria más probable.</p>
+              <p><strong>Solución:</strong> forward calcula $P(z_t=i\mid x)$ para cada $t$ por separado, sumando sobre todas las trayectorias compatibles. Elegir el argmax en cada instante puede producir una combinación de estados que nunca ocurre junta, o que implica transiciones de probabilidad cero. Viterbi maximiza $P(z_{1:T}\mid x)$ de forma conjunta y garantiza una trayectoria coherente. La diferencia es la misma que entre marginales y moda conjunta.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l21" data-title="Redes bayesianas">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.21</div>
+              <h2>Redes bayesianas</h2>
+              <div class="lesson-meta"><span>24 min</span><span class="sep"></span><span>Modelos gráficos</span><span class="sep"></span><span>MIT · clase 21</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l21"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Una red bayesiana es una forma compacta de representar una distribución conjunta sobre muchas variables. En lugar de una tabla de tamaño exponencial, usa un grafo dirigido acíclico y una factorización basada en independencias condicionales. Es el lenguaje natural para razonar con incertidumbre.</p>
+
+            <h3>Factorización</h3>
+            <p>Sea $G$ un grafo dirigido acíclico (DAG) con un nodo por variable. Cada nodo $X_i$ tiene un conjunto de padres $\mathrm{pa}(X_i)$. La distribución conjunta se factoriza como:</p>
+            <div class="formula">
+              <span class="formula-label">Factorización de una red bayesiana</span>
+              $$p(x_1,\dots,x_d) = \prod_{i=1}^{d}p\left(x_i\mid \mathrm{pa}(x_i)\right)$$
+              <span class="formula-caption">Cada factor es una distribución condicional local. El número de parámetros es la suma de tablas locales, no el producto de todas las variables. Esa es la ganancia de compacidad.</span>
+            </div>
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Diagnóstico médico</h4></div>
+              <div class="example-body">
+                <p>Variables: gripe ($G$), fiebre ($F$), tos ($T$), dolor muscular ($M$). Supongamos $G\to F$, $G\to T$, $G\to M$.</p>
+                <div class="formula">$$p(G,F,T,M)=p(G)\,p(F\mid G)\,p(T\mid G)\,p(M\mid G)$$</div>
+                <p>Con variables binarias, la tabla completa tendría $2^4-1=15$ parámetros. La factorización tiene $1+2+2+2=7$: la mitad. Con 30 variables, la diferencia entre $2^{30}$ y unas decenas de parámetros es la diferencia entre lo imposible y lo trivial.</p>
+                <p>Las independencias codificadas son: fiebre y tos son independientes dado el estado de gripe; conocer la gripe hace que los síntomas dejen de aportar información entre sí.</p>
+              </div>
+            </div>
+
+            <h3>Independencia condicional y d-separación</h3>
+            <p>La estructura del grafo codifica independencias. Para leerlas se usa el criterio de <strong>d-separación</strong>: dos conjuntos $A$ y $B$ son independientes dado $C$ si todo camino entre ellos está bloqueado. Un camino se bloquea si:</p>
+            <ul>
+              <li>Contiene una cadena $A\to X\to B$ o una bifurcación $A\leftarrow X\to B$ con $X\in C$.</li>
+              <li>Contiene un colisionador $A\to X\leftarrow B$ donde $X\notin C$ y ninguno de sus descendientes está en $C$.</li>
+            </ul>
+            <p>El colisionador es la parte contraintuitiva: dos causas independientes se vuelven dependientes al condicionar en el efecto. Si fiebre depende de gripe y de infección, saber que hay fiebre hace que la presencia de gripe cambie la probabilidad de infección. Es el famoso <em>explaining away</em>.</p>
+
+            <div class="callout math">
+              <span class="callout-title">Markov blanket</span>
+              El <strong>manto de Markov</strong> de un nodo es el conjunto mínimo de variables que lo aíslan del resto: sus padres, sus hijos y los otros padres de sus hijos. Conocer el manto hace que el nodo sea condicionalmente independiente de todo lo demás. Es la base de los algoritmos de inferencia local y del muestreo de Gibbs.
+            </div>
+
+            <h3>Inferencia</h3>
+            <p>El problema central es calcular la posterior de variables de interés dado lo observado:</p>
+            <div class="formula">
+              $$p\left(X_Q\mid X_E=x_E\right) = \frac{\sum_{X_H}p\left(X_Q,X_E=x_E,X_H\right)}{\sum_{X_Q,X_H}p\left(X_Q,X_E=x_E,X_H\right)}$$
+              <span class="formula-caption">$Q$ son las variables de consulta, $E$ las observadas y $H$ las ocultas. La suma directa es exponencial en el número de variables ocultas.</span>
+            </div>
+            <p>Algoritmos exactos: eliminación de variables, árbol de unión (junction tree), propagación de creencias en árboles. Algoritmos aproximados: muestreo por importancia, MCMC (Gibbs), variacionales. En general, la inferencia exacta en redes arbitrarias es NP-difícil, así que la elección depende de la estructura y del tamaño.</p>
+
+            <div class="callout warn">
+              <span class="callout-title">Grafo ≠ causalidad</span>
+              Una arista indica una dependencia condicional en la factorización, no necesariamente una relación causal. La misma distribución puede factorizarse con distintas estructuras (clases de equivalencia de Markov). Para afirmar causalidad hacen falta supuestos adicionales e intervenciones, no solo datos observacionales.
+            </div>
+
+            <div class="callout tip">
+              <span class="callout-title">Cómo construir una red</span>
+              Ordena las variables de causa a efecto, añade los padres directos de cada una y verifica que la tabla local sea manejable. Si un nodo tiene 10 padres binarios, su tabla tiene $2^{10}=1024$ filas: quizá convenga una parametrización más simple (Naive Bayes, noisy-OR) o dividir el nodo.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.21 · Leer independencias</summary>
+            <div class="answer">
+              <p>Red: $A\to C$, $B\to C$, $C\to D$.</p>
+              <ol>
+                <li>¿Son $A$ y $B$ independientes marginalmente?</li>
+                <li>¿Y condicionando en $C$?</li>
+                <li>¿Y condicionando en $D$?</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) Sí: el único camino $A\to C\leftarrow B$ es un colisionador y no se condiciona en $C$ ni en un descendiente. (2) No: condicionar en el colisionador abre el camino; es <em>explaining away</em>. (3) Tampoco: $D$ es descendiente de $C$, y condicionar en un descendiente del colisionador también abre el camino. La dependencia inducida puede ser más débil, pero existe.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l22" data-title="Aprendizaje de redes bayesianas">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.22</div>
+              <h2>Aprendizaje de redes bayesianas</h2>
+              <div class="lesson-meta"><span>22 min</span><span class="sep"></span><span>Estimación + estructura</span><span class="sep"></span><span>MIT · clase 22</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l22"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Construir una red a mano funciona con pocas variables, pero no con cientos. Aprender la red a partir de datos tiene dos partes: estimar las tablas de probabilidad (parámetros) y descubrir qué aristas existen (estructura). La primera es fácil con datos completos; la segunda es un problema combinatorio.</p>
+
+            <h3>Estimación de parámetros con datos completos</h3>
+            <p>Si la estructura es conocida y no hay variables ocultas, la log-verosimilitud se descompone en una suma de términos independientes, uno por nodo:</p>
+            <div class="formula">
+              $$\log p(\mathcal{D}\mid G,\theta) = \sum_{i=1}^{d}\sum_{j=1}^{q_i}\sum_{k=1}^{r_i}N_{ijk}\log\theta_{ijk}$$
+              <span class="formula-caption">$q_i$ es el número de configuraciones de los padres de $X_i$; $r_i$ el número de valores de $X_i$; $N_{ijk}$ el conteo de casos con $X_i=k$ y padres en la configuración $j$.</span>
+            </div>
+            <p>La solución es simplemente la frecuencia relativa:</p>
+            <div class="formula">
+              <span class="formula-label">Estimación máximo verosímil</span>
+              $$\hat\theta_{ijk} = \frac{N_{ijk}}{\sum_{k'=1}^{r_i}N_{ijk'}}$$
+              <span class="formula-caption">Con datos escasos, muchos conteos son cero y las probabilidades quedan en 0 o 1. El suavizado de Laplace añade $\alpha$ a cada celda: $\hat\theta_{ijk}=(N_{ijk}+\alpha)/(N_{ij}+\alpha r_i)$.</span>
+            </div>
+
+            <h3>Aprendizaje de estructura</h3>
+            <p>Con $d$ variables hay un número superexponencial de DAGs posibles. Se usan dos enfoques:</p>
+            <div class="algo-grid">
+              <div class="algo-card"><span class="tag">Basado en score</span><h4>Búsqueda + puntuación</h4><p>Define un score (BIC, verosimilitud penalizada, posterior bayesiano) y busca el grafo que lo maximiza con operadores de añadir, borrar o invertir aristas.</p></div>
+              <div class="algo-card"><span class="tag">Basado en restricciones</span><h4>Tests de independencia</h4><p>Hace tests condicionales para descubrir independencias y construye el grafo compatible. Sensible a errores de test con muestras pequeñas.</p></div>
+              <div class="algo-card"><span class="tag">Híbrido</span><h4>PC + score</h4><p>Usa tests para orientar y luego búsqueda local para refinar. Buen equilibrio en la práctica.</p></div>
+              <div class="algo-card"><span class="tag">Funcional</span><h4>Orden topológico</h4><p>Si se conoce un orden causal, solo hay que decidir los padres de cada nodo: $d$ problemas de selección de variables.</p></div>
+            </div>
+            <p>El score BIC para una estructura $G$ es:</p>
+            <div class="formula">
+              <span class="formula-label">Score BIC de una red</span>
+              $$\mathrm{BIC}(G) = \sum_{i=1}^{d}\left[\sum_{j,k}N_{ijk}\log\frac{N_{ijk}}{N_{ij}} - \frac{q_i(r_i-1)}{2}\log n\right]$$
+              <span class="formula-caption">La primera parte premia el ajuste; la segunda castiga el número de parámetros. El score es descomponible por nodo, lo que permite búsqueda local eficiente.</span>
+            </div>
+
+            <h3>Variables ocultas</h3>
+            <p>Si algunas variables no se observan, la verosimilitud vuelve a tener sumas dentro del logaritmo y se necesita EM o métodos bayesianos. Las variables ocultas pueden mejorar la compacidad (un factor latente que explica muchas correlaciones), pero complican la identificabilidad y el aprendizaje. En la práctica se introducen solo cuando hay evidencia de estructura latente.</p>
+
+            <div class="callout warn">
+              <span class="callout-title">Correlación no implica arista</span>
+              La estructura aprendida depende del score, del suavizado y de la muestra. Dos variables correlacionadas pueden aparecer conectadas, o ambas pueden depender de una tercera no observada. La red es un modelo, no un mapa causal garantizado. Valida con datos nuevos y, si el objetivo es causal, diseña experimentos.
+            </div>
+
+            <div class="callout tip">
+              <span class="callout-title">Herramientas</span>
+              Para empezar: <code>pgmpy</code> en Python permite definir redes, estimar parámetros y hacer inferencia. Para estructura, <code>bnlearn</code> (R/Python) y <code>causal-learn</code> ofrecen búsqueda por score y tests de independencia. Empieza con pocas variables y un orden causal plausible: la búsqueda exhaustiva no es una opción.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.22 · Conteos y suavizado</summary>
+            <div class="answer">
+              <p>Para un nodo binario $X$ con un padre binario $Y$, se observan: $Y=0$: 30 casos con $X=0$, 10 con $X=1$; $Y=1$: 5 con $X=0$, 15 con $X=1$.</p>
+              <ol>
+                <li>Estima $P(X=1\mid Y=0)$ y $P(X=1\mid Y=1)$ sin suavizado.</li>
+                <li>Repite con suavizado de Laplace ($\alpha=1$).</li>
+                <li>¿Por qué el suavizado importa más en $Y=1$?</li>
+              </ol>
+              <p><strong>Solución:</strong> (1) $10/40=0.25$ y $15/20=0.75$. (2) $(10+1)/(40+2)=11/42\approx0.262$ y $(15+1)/(20+2)=16/22\approx0.727$. (3) En $Y=1$ hay menos datos (20 frente a 40), así que el prior pesa relativamente más. Con conteos pequeños, el MLE puede producir probabilidades extremas poco fiables.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="lesson" id="l-m12-l23" data-title="Inferencia, filtrado colaborativo y cierre">
+          <div class="lesson-head">
+            <div class="lesson-head-text">
+              <div class="lesson-kicker">Lección 12.23</div>
+              <h2>Inferencia, filtrado colaborativo y cierre</h2>
+              <div class="lesson-meta"><span>26 min</span><span class="sep"></span><span>Aplicación + repaso</span><span class="sep"></span><span>MIT · clases 23–24</span></div>
+            </div>
+            <button class="complete-btn" data-lesson="m12-l23"><span class="box">✓</span><span class="lbl">Marcar completada</span></button>
+          </div>
+          <div class="prose">
+            <p class="lead">Cerramos el curso con dos temas que muestran el alcance del ML probabilístico: cómo inferir eficientemente en modelos gráficos y cómo recomendar productos a partir de patrones de uso. Después, un mapa de todo lo aprendido y una guía para seguir estudiando.</p>
+
+            <h3>Eliminación de variables</h3>
+            <p>Para calcular $p(X_Q\mid X_E)$ sin enumerar todas las configuraciones, se reordenan las sumas y se eliminan variables una a una, multiplicando solo los factores que las involucran:</p>
+            <div class="formula">
+              <span class="formula-label">Inferencia por factores</span>
+              $$p(X_Q\mid X_E) \propto \sum_{X_H}\prod_{i}\phi_i\left(\text{scope}(\phi_i)\right)$$
+              <span class="formula-caption">Cada $\phi_i$ es un factor (una tabla). Eliminar una variable consiste en multiplicar los factores que la contienen y sumar sobre ella, produciendo un factor nuevo. El costo depende del <strong>ancho del árbol</strong>: el tamaño del mayor factor intermedio.</span>
+            </div>
+            <p>El orden de eliminación importa enormemente. Un mal orden puede crear factores gigantes; un buen orden explota la estructura del grafo. En árboles, la propagación de creencias (belief propagation) calcula todas las marginales en tiempo lineal en el número de nodos, enviando mensajes de ida y vuelta.</p>
+
+            <h3>Filtrado colaborativo</h3>
+            <p>El problema: predecir la valoración que un usuario dará a un ítem, a partir de una matriz dispersa de valoraciones. Dos enfoques clásicos:</p>
+            <ul>
+              <li><strong>Basado en memoria:</strong> encuentra usuarios similares (o ítems similares) y promedia sus valoraciones. Simple e interpretable, pero no escala bien y sufre de arranque en frío.</li>
+              <li><strong>Basado en modelo:</strong> factoriza la matriz en vectores latentes de usuario e ítem. Es la base de los sistemas de recomendación modernos.</li>
+            </ul>
+            <div class="formula">
+              <span class="formula-label">Factorización de matrices</span>
+              $$\min_{U,V}\ \sum_{(u,i)\in\Omega}\left(r_{ui}-x_u^\top y_i\right)^2 + \lambda\left(\lVert x_u\rVert^2+\lVert y_i\rVert^2\right)$$
+              <span class="formula-caption">$\Omega$ son las valoraciones observadas; $x_u\in\mathbb{R}^k$ y $y_i\in\mathbb{R}^k$ son los factores latentes. La regularización evita sobreajustar la matriz dispersa. Se optimiza con SGD alternando usuarios e ítems.</span>
+            </div>
+            <p>La predicción es $\hat r_{ui}=x_u^\top y_i$. Los factores no tienen interpretación directa, pero capturan gustos latentes (género, época, estilo). El mismo esquema, cambiando la pérdida, se usa para <em>ranking</em> implícito (BPR), datos binarios y recomendación secuencial.</p>
+
+            <div class="example">
+              <div class="example-head"><span class="badge-num">1</span><h4>Por qué la factorización funciona</h4></div>
+              <div class="example-body">
+                <p>Supón 1 000 usuarios y 10 000 películas. La matriz completa tendría 10 millones de celdas; solo observamos el 1 %. Con $k=20$, cada usuario y cada película se describen con 20 números: 220 000 parámetros en total, muchos menos que celdas observadas.</p>
+                <p>La suposición es que las preferencias tienen estructura de baja dimensión: a los usuarios les gustan combinaciones de unos pocos factores. Si esa suposición es cierta, la factorización generaliza a celdas no observadas. Si es falsa (gustos idiosincráticos), el modelo no puede predecir mejor que la media.</p>
+                <p>Es el mismo principio de compresión que vimos en PCA y en las mezclas: representar datos complejos con pocos grados de libertad.</p>
+              </div>
+            </div>
+
+            <h3>El mapa del curso</h3>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Bloque</th><th>Clases</th><th>Idea central</th></tr></thead>
+                <tbody>
+                  <tr><td>Clasificación lineal</td><td>1–4</td><td>Fronteras, perceptrón, margen, pérdida logística y regularización</td></tr>
+                  <tr><td>Regresión y kernels</td><td>5–8</td><td>Sesgo-varianza, features implícitas, SVM y optimización dual</td></tr>
+                  <tr><td>Selección y ensambles</td><td>9–14</td><td>Validación, AIC/BIC, MDL, boosting y márgenes</td></tr>
+                  <tr><td>No supervisado</td><td>15–18</td><td>Mezclas, EM, clustering y espectro de grafos</td></tr>
+                  <tr><td>Secuencias y grafos</td><td>19–23</td><td>HMM, redes bayesianas, inferencia y recomendación</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Si tuvieras que quedarte con cinco ideas, serían estas:</p>
+            <ol>
+              <li><strong>Generalizar es el objetivo.</strong> El error de entrenamiento no es evidencia de nada.</li>
+              <li><strong>La capacidad se controla.</strong> Con regularización, márgenes, priors o menos parámetros.</li>
+              <li><strong>La probabilidad unifica.</strong> Verosimilitud, EM, HMM y redes bayesianas son la misma maquinaria aplicada a estructuras distintas.</li>
+              <li><strong>La representación importa.</strong> Kernels, features y variables latentes cambian lo que es linealmente separable.</li>
+              <li><strong>Validar es parte del algoritmo.</strong> Un modelo sin protocolo de evaluación no es un resultado.</li>
+            </ol>
+
+            <h3>Cómo seguir</h3>
+            <ul>
+              <li><strong>Bishop, <em>Pattern Recognition and Machine Learning</em>:</strong> el libro que sigue la estructura de este curso con más profundidad.</li>
+              <li><strong>Murphy, <em>Probabilistic Machine Learning</em>:</strong> versión moderna, gratuita en línea, con código.</li>
+              <li><strong>Hastie, Tibshirani y Friedman, <em>The Elements of Statistical Learning</em>:</strong> referencia para boosting, SVM y selección de modelos.</li>
+              <li><strong>Koller y Friedman, <em>Probabilistic Graphical Models</em>:</strong> el tratamiento definitivo de redes bayesianas e inferencia.</li>
+              <li><strong>Apuntes originales:</strong> <a href="https://ocw.mit.edu/courses/6-867-machine-learning-fall-2006/" target="_blank" rel="noopener">MIT OCW 6.867</a>, con problemas y exámenes resueltos.</li>
+            </ul>
+
+            <div class="callout info">
+              <span class="callout-title">Sobre esta adaptación</span>
+              Este módulo es una reescritura pedagógica en español de las 23 clases con apuntes del curso original. No sustituye a los PDFs: los complementa con intuición, ejemplos numéricos, código Python y simuladores. Si detectas una imprecisión, contrasta siempre con la fuente y con la bibliografía.
+            </div>
+
+            <div class="callout tip">
+              <span class="callout-title">Siguiente paso</span>
+              Elige un algoritmo de este módulo y reimpleméntalo desde cero en un notebook, sin librerías de ML. Después compáralo con Scikit-learn. Ese ejercicio revela todas las decisiones que una API oculta y es la mejor forma de convertir lectura en comprensión.
+            </div>
+          </div>
+          <div class="exercise">
+            <summary>Ejercicio 12.23 · Cierre integrador</summary>
+            <div class="answer">
+              <p>Un hospital quiere predecir sepsis a partir de series temporales de signos vitales, con 8 000 pacientes y etiquetas retardadas.</p>
+              <ol>
+                <li>¿Qué parte del curso aplicarías para modelar la secuencia?</li>
+                <li>¿Cómo estimarías el rendimiento de forma honesta?</li>
+                <li>¿Qué riesgos identificarías antes de desplegar?</li>
+              </ol>
+              <p><strong>Orientación:</strong> (1) Un modelo secuencial (HMM, CRF o una red recurrente) o features agregadas por ventana con un modelo supervisado; el HMM aporta interpretabilidad de estados, la red probablemente más precisión. (2) Validación temporal por paciente, nunca aleatoria: el mismo paciente no debe estar en train y test. Métricas clínicas (sensibilidad a una especificidad fija, tiempo de anticipación) y calibración. (3) Cambio de distribución entre hospitales, etiquetas retardadas y sesgo de medición, costo de falsos positivos, deriva del modelo y necesidad de supervisión humana. Un buen AUC no es autorización clínica.</p>
+            </div>
+          </div>
+          <div class="quiz-mount" data-quiz="12"></div>
+        </article>

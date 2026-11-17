@@ -7,7 +7,7 @@ export type QuizQuestion = {
 
 /**
  * Preguntas de cierre por módulo. El índice del arreglo coincide con el id
- * del módulo (0–11). Cada pregunta tiene una sola respuesta correcta.
+ * del módulo (0–12). Cada pregunta tiene una sola respuesta correcta.
  */
 export const quizzes: Record<number, QuizQuestion[]> = {
   0: [
@@ -597,6 +597,92 @@ export const quizzes: Record<number, QuizQuestion[]> = {
       correct: 1,
       explain:
         'La documentación permite evaluar validez, reproducir resultados y entender limitaciones. Un score sin contexto no es evidencia suficiente.'
+    }
+  ],
+  12: [
+    {
+      q: 'En el perceptrón, la actualización $w \\leftarrow w+\\eta y_i x_i$ se aplica cuando…',
+      options: [
+        'el ejemplo está bien clasificado y con margen amplio.',
+        '$y_i\\left(w^\\top x_i+b\\right)\\le 0$, es decir, el ejemplo está mal clasificado o sobre la frontera.',
+        'siempre, en cada ejemplo, sin importar la predicción.',
+        'solo al final de cada época, promediando todos los errores.'
+      ],
+      correct: 1,
+      explain:
+        'El perceptrón es un algoritmo de corrección de errores: solo mueve la frontera cuando el ejemplo cae del lado equivocado (o exactamente sobre ella). Si $y_i(w^\\top x_i+b) \\gt 0$, no hay actualización.'
+    },
+    {
+      q: 'En una SVM de margen máximo con escala canónica, maximizar el margen equivale a…',
+      options: [
+        'maximizar $\\lVert w\\rVert$ sujeto a $y_i(w^\\top x_i+b)\\ge1$.',
+        'minimizar $\\frac12\\lVert w\\rVert^2$ sujeto a $y_i(w^\\top x_i+b)\\ge1$.',
+        'minimizar el número de vectores de soporte.',
+        'maximizar el número de errores de entrenamiento.'
+      ],
+      correct: 1,
+      explain:
+        'El ancho del margen es $2/\\lVert w\\rVert$; maximizarlo es minimizar $\\lVert w\\rVert$, y por conveniencia convexa se minimiza $\\frac12\\lVert w\\rVert^2$. Los puntos con $\\alpha_i \\gt 0$ son los vectores de soporte.'
+    },
+    {
+      q: 'El «truco del kernel» consiste en…',
+      options: [
+        'aproximar el producto interno con una red neuronal.',
+        'calcular $K(x,z)=\\phi(x)^\\top\\phi(z)$ sin construir explícitamente $\\phi(x)$, a veces en dimensión infinita.',
+        'eliminar las features menos importantes antes de entrenar.',
+        'reemplazar la función de decisión por una regla.'
+      ],
+      correct: 1,
+      explain:
+        'Si el algoritmo solo necesita productos internos, basta evaluar el kernel directamente. Con RBF, $\\phi$ tiene dimensión infinita, pero $K$ se calcula con una exponencial en $O(d)$.'
+    },
+    {
+      q: 'En AdaBoost, un clasificador débil con error ponderado $\\varepsilon_t=0.1$ recibe…',
+      options: [
+        'peso $\\alpha_t=\\frac12\\log\\frac{1-\\varepsilon_t}{\\varepsilon_t}$, que es positivo y relativamente grande.',
+        'peso negativo, porque comete errores.',
+        'el mismo peso que todos los demás.',
+        'peso cero, porque no es perfecto.'
+      ],
+      correct: 0,
+      explain:
+        'La fórmula $\\alpha_t=\\frac12\\log((1-\\varepsilon_t)/\\varepsilon_t)$ asigna más peso a los clasificadores con menor error. Con $\\varepsilon_t=0.1$, $\\alpha_t\\approx1.099$. Si $\\varepsilon_t \\gt 0.5$, el peso se vuelve negativo y el voto se invierte.'
+    },
+    {
+      q: '¿Qué garantiza el algoritmo EM?',
+      options: [
+        'Alcanzar el máximo global de la verosimilitud.',
+        'Que la verosimilitud observada no disminuya en cada iteración.',
+        'Que las componentes nunca se solapen.',
+        'Que el número de componentes sea el correcto.'
+      ],
+      correct: 1,
+      explain:
+        'EM maximiza una cota inferior que se vuelve exacta en el E-step. Por eso la log-verosimilitud es monótona no decreciente. La convergencia es a un máximo local o punto estacionario, y el número de componentes debe elegirse aparte (BIC, validación).'
+    },
+    {
+      q: 'La diferencia esencial entre el algoritmo forward y Viterbi en un HMM es que…',
+      options: [
+        'forward usa $\\max$ y Viterbi usa $\\sum$.',
+        'forward suma sobre trayectorias para obtener la verosimilitud; Viterbi maximiza para obtener la trayectoria conjunta más probable.',
+        'Viterbi solo funciona con emisiones gaussianas.',
+        'forward requiere estados observados.'
+      ],
+      correct: 1,
+      explain:
+        'Forward calcula $p(x_{1:T})$ sumando sobre todas las trayectorias; Viterbi calcula $\\max_{z_{1:T}}p(x_{1:T},z_{1:T})$ con recursión de máximo y punteros. La secuencia de estados marginalmente más probables puede diferir de la trayectoria de Viterbi.'
+    },
+    {
+      q: 'En una red bayesiana con estructura $A\\to C$, $B\\to C$, $C\\to D$, ¿qué afirmación es correcta?',
+      options: [
+        '$A$ y $B$ son independientes marginalmente, pero dependientes al condicionar en $C$.',
+        '$A$ y $B$ son dependientes marginalmente y siguen siéndolo al condicionar en $D$.',
+        '$A$ y $B$ son independientes en cualquier condición.',
+        'La red no puede representar un colisionador.'
+      ],
+      correct: 0,
+      explain:
+        'El camino $A\\to C\\leftarrow B$ es un colisionador. Sin condicionar en $C$ ni en sus descendientes, $A$ y $B$ son independientes. Al condicionar en $C$ (o en $D$, descendiente de $C$) el camino se abre: es el fenómeno de explaining away.'
     }
   ]
 };

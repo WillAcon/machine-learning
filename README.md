@@ -1,12 +1,14 @@
 # Curso de Machine Learning
 
-Plataforma interactiva en español para estudiar Machine Learning de cero a producción. Cubre **12 módulos, 100 lecciones, 12 quizzes, un examen final de 30 preguntas, un glosario de 110 términos, 9 simuladores y 9 proyectos guiados más un proyecto final integrador**, con datasets públicos y código en Python.
+Plataforma interactiva en español para estudiar Machine Learning de cero a producción. Cubre **13 módulos, 123 lecciones, 13 quizzes, un examen final de 35 preguntas, un glosario de 134 términos, 12 simuladores y 9 proyectos guiados más un proyecto final integrador**, con datasets públicos y código en Python.
 
 El sitio es estático: SvelteKit con `@sveltejs/adapter-static` genera HTML prerenderizado en `build/`, listo para Vercel. El progreso, los quizzes, el examen y el tema se guardan en `localStorage`; no hay backend ni cuentas. MathJax y las fuentes se cargan desde CDN.
 
 También es una **PWA instalable**: incluye manifest, service worker, iconos y una página offline. En Android/escritorio aparece un botón de instalación en la barra superior; en iPhone/iPad se instala desde Safari con **Compartir → Añadir a pantalla de inicio**.
 
-**Versión:** `v1.0.0` · **Estado:** completa y verificada (`npm run check` y `npm run build` sin errores).
+**Versión:** `v1.1.0` · **Estado:** completa y verificada (`npm run check` y `npm run build` sin errores).
+
+**Novedad v1.1.0:** módulo 12, adaptación al español de **MIT 6.867 Machine Learning (Fall 2006)**, con 23 lecciones y tres simuladores nuevos.
 
 ## Contenido del curso
 
@@ -24,8 +26,11 @@ También es una **PWA instalable**: incluye manifest, service worker, iconos y u
 | 9 | Visión artificial | `vision-artificial` | 8 | 14 |
 | 10 | MLOps y producción | `mlops` | 8 | 12 |
 | 11 | Proyectos prácticos | `proyectos` | 10 | 30 |
+| 12 | MIT 6.867 Machine Learning | `mit-6-867` | 23 | 40 |
 
-Cada lección incluye intuición, definición formal, fórmulas en LaTeX, ejemplo numérico, aplicación a Machine Learning, código Python y ejercicios. Los módulos 0–11 terminan con un quiz de cuatro preguntas con feedback inmediato.
+Cada lección incluye intuición, definición formal, fórmulas en LaTeX, ejemplo numérico, aplicación a Machine Learning, código Python y ejercicios. Los módulos 0–12 terminan con un quiz con feedback inmediato.
+
+El módulo 12 es una adaptación al español del curso **6.867 Machine Learning (Fall 2006)** del MIT OpenCourseWare: cubre las 23 clases con notas, fórmulas y los tres simuladores nuevos (perceptrón, margen máximo y EM). El material original es © MIT, se distribuye con licencia [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) y esta adaptación conserva la atribución, el uso no comercial y la misma licencia. Los PDF originales se enlazan desde cada lección.
 
 ## Stack
 
@@ -109,11 +114,12 @@ build/
 │   │   │       ├── mod-8.html          # NLP
 │   │   │       ├── mod-9.html          # Visión artificial
 │   │   │       ├── mod-10.html         # MLOps
-│   │   │       └── mod-11.html         # Proyectos
+│   │   │       ├── mod-11.html         # Proyectos
+│   │   │       └── mod-12.html         # MIT 6.867 (adaptación al español)
 │   │   ├── data/
 │   │   │   ├── modules.ts              # metadatos, imports ?raw y extracción de lecciones
-│   │   │   ├── quizzes.ts              # 4 preguntas por módulo
-│   │   │   ├── exam.ts                 # examen final de 30 preguntas
+│   │   │   ├── quizzes.ts              # preguntas por módulo
+│   │   │   ├── exam.ts                 # examen final de 35 preguntas
 │   │   │   ├── glossary.ts             # glosario de términos
 │   │   │   └── search.ts               # índice de búsqueda de lecciones y secciones
 │   │   ├── simulators/
@@ -127,7 +133,10 @@ build/
 │   │   │   ├── pca.ts                  # PCA
 │   │   │   ├── confusion.ts            # matriz de confusión
 │   │   │   ├── neural.ts               # red neuronal
-│   │   │   └── conv.ts                 # convolución
+│   │   │   ├── conv.ts                 # convolución
+│   │   │   ├── perceptron.ts           # perceptrón (módulo 12)
+│   │   │   ├── margin.ts               # SVM de margen blando (módulo 12)
+│   │   │   └── em.ts                   # GMM / EM (módulo 12)
 │   │   └── stores/
 │   │       ├── progress.ts             # progreso, quizzes, examen, tiempo y exportación
 │   │       ├── pwa.ts                  # instalación, service worker y detección de iOS
@@ -173,7 +182,7 @@ build/
 | `/` | Dashboard, progreso global, ruta de aprendizaje y simuladores. |
 | `/modulos/<slug>` | Módulo completo con lecciones, TOC, progreso y quiz. |
 | `/modulos/<slug>#l-mX-lY` | Enlace directo a una lección concreta. |
-| `/examen` | Examen final de 30 preguntas; guarda el mejor resultado. |
+| `/examen` | Examen final de 35 preguntas; guarda el mejor resultado. |
 | `/glosario` | Glosario de conceptos con búsqueda. |
 | `/progreso` | Estadísticas, exportación y reinicio del avance. |
 | `/bibliografia` | Libros, documentación oficial, artículos y datasets. |
@@ -238,6 +247,9 @@ Los simuladores están implementados en Canvas 2D y se inicializan desde `src/li
 | Matriz de confusión | `l-m6-l2` | `cmCanvas` |
 | Red neuronal | `l-m7-l2` | `nnCanvas` |
 | Convolución | `l-m9-l2` | `convCanvas`, `convKernel`, `convAbs`, `convStats` |
+| Perceptrón | `l-m12-l1` | `pcCanvas`, `pcEta`, `pcStep`, `pcRun`, `pcReset` |
+| Margen máximo (SVM) | `l-m12-l3` | `svCanvas`, `svC`, `svReset` |
+| GMM / EM | `l-m12-l15` | `emCanvas`, `emK`, `emStep`, `emRun`, `emReset` |
 
 ## Búsqueda, tema y accesibilidad
 
@@ -272,7 +284,7 @@ La app se puede instalar y usar sin barra de navegador. La configuración vive e
 - Si cambias la estrategia del service worker, sube `CACHE_VERSION` en `static/sw.js` para eliminar cachés antiguas.
 - `vercel.json` sirve `/sw.js` con `max-age=0, must-revalidate` y `Service-Worker-Allowed: /` para que el navegador detecte actualizaciones y el scope sea la raíz.
 
-El modo offline conserva las páginas que ya visitaste. Una ruta nueva sin conexión muestra la página de aviso; no se precargan los 12 módulos completos para no descargar varios megabytes en la instalación.
+El modo offline conserva las páginas que ya visitaste. Una ruta nueva sin conexión muestra la página de aviso; no se precargan los 13 módulos completos para no descargar varios megabytes en la instalación.
 
 ## Persistencia
 
@@ -325,8 +337,9 @@ Vercel usa la configuración de `vercel.json`. Si te pide valores manuales, usa 
 
 ### Comprobaciones después del despliegue
 
-- `/` carga el dashboard con 12 módulos y 100 lecciones.
+- `/` carga el dashboard con 13 módulos y 123 lecciones.
 - `/modulos/proyectos` muestra los 9 proyectos guiados, el proyecto final y el quiz del módulo 11.
+- `/modulos/mit-6-867` muestra las 23 clases del curso del MIT y sus tres simuladores.
 - `/modulos/vision-artificial#l-m9-l2` abre el simulador de convolución.
 - Recargar una ruta profunda (por ejemplo `/examen`) devuelve 200, no 404.
 - El progreso y las respuestas de quiz persisten al recargar y al navegar entre módulos.
@@ -343,7 +356,7 @@ npm run preview
 Estado verificado de esta versión:
 
 - `svelte-check`: **0 errores, 0 advertencias**.
-- Build estático: **12 páginas de módulo, 100 lecciones, 12 quiz-mounts** y `404.html`.
+- Build estático: **13 páginas de módulo, 123 lecciones, 13 quiz-mounts** y `404.html`.
 - Pruebas de interacción en Chrome headless: **13/13** (persistencia de lecciones y quizzes, tema, búsqueda, `Escape`, layout móvil y sidebar).
 - PWA: manifest parseado sin errores, `Page.getInstallabilityErrors` vacío, service worker activo y controlando la página, botón de instalación disponible y los cuatro iconos responden 200.
 - Offline real con el servidor detenido: una lección visitada sigue abriendo y una ruta nueva muestra `offline.html`.

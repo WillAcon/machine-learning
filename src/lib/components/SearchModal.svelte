@@ -101,7 +101,7 @@
               <button class="chip outline" type="button" onclick={() => (query = s)}>{s}</button>
             {/each}
           </div>
-          <div class="search-hint">La búsqueda recorre títulos, secciones y lecciones de los 12 módulos.</div>
+          <div class="search-hint">La búsqueda recorre títulos, secciones y lecciones de todos los módulos.</div>
         </div>
       {:else if results.length === 0}
         <div class="search-empty">

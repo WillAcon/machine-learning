@@ -57,7 +57,7 @@ function buildIndex(): SearchEntry[] {
     }
   }
   entries.push(
-    { href: '/examen', module: 'Evaluación', title: 'Examen final', text: 'Evaluación global de 30 preguntas con retroalimentación.', kind: 'page' },
+    { href: '/examen', module: 'Evaluación', title: 'Examen final', text: 'Evaluación global de 35 preguntas con retroalimentación.', kind: 'page' },
     { href: '/glosario', module: 'Referencia', title: 'Glosario', text: 'Definiciones de los conceptos clave del curso.', kind: 'page' },
     { href: '/bibliografia', module: 'Referencia', title: 'Bibliografía y recursos', text: 'Libros, cursos, documentación y datasets públicos.', kind: 'page' },
     { href: '/progreso', module: 'Panel', title: 'Mi progreso', text: 'Estadísticas, avance por módulo y resultados.', kind: 'page' }

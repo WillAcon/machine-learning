@@ -71,7 +71,7 @@
 
 <svelte:head>
   <title>Examen final · Curso Machine Learning</title>
-  <meta name="description" content="Examen final de 30 preguntas sobre los 12 módulos del curso, con retroalimentación inmediata." />
+  <meta name="description" content={`Examen final de ${examQuestions.length} preguntas sobre todos los módulos del curso, con retroalimentación inmediata.`} />
 </svelte:head>
 
 <div class="view active exam-shell" id="exam-root">
@@ -79,8 +79,9 @@
     <div class="hero-kicker">Evaluación final</div>
     <h1>Examen de Machine Learning</h1>
     <p>
-      30 preguntas que cubren los doce módulos: fundamentos, matemáticas, algoritmos, evaluación,
-      deep learning, NLP, visión y MLOps. Recibes retroalimentación inmediata y un desglose por módulo.
+      {examQuestions.length} preguntas que cubren todos los módulos: fundamentos, matemáticas, algoritmos,
+      evaluación, deep learning, NLP, visión, MLOps y el curso clásico del MIT 6.867. Recibes
+      retroalimentación inmediata y un desglose por módulo.
     </p>
     <div class="hero-meta">
       <span class="chip accent">{examQuestions.length} preguntas</span>
